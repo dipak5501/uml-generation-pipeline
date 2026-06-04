@@ -1,0 +1,12 @@
+.env
+*.pdf
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+data/
+output/
+tools/plantuml.jar
+*.puml
+.ipynb_checkpoints/

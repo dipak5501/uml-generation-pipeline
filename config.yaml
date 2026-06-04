@@ -1,0 +1,45 @@
+# UML Generation Pipeline — Dipak Yadav
+# https://github.com/dipak5501/uml-generation-pipeline
+
+author:
+  name: Dipak Yadav
+  github: dipak5501
+
+data_dir: data
+output_dir: output
+
+# VLM weights from MMMU benchmark scores
+vlm_weights:
+  qwen25vl3b: 53.1
+  llama32vl11b: 50.7
+  aya_vision_8b: 39.9
+
+# Optional Hugging Face benchmark datasets (for download script)
+datasets:
+  class:
+    repo: nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Scored
+    diagram_type: class
+  object:
+    repo: nguyenvanviet/UMLCode_ObjectDiagram_Scored
+    diagram_type: object
+  component:
+    repo: nguyenvanviet/UMLCode_ComponentDiagram_Scored
+    diagram_type: component
+  package:
+    repo: nguyenvanviet/UMLCode_PackageDiagram_Scored
+    diagram_type: package
+
+diagram_types:
+  - class
+  - object
+  - component
+  - package
+
+generation:
+  samples_per_type: 2000
+  temperature_spec: 0.8
+  temperature_code: 0.2
+
+plantuml:
+  jar_path: tools/plantuml.jar
+  image_format: png
