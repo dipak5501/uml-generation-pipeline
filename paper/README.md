@@ -1,6 +1,9 @@
 # Research Paper (LaTeX)
 
-**Author:** Dipak Yadav  
+**Title:** Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design  
+
+**Authors:** Dipak Yadav, Yutong Zhao  
+
 **Overleaf project:** [Open in Overleaf](https://www.overleaf.com/project/69ed35eca71ed1faa143a7b9)
 
 This folder holds the LaTeX source for the paper that describes the [UML Generation Pipeline](../README.md). The live draft is edited on Overleaf; this repo stores a copy for version control alongside the code.
@@ -10,6 +13,8 @@ This folder holds the LaTeX source for the paper that describes the [UML Generat
 | Resource | URL |
 |----------|-----|
 | Overleaf (edit) | https://www.overleaf.com/project/69ed35eca71ed1faa143a7b9 |
+| Main LaTeX | `paper/main.tex` |
+| Bibliography | `paper/references.bib`, `paper/refs_corrected.bib` |
 | GitHub (code + paper) | https://github.com/dipak5501/uml-generation-pipeline |
 
 ## Add your paper from Overleaf (one-time)

@@ -239,40 +239,28 @@ illustrates the end-to-end flow.
               minimum height=0.95cm, fill=blue!6},
   line/.style={-Latex, thick}
 ]
-% Top row: main pipeline
 \node[box] (req)    {Natural-Language\\Requirements};
 \node[box, right=of req]  (spec)   {Stage 1\\Spec Generation\\LLaMA 3.2 1B};
 \node[box, right=of spec] (uml)    {Stage 2\\PlantUML Synthesis\\DeepSeek-R1-32B};
 \node[box, right=of uml]  (render) {Stage 3\\Rendering\\+ Verification};
 
-% Bottom row: verification and output
-\node[box, below=1.2cm of uml] (vlm)   {VLM Ensemble\\Qwen / LLaMA-V / Aya};
-\node[box, below=0.8cm of vlm] (score) {MMMU-Weighted\\Score + Majority Vote};
-\node[box, left=1.2cm of score](ds)    {Validated UML\\Dataset};
+\node[box, below=0.8cm of render, xshift=-1.8cm]
+      (vlm) {VLM Ensemble\\Qwen / LLaMA-V / Aya};
+\node[box, below=0.7cm of vlm]
+      (score) {MMMU-Weighted\\Score + Majority Vote};
+\node[box, left=1.0cm of score]
+      (ds) {Validated UML\\Dataset};
 
-% Main pipeline arrows
 \draw[line] (req)    -- (spec);
 \draw[line] (spec)   -- (uml);
 \draw[line] (uml)    -- (render);
-
-% render feeds down into VLM ensemble
-\draw[line] (render.south) |- (vlm.east);
-
-% VLM to score
-\draw[line] (vlm) -- (score);
-
-% score to dataset
-\draw[line] (score) -- (ds);
-
-% Feedback arrows: req and spec feed into VLM from below
-\draw[line] (req.south)  -- ++(0,-0.55) -| (vlm.north west);
-\draw[line] (spec.south) -- ++(0,-0.35) -| ([xshift=0.2cm]vlm.north);
-
+\draw[line] (render) -- (vlm);
+\draw[line] (vlm)    -- (score);
+\draw[line] (score)  -- (ds);
+\draw[line] (req.south)  |- ++(0,-1.7) -| (vlm.north);
+\draw[line] (spec.south) |- ++(0,-1.1) -| (vlm.north);
 \end{tikzpicture}%
 }
-\caption{End-to-end pipeline: natural-language requirements flow through spec generation (Stage~1), PlantUML synthesis (Stage~2), and rendering + verification (Stage~3). A VLM ensemble scores the rendered diagrams; MMMU-weighted scores and majority vote produce the final validated UML dataset. Feedback paths from the requirements and spec stages feed directly into the VLM ensemble for cross-modal alignment checking.}
-\label{fig:pipeline}
-\end{figure}
 \caption{Three-stage UML generation and multimodal verification
 pipeline. Natural-language requirements feed Stage~1 (structured
 specification), Stage~2 (PlantUML synthesis), and Stage~3 (rendering
