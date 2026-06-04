@@ -10,3 +10,14 @@ output/
 tools/plantuml.jar
 *.puml
 .ipynb_checkpoints/
+
+# LaTeX build artifacts
+paper/*.aux
+paper/*.log
+paper/*.out
+paper/*.toc
+paper/*.bbl
+paper/*.blg
+paper/*.synctex.gz
+paper/*.fdb_latexmk
+paper/*.fls

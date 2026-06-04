@@ -86,11 +86,21 @@ Each generated or downloaded record includes:
 
 Edit `config.yaml` for VLM weights, diagram types, and optional Hugging Face dataset sources.
 
+## Research paper
+
+The LaTeX paper lives in [`paper/`](paper/) and is edited on Overleaf:
+
+- **Overleaf:** [project/69ed35eca71ed1faa143a7b9](https://www.overleaf.com/project/69ed35eca71ed1faa143a7b9)
+- **In this repo:** export from Overleaf → run `./scripts/sync_paper_from_overleaf.sh your-export.zip`
+
+See [paper/README.md](paper/README.md) for the full sync workflow.
+
 ## Project layout
 
 ```
 uml_pipeline/   Core library
 scripts/        CLI tools
+paper/          LaTeX paper (linked to Overleaf)
 config.yaml     Pipeline settings
 data/           Local datasets (gitignored)
 output/         Figures and exports (gitignored)
