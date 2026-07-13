@@ -102,7 +102,7 @@ Dockerfile, docker-compose.yml, Makefile
 6. **Analytics** — plotly charts  
 7. **Settings** — provider mode, health checks  
 
-## Scoring formula (paper-aligned)
+## Scoring formula (per the paper)
 
 ```
 valid = [(s_i, w_i) for each model where s_i > 0]

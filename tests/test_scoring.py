@@ -1,4 +1,4 @@
-"""Unit tests for paper-aligned composite scoring."""
+"""Unit tests for composite scoring (paper formula)."""
 
 from app.services.scoring import formula_snapshot, paper_composite
 

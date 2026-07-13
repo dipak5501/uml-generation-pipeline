@@ -1,4 +1,4 @@
-"""Paper-aligned composite scoring helpers."""
+"""Composite scoring helpers (MMMU-weighted formula from the paper)."""
 
 from __future__ import annotations
 

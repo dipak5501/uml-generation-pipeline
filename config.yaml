@@ -8,7 +8,7 @@ author:
 data_dir: data
 output_dir: output
 
-# VLM weights from MMMU benchmark scores
+# VLM weights from MMMU benchmark scores (see paper)
 vlm_weights:
   qwen25vl3b: 53.1
   llama32vl11b: 50.7

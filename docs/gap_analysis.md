@@ -1,7 +1,7 @@
 # Gap Analysis: UML Generation Thesis Application
 
 **Date:** 2026-07-13  
-**Paper:** *A Novel AI-Driven Approach to UML Dataset Generation and Multimodal Verification in the Design Phase*  
+**Paper:** *Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design* (Dipak Yadav, Yutong Zhao)  
 **Repo:** [dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
 ## Current repo capabilities
@@ -65,7 +65,7 @@
 
 1. Reuse `render.py`, `scoring.py`, `pipeline.generate_*`, `llm_client` as core engines  
 2. Wrap existing functions in services instead of rewriting  
-3. Fix composite score to return `0.0` when no valid scores (paper-aligned)  
+3. Fix composite score to return `0.0` when no valid scores (per the paper formula)  
 4. Ship **mock mode** so the demo runs without GPUs/APIs  
 5. SQLite default — zero external infra for thesis demo  
 

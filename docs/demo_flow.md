@@ -6,5 +6,7 @@
 4. Inspect requirement → tech spec → PlantUML → image (or failure) → scores
 5. Optionally Human Evaluation + Analytics export
 
-Without Java JDK, rendering fails and composite score is forced to 0 (paper-aligned).
+Without Java JDK, rendering fails and composite score is forced to 0 (per the paper formula).
 With JDK + PlantUML jar, mock mode still produces deterministic scores; set `MOCK_PROVIDERS=false` for live models.
+
+Paper: *Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design*.

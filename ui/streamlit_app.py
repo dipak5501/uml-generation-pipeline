@@ -14,7 +14,8 @@ st.set_page_config(
 
 st.title("UML Generation Thesis Demo")
 st.caption(
-    "AI-driven UML dataset generation and multimodal verification — "
+    "Automated UML Dataset Generation from Natural-Language Requirements "
+    "with Multimodal Verification for Software Design — "
     "class, object, component, and package diagrams."
 )
 

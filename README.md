@@ -5,7 +5,7 @@
 
 End-to-end **thesis demo application** that turns plain-English software requirements into design-phase UML diagrams (Class, Object, Component, Package), renders them with PlantUML, scores them with a multimodal VLM ensemble, and supports human evaluation + analytics.
 
-Based on the methodology in *A Novel AI-Driven Approach to UML Dataset Generation and Multimodal Verification in the Design Phase*.
+This repository implements the system described in **Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design** (Dipak Yadav, Yutong Zhao).
 
 ## Architecture
 
@@ -79,7 +79,7 @@ Check health: `GET /api/settings/health`
 | Ollama | `MOCK_PROVIDERS=false` `USE_OLLAMA=true` | Local LLMs/VLMs |
 | OpenAI-compatible | `MOCK_PROVIDERS=false` + `OPENAI_API_KEY` | Cloud / vLLM |
 
-Paper-aligned VLM weights (MMMU): Qwen2.5-VL-3B **53.1**, LLaMA-3.2-11B-Vision **50.7**, Aya-Vision-8B **39.9**.
+VLM weights from the paper (MMMU): Qwen2.5-VL-3B **53.1**, LLaMA-3.2-11B-Vision **50.7**, Aya-Vision-8B **39.9**.
 
 Composite score uses only scores `> 0`; if none are valid (including render failure), final score = **0**.
 
@@ -119,7 +119,7 @@ paper/          LaTeX paper (Overleaf sync)
 
 ## Research paper / Overleaf
 
-See [paper/README.md](paper/README.md). Gap analysis: [docs/gap_analysis.md](docs/gap_analysis.md).
+**Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design** — see [paper/README.md](paper/README.md). Gap analysis: [docs/gap_analysis.md](docs/gap_analysis.md).
 
 ## Legacy CLI (still available)
 

@@ -26,7 +26,7 @@ async def lifespan(_: FastAPI):
 
 
 app = FastAPI(
-    title="UML Generation Thesis API",
+    title="UML Dataset Generation API",
     version="1.0.0",
     lifespan=lifespan,
 )

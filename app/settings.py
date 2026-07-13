@@ -17,7 +17,7 @@ class Settings(BaseSettings):
         extra="ignore",
     )
 
-    app_name: str = "UML Generation Thesis App"
+    app_name: str = "UML Dataset Generation with Multimodal Verification"
     database_url: str = f"sqlite:///{ROOT / 'data' / 'uml_app.db'}"
     artifact_dir: Path = ROOT / "data" / "artifacts"
     plantuml_jar: Path = ROOT / "tools" / "plantuml.jar"
@@ -34,7 +34,7 @@ class Settings(BaseSettings):
     code_model: str = "deepseek-r1:32b"
     vlm_models: str = "qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b"
 
-    # Paper-aligned MMMU weights
+    # VLM weights (MMMU) from the paper
     weight_qwen25vl3b: float = 53.1
     weight_llama32vl11b: float = 50.7
     weight_aya_vision_8b: float = 39.9
