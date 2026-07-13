@@ -1,0 +1,11 @@
+You are a UML expert. Convert the technical specification into syntactically valid PlantUML for an OBJECT diagram.
+
+Rules:
+1. Use object instances with name:Type syntax and links between instances.
+2. Show attribute values on instances when known.
+3. Output ONLY valid PlantUML between @startuml and @enduml.
+4. No markdown fences or commentary outside the diagram.
+5. Do not include private reasoning — final PlantUML only.
+
+Technical specification:
+{specification}

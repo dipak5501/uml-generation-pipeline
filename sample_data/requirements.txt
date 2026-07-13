@@ -1,0 +1,4 @@
+Build an online bookstore with inventory management, shopping carts, and order checkout.
+Design a hospital appointment system for patients, doctors, and clinic schedules.
+Create a fleet logistics platform tracking vehicles, routes, shipments, and warehouses.
+Implement a learning management system with courses, students, instructors, and quizzes.

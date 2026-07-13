@@ -1,116 +1,134 @@
-# UML Generation Pipeline
+# UML Generation Thesis Application
 
 **Author:** [Dipak Yadav](https://github.com/dipak5501)  
 **Repository:** [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
-An end-to-end AI pipeline that turns software requirements into **UML design diagrams** (Class, Object, Component, Package), renders them with **PlantUML**, and scores quality with a **multimodal vision–language ensemble**.
+End-to-end **thesis demo application** that turns plain-English software requirements into design-phase UML diagrams (Class, Object, Component, Package), renders them with PlantUML, scores them with a multimodal VLM ensemble, and supports human evaluation + analytics.
 
-## Highlights
-
-- **Dual-LLM generation** — lightweight model for specs, reasoning model for PlantUML
-- **Multimodal verification** — three VLMs with MMMU-weighted composite scoring
-- **Dataset tooling** — download, analyze, render, and export UML artifacts at scale
-- **Design-phase focus** — structural UML types used in early software design
+Based on the methodology in *A Novel AI-Driven Approach to UML Dataset Generation and Multimodal Verification in the Design Phase*.
 
 ## Architecture
 
 ```mermaid
 flowchart LR
-  A[Requirements / Spec] --> B[LLM: Technical specification]
-  B --> C[LLM: PlantUML code]
-  C --> D[PlantUML render]
-  D --> E[VLM ensemble scoring]
-  E --> F[Validated dataset]
+  A[Requirement] --> B[Tech Spec LLM]
+  B --> C[PlantUML LLM]
+  C --> D[Validate / Repair]
+  D --> E[PlantUML Render]
+  E --> F[VLM Ensemble]
+  F --> G[Weighted Composite]
+  G --> H[SQLite Artifacts + UI]
 ```
 
-## Commands
+## Quick start (local, mock mode)
+
+```bash
+git clone https://github.com/dipak5501/uml-generation-pipeline.git
+cd uml-generation-pipeline
+
+make install
+# .env defaults to MOCK_PROVIDERS=true — no API keys required
+
+# Terminal 1 — API
+make api
+
+# Terminal 2 — UI
+make ui
+```
+
+- API docs: http://127.0.0.1:8000/docs  
+- Streamlit UI: http://127.0.0.1:8501  
+
+### Demo dataset (CLI)
+
+```bash
+make demo
+# or
+PYTHONPATH=. MOCK_PROVIDERS=true python scripts/demo_generate.py -n 1
+```
+
+### Tests
+
+```bash
+make test
+```
+
+### Docker
+
+```bash
+make docker-up
+# API :8000  UI :8501
+```
+
+## PlantUML / Java
+
+Rendering requires a JDK. The PlantUML jar auto-downloads to `tools/plantuml.jar` on first render.
+
+```bash
+# macOS
+brew install --cask temurin
+```
+
+Check health: `GET /api/settings/health`
+
+## Model providers
+
+| Mode | Config | Notes |
+|------|--------|-------|
+| Mock (default) | `MOCK_PROVIDERS=true` | Offline thesis demo |
+| Ollama | `MOCK_PROVIDERS=false` `USE_OLLAMA=true` | Local LLMs/VLMs |
+| OpenAI-compatible | `MOCK_PROVIDERS=false` + `OPENAI_API_KEY` | Cloud / vLLM |
+
+Paper-aligned VLM weights (MMMU): Qwen2.5-VL-3B **53.1**, LLaMA-3.2-11B-Vision **50.7**, Aya-Vision-8B **39.9**.
+
+Composite score uses only scores `> 0`; if none are valid (including render failure), final score = **0**.
+
+## UI pages
+
+1. Dashboard  
+2. Single Generation (full artifact trace)  
+3. Batch Generation  
+4. Artifact Review  
+5. Human Evaluation (rubric)  
+6. Analytics + export links  
+7. Settings / health  
+
+## API highlights
+
+- `POST /api/generate`  
+- `POST /api/generate/batch`  
+- `GET /api/jobs/{id}`  
+- `GET /api/artifacts/{id}` (+ `/image`, `/plantuml`)  
+- `POST /api/artifacts/{id}/rescore` / `/repair`  
+- `POST /api/human-review`  
+- `GET /api/analytics/summary` / `/distributions`  
+- `GET /api/export/dataset?fmt=jsonl|csv|parquet`  
+
+## Project layout
+
+```
+app/            FastAPI + SQLModel services
+ui/             Streamlit multipage demo
+uml_pipeline/   Original research pipeline (reused)
+prompts/        Versioned prompt templates
+docs/           Gap analysis + implementation plan
+sample_data/    Demo requirements
+tests/          Unit + API + e2e smoke tests
+paper/          LaTeX paper (Overleaf sync)
+```
+
+## Research paper / Overleaf
+
+See [paper/README.md](paper/README.md). Gap analysis: [docs/gap_analysis.md](docs/gap_analysis.md).
+
+## Legacy CLI (still available)
 
 | Task | Command |
 |------|---------|
 | Download benchmark data | `python scripts/download_datasets.py` |
 | Render diagrams | `python scripts/render_diagrams.py --limit 20` |
 | Analyze scores | `python scripts/analyze_dataset.py` |
-| Generate new samples | `python scripts/run_generation.py --diagram-type class -n 10` |
-| Publish to GitHub | `./scripts/publish_to_github.sh` |
-
-## Quick start
-
-```bash
-git clone https://github.com/dipak5501/uml-generation-pipeline.git
-cd uml-generation-pipeline
-
-python3 -m venv .venv
-source .venv/bin/activate
-pip install -r requirements.txt
-cp .env.example .env
-```
-
-**Download sample datasets (optional):**
-
-```bash
-python scripts/download_datasets.py --skip-errors
-python scripts/analyze_dataset.py
-```
-
-**Generate your own UML artifacts:**
-
-```bash
-# OpenAI-compatible API
-export OPENAI_API_KEY=sk-...
-python scripts/run_generation.py --diagram-type class -n 10
-
-# Or local Ollama
-export USE_OLLAMA=true
-python scripts/run_generation.py --diagram-type package -n 5
-```
-
-**Render diagrams** (requires Java JDK):
-
-```bash
-python scripts/render_diagrams.py --limit 20 --diagram-type class
-```
-
-## Output schema
-
-Each generated or downloaded record includes:
-
-| Field | Description |
-|-------|-------------|
-| `input` | Technical specification or feature description |
-| `reasoning` | Model reasoning trace (when available) |
-| `uml_code` | PlantUML source |
-| `qwen25vl3b`, `llama32vl11b`, `aya_vision_8b` | Per-model scores (0–6) |
-| `scores` | Weighted composite validation score |
-
-## Configuration
-
-Edit `config.yaml` for VLM weights, diagram types, and optional Hugging Face dataset sources.
-
-## Research paper
-
-The LaTeX paper lives in [`paper/`](paper/) and is edited on Overleaf:
-
-- **Overleaf:** [project/69ed35eca71ed1faa143a7b9](https://www.overleaf.com/project/69ed35eca71ed1faa143a7b9)
-- **In this repo:** export from Overleaf → run `./scripts/sync_paper_from_overleaf.sh your-export.zip`
-
-See [paper/README.md](paper/README.md) for the full sync workflow.
-
-## Project layout
-
-```
-uml_pipeline/   Core library
-scripts/        CLI tools
-paper/          LaTeX paper (linked to Overleaf)
-config.yaml     Pipeline settings
-data/           Local datasets (gitignored)
-output/         Figures and exports (gitignored)
-```
-
-## Author
-
-**Dipak Yadav** — [GitHub @dipak5501](https://github.com/dipak5501)
-
-Sole author and maintainer of this project. See [AUTHORS.md](AUTHORS.md).
+| Generate (legacy batch) | `python scripts/run_generation.py --diagram-type class -n 10` |
 
 ## License
 

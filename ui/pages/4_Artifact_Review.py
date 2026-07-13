@@ -1,0 +1,58 @@
+import streamlit as st
+
+from ui.api_client import api_get, api_get_bytes
+
+st.set_page_config(page_title="Artifact Review", layout="wide")
+st.title("Artifact Review")
+
+diagram_type = st.selectbox("Filter diagram type", ["(all)", "class", "object", "component", "package"])
+render_status = st.selectbox("Filter render status", ["(all)", "success", "failed", "pending"])
+min_score = st.slider("Minimum composite score", 0.0, 6.0, 0.0, 0.1)
+
+params = {}
+if diagram_type != "(all)":
+    params["diagram_type"] = diagram_type
+if render_status != "(all)":
+    params["render_status"] = render_status
+if min_score > 0:
+    params["min_score"] = min_score
+
+try:
+    artifacts = api_get("/api/artifacts", **params)
+except Exception as exc:
+    st.error(exc)
+    st.stop()
+
+st.dataframe(artifacts, use_container_width=True)
+ids = [a["id"] for a in artifacts]
+if not ids:
+    st.info("No artifacts match filters.")
+    st.stop()
+
+selected = st.selectbox("Open artifact", ids)
+detail = api_get(f"/api/artifacts/{selected}")
+
+st.subheader(f"Artifact #{selected} — {detail['diagram_type']}")
+st.write(detail["source_requirement"])
+with st.expander("Technical specification"):
+    st.text(detail["technical_spec"])
+with st.expander("PlantUML"):
+    st.code(detail["plantuml_code"])
+
+c1, c2 = st.columns(2)
+c1.metric("Composite score", f"{detail['composite_score']:.3f}")
+c2.metric("Render", detail["render_status"])
+if detail["render_status"] == "success":
+    try:
+        st.image(api_get_bytes(f"/api/artifacts/{selected}/image"))
+    except Exception as exc:
+        st.error(exc)
+
+st.write("**Model scores**")
+st.dataframe(detail.get("model_scores") or [], use_container_width=True)
+if detail.get("repair_attempts"):
+    st.write("**Repairs**")
+    st.dataframe(detail["repair_attempts"], use_container_width=True)
+if detail.get("human_reviews"):
+    st.write("**Human reviews**")
+    st.dataframe(detail["human_reviews"], use_container_width=True)

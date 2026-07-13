@@ -1,0 +1,10 @@
+# Human evaluation rubric (thesis-aligned)
+
+Rate each dimension from 1 (poor) to 5 (excellent):
+
+1. Semantic correctness — Does the diagram correctly represent the meaning of the requirements/spec?
+2. Structural completeness — Are expected entities, relationships, and structure present?
+3. Syntactic accuracy — Is UML/PlantUML notation used correctly and readably?
+4. Overall coherence — Is the diagram clear, consistent, and free of contradictions?
+
+Optional free-text comments for qualitative notes.
