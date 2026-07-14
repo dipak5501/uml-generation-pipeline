@@ -5,6 +5,7 @@ services:
       - "8000:8000"
     environment:
       MOCK_PROVIDERS: "true"
+      PLANTUML_REMOTE: "true"
       DATABASE_URL: sqlite:////app/data/uml_app.db
       API_BASE_URL: http://api:8000
     volumes:
@@ -18,6 +19,7 @@ services:
     environment:
       API_BASE_URL: http://api:8000
       MOCK_PROVIDERS: "true"
+      PLANTUML_REMOTE: "true"
     depends_on:
       - api
     command: streamlit run ui/streamlit_app.py --server.port 8501 --server.address 0.0.0.0

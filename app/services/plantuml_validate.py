@@ -96,6 +96,17 @@ def validate_component_syntax(code: str) -> ValidationResult:
     return ValidationResult(ok=not msgs, messages=msgs)
 
 
+def validate_flowchart_syntax(code: str) -> ValidationResult:
+    msgs: list[str] = []
+    low = code.lower()
+    has_step = bool(re.search(r"(?m)^\s*:[^;]+;", code))
+    if not has_step and "start" not in low:
+        msgs.append("Flowchart has no activity steps (:Step;) or start")
+    if "start" in low and "stop" not in low and "end" not in low:
+        msgs.append("Flowchart has start but missing stop/end")
+    return ValidationResult(ok=not msgs, messages=msgs)
+
+
 def validate_diagram(code: str, diagram_type: str) -> ValidationResult:
     code = ensure_plantuml_bounds(code)
     result = validate_basic_syntax(code)
@@ -105,4 +116,6 @@ def validate_diagram(code: str, diagram_type: str) -> ValidationResult:
         result = result.merge(validate_object_syntax(code))
     elif diagram_type == "component":
         result = result.merge(validate_component_syntax(code))
+    elif diagram_type == "flowchart":
+        result = result.merge(validate_flowchart_syntax(code))
     return result

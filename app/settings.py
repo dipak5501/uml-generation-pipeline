@@ -9,6 +9,9 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 ROOT = Path(__file__).resolve().parent.parent
 
+# Re-export for routers/scripts
+__all__ = ["Settings", "get_settings", "ROOT"]
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(

@@ -60,7 +60,9 @@ def test_generate_class_artifact(client):
     assert isinstance(art["composite_score"], (int, float))
 
 
-@pytest.mark.parametrize("diagram_type", ["class", "object", "component", "package"])
+@pytest.mark.parametrize(
+    "diagram_type", ["class", "object", "component", "package", "flowchart"]
+)
 def test_e2e_each_diagram_type(client, diagram_type):
     r = client.post(
         "/api/generate",

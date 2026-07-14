@@ -14,7 +14,11 @@ DIAGRAM_PROMPT_MAP = {
     "object": "tech_spec_to_object",
     "component": "tech_spec_to_component",
     "package": "tech_spec_to_package",
+    "flowchart": "tech_spec_to_flowchart",
 }
+
+ALL_DIAGRAM_TYPES = ("class", "object", "component", "package", "flowchart")
+
 
 
 @dataclass(frozen=True)

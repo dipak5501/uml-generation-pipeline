@@ -1,11 +1,17 @@
 import streamlit as st
 
+from ui.theme import apply_theme
+
 from ui.api_client import api_get, api_get_bytes
 
 st.set_page_config(page_title="Artifact Review", layout="wide")
+apply_theme()
 st.title("Artifact Review")
 
-diagram_type = st.selectbox("Filter diagram type", ["(all)", "class", "object", "component", "package"])
+diagram_type = st.selectbox(
+    "Filter diagram type",
+    ["(all)", "class", "object", "component", "package", "flowchart"],
+)
 render_status = st.selectbox("Filter render status", ["(all)", "success", "failed", "pending"])
 min_score = st.slider("Minimum composite score", 0.0, 6.0, 0.0, 0.1)
 

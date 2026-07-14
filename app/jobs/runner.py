@@ -13,7 +13,7 @@ from app.services.orchestration import create_job, get_or_create_default_project
 from app.settings import get_settings
 
 logger = logging.getLogger(__name__)
-_executor = ThreadPoolExecutor(max_workers=2)
+_executor = ThreadPoolExecutor(max_workers=4)
 
 
 def _batch_worker(job_id: int, items: list[tuple[str, str]], project_id: int) -> None:

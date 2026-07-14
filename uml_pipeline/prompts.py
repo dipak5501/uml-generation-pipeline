@@ -27,6 +27,7 @@ PLANTUML_DIAGRAM_HINTS = {
     "object": "Generate a UML Object Diagram in PlantUML. Use object instances with :Type syntax and links between instances.",
     "component": "Generate a UML Component Diagram in PlantUML. Show components, interfaces, and dependencies.",
     "package": "Generate a UML Package Diagram in PlantUML. Use package blocks, nesting, and dependencies (..>). Avoid treating dotted names as separate top-level packages.",
+    "flowchart": "Generate a PlantUML FLOWCHART (activity diagram). Use start/:Step;/if-endif/stop for the main process and decisions.",
 }
 
 PLANTUML_CODE_PROMPT = """You are a UML expert. Convert the technical specification into syntactically valid PlantUML.

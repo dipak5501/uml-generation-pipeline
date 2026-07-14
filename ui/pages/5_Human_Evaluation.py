@@ -2,9 +2,12 @@ from pathlib import Path
 
 import streamlit as st
 
+from ui.theme import apply_theme
+
 from ui.api_client import api_get, api_post
 
 st.set_page_config(page_title="Human Evaluation", layout="wide")
+apply_theme()
 st.title("Human Evaluation")
 
 rubric_path = Path(__file__).resolve().parents[2] / "prompts" / "human_evaluation_rubric.v1.txt"

@@ -1,9 +1,12 @@
 import pandas as pd
 import streamlit as st
 
+from ui.theme import apply_theme
+
 from ui.api_client import API_BASE, api_get
 
 st.set_page_config(page_title="Analytics", layout="wide")
+apply_theme()
 st.title("Analytics")
 
 try:

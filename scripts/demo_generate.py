@@ -33,7 +33,7 @@ def main() -> None:
     with Session(get_engine()) as session:
         project = get_or_create_default_project(session)
         for req in requirements:
-            for dtype in ("class", "object", "component", "package"):
+            for dtype in ("class", "object", "component", "package", "flowchart"):
                 art = run_single_generation(
                     session,
                     requirement=req,

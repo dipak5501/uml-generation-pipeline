@@ -39,6 +39,14 @@ make ui
 - API docs: http://127.0.0.1:8000/docs  
 - Streamlit UI: http://127.0.0.1:8501  
 
+### Go live (public website)
+
+See the full guide: [docs/deploy.md](docs/deploy.md)
+
+Short version:
+- **Quick demo:** run locally + `ngrok http 8501`
+- **Stable site:** `docker compose up --build -d` on a cloud VM, or deploy API+UI on Railway/Render
+
 ### Demo dataset (CLI)
 
 ```bash

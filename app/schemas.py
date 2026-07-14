@@ -7,12 +7,28 @@ from typing import Literal, Optional
 
 from pydantic import BaseModel, Field
 
-DiagramType = Literal["class", "object", "component", "package"]
+InputMode = Literal["requirement", "source_code"]
+
+DiagramType = Literal["class", "object", "component", "package", "flowchart"]
+
+ALL_DIAGRAM_TYPES: list[DiagramType] = [
+    "class",
+    "object",
+    "component",
+    "package",
+    "flowchart",
+]
 
 
 class GenerateRequest(BaseModel):
-    requirement: str = Field(min_length=3)
-    diagram_type: DiagramType
+    """Generate UML from natural-language requirements or source code."""
+
+    requirement: str = Field(
+        min_length=3,
+        description="Plain-English requirement OR source code (depending on input_mode)",
+    )
+    diagram_type: DiagramType = "class"
+    input_mode: InputMode = "requirement"
     project_id: Optional[int] = None
     async_mode: bool = False
 
@@ -20,8 +36,11 @@ class GenerateRequest(BaseModel):
 class BatchGenerateRequest(BaseModel):
     requirement: Optional[str] = None
     requirements: Optional[list[str]] = None
-    diagram_types: list[DiagramType] = Field(default_factory=lambda: ["class", "object", "component", "package"])
-    n_samples: int = Field(default=4, ge=1, le=100)
+    diagram_types: list[DiagramType] = Field(
+        default_factory=lambda: list(ALL_DIAGRAM_TYPES)
+    )
+    n_samples: int = Field(default=50, ge=1, le=500)
+    use_sample_file: bool = True
     project_id: Optional[int] = None
 
 

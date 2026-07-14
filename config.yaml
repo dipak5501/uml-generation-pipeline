@@ -34,6 +34,7 @@ diagram_types:
   - object
   - component
   - package
+  - flowchart
 
 generation:
   samples_per_type: 2000

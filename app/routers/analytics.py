@@ -1,8 +1,5 @@
 from __future__ import annotations
 
-import shutil
-import subprocess
-
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlmodel import Session
@@ -53,22 +50,19 @@ def health(session: Session = Depends(get_session)):
     if not jar_ok:
         messages.append(f"PlantUML jar missing at {settings.plantuml_jar} (will auto-download on first render)")
 
-    java_ok = shutil.which("java") is not None
+    from uml_pipeline.render import java_runtime_ok
+
+    java_ok = java_runtime_ok()
     if not java_ok:
-        messages.append("Java JDK not found on PATH — rendering will fail until installed")
-    else:
-        try:
-            subprocess.run(["java", "-version"], capture_output=True, timeout=10, check=False)
-        except Exception as exc:
-            java_ok = False
-            messages.append(f"Java check failed: {exc}")
+        messages.append(
+            "No usable local Java JDK — renders use the PlantUML HTTP server fallback "
+            "(set PLANTUML_REMOTE=false to disable)."
+        )
 
     if settings.mock_providers:
         messages.append("MOCK_PROVIDERS=true — using deterministic mock LLM/VLM responses")
 
     status = "ok" if database_ok else "degraded"
-    if not java_ok:
-        status = "degraded"
 
     return HealthResponse(
         status=status,

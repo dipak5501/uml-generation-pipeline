@@ -25,7 +25,7 @@ def main() -> None:
     parser.add_argument(
         "--diagram-type",
         required=True,
-        choices=["class", "object", "component", "package"],
+        choices=["class", "object", "component", "package", "flowchart"],
     )
     parser.add_argument("-n", "--num-samples", type=int, default=5)
     parser.add_argument(

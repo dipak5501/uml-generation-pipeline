@@ -1,4 +1,4 @@
-"""Mock provider for offline thesis demos."""
+"""Mock provider for offline thesis demos — content-aware diagrams."""
 
 from __future__ import annotations
 
@@ -6,117 +6,379 @@ import hashlib
 import re
 from pathlib import Path
 
+_STOP = {
+    "you", "are", "the", "and", "for", "with", "from", "that", "this", "your",
+    "into", "only", "valid", "plantuml", "expert", "convert", "technical",
+    "specification", "diagram", "class", "object", "component", "package",
+    "include", "classes", "attributes", "methods", "correct", "relationship",
+    "notation", "output", "between", "startuml", "enduml", "markdown", "fences",
+    "commentary", "outside", "keep", "readable", "avoid", "unnecessary",
+    "complexity", "private", "reasoning", "final", "rules", "generate",
+    "uml", "software", "requirement", "feature", "story", "act",
+    "senior", "system", "architect", "produce", "detailed", "suitable",
+    "design", "phase", "engineering", "identify", "structure", "entities",
+    "when", "relevant", "modules", "interfaces", "packages", "hierarchy",
+    "relationships", "association", "composition", "aggregation", "dependency",
+    "ownership", "containment", "inheritance", "appropriate", "constraints",
+    "code", "source", "chain", "thought", "clear", "structured", "headings",
+    "bullets", "target", "type", "will", "want", "need", "needs", "should",
+    "must", "can", "have", "has", "been", "being", "their", "them", "they",
+    "also", "using", "used", "uses", "via", "per", "each", "all", "any",
+    "some", "more", "than", "into", "onto", "about", "above", "after",
+    "before", "below", "between", "under", "over", "where", "which", "who",
+    "whom", "whose", "what", "how", "why", "description", "descriptions",
+    "instance", "instances", "create", "build", "implement", "provide",
+    "provides", "allow", "allows", "enable", "enables", "support", "supports",
+    "manage", "manages", "management", "across", "multiple", "receive", "based",
+    "like", "just", "make", "made", "does", "doing", "done", "demo", "sample",
+    "example", "please", "thanks", "intent", "domain", "application",
+    "infrastructure", "service", "repository", "model", "view", "snapshot",
+    "true", "false", "active", "status", "name", "string", "float", "boolean",
+    "date", "notes", "flag", "title", "priority", "ownerid", "createdat",
+    "associates", "depends", "composition", "modules", "core",
+}
 
-def _slug(text: str, n: int = 4) -> list[str]:
-    words = re.findall(r"[A-Za-z][A-Za-z0-9]+", text)
+
+def _content_focus(text: str) -> str:
+    """Prefer the user/spec body over prompt-template prose."""
+    markers = [
+        r"Technical specification:\s*",
+        r"Software requirement:\s*",
+        r"Source code:\s*",
+        r"Broken PlantUML:\s*",
+        r"Original technical specification:\s*",
+    ]
+    for marker in markers:
+        m = re.search(marker, text, flags=re.I)
+        if m:
+            body = text[m.end() :].strip()
+            # Prefer extracted entity bullet names when present
+            ents = re.findall(r"^-\s*([A-Za-z][A-Za-z0-9_]+)\s*:", body, flags=re.M)
+            if len(ents) >= 2:
+                return " ".join(ents) + "\n" + body
+            # If nested "Source intent" section exists, use that paragraph
+            intent = re.search(
+                r"###\s*Source intent\s*\n(.+?)(?:\n###|\Z)",
+                body,
+                flags=re.I | re.S,
+            )
+            if intent:
+                return intent.group(1).strip()
+            return body
+    lines = [ln for ln in text.splitlines() if ln.strip()]
+    if len(lines) > 3 and lines[0].lower().startswith("you "):
+        return "\n".join(lines[3:]).strip() or text
+    return text.strip()
+
+
+def _detect_diagram_type(system: str, user: str) -> str:
+    """Detect diagram type from prompt instructions only (not from generated spec)."""
+    head = user
+    for sep in ("Technical specification:", "Software requirement:", "Broken PlantUML:"):
+        idx = user.lower().find(sep.lower())
+        if idx != -1:
+            head = user[:idx]
+            break
+    blob = f"{system}\n{head}".lower()
+    if re.search(r"for an?\s+object\s+diagram|object diagram", blob):
+        return "object"
+    if re.search(r"for an?\s+component\s+diagram|component diagram", blob):
+        return "component"
+    if re.search(r"for an?\s+package\s+diagram|package diagram", blob):
+        return "package"
+    if re.search(r"flowchart|activity diagram", blob):
+        return "flowchart"
+    if re.search(r"for an?\s+class\s+diagram|class diagram", blob):
+        return "class"
+    return "class"
+
+
+def _entities_from_text(text: str, n: int = 5) -> list[str]:
+    from app.services.code_analysis import analyze_source_code, looks_like_source_code
+
+    focus = _content_focus(text)
+    if looks_like_source_code(focus) or "source code:" in text.lower():
+        names = analyze_source_code(focus).entity_names(n=n)
+        if names and not all(x.startswith("Module") for x in names):
+            return names
+
+    # Prefer bullet entity names from structured specs
+    bullet_ents = re.findall(r"(?m)^-\s*([A-Za-z][A-Za-z0-9_]+)\s*:", focus)
+    skip_headers = {
+        "domain",
+        "application",
+        "infrastructure",
+        "python",
+        "java",
+        "javascript",
+        "unknown",
+    }
+    bullet_ents = [e for e in bullet_ents if e.lower() not in skip_headers]
+    if len(bullet_ents) >= 2:
+        out = list(dict.fromkeys(bullet_ents))
+        while len(out) < n:
+            out.append(f"Entity{len(out)+1}")
+        return out[:n]
+
+    words = re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", focus)
     uniq: list[str] = []
     for w in words:
-        title = w[:1].upper() + w[1:]
-        if title not in uniq and len(title) > 2:
+        low = re.sub(r"[^a-z0-9]", "", w.lower())
+        if low in _STOP or len(low) < 3:
+            continue
+        title = re.sub(r"[^A-Za-z0-9]", "", w)
+        if not title:
+            continue
+        title = title[0].upper() + title[1:]
+        if title.endswith("ies") and len(title) > 4:
+            title = title[:-3] + "y"
+        elif title.endswith("s") and not title.endswith("ss") and len(title) > 4:
+            title = title[:-1]
+        if title.lower() in _STOP:
+            continue
+        if title not in uniq:
             uniq.append(title)
         if len(uniq) >= n:
             break
-    while len(uniq) < n:
-        uniq.append(f"Entity{len(uniq)+1}")
-    return uniq
+
+    if len(uniq) < n:
+        digest = hashlib.sha256(focus.encode()).hexdigest()
+        fillers = ["Account", "Order", "Session", "Profile", "Ticket", "Device", "Payment"]
+        i = 0
+        while len(uniq) < n:
+            idx = int(digest[i * 2 : i * 2 + 2], 16) % len(fillers)
+            # Prefix with content-derived syllable so fillers still differ by input
+            prefix = re.sub(r"[^A-Za-z]", "", focus)[:3].title() or "App"
+            name = f"{prefix}{fillers[idx]}"
+            if name not in uniq:
+                uniq.append(name)
+            i += 1
+            if i > 30:
+                uniq.append(f"Entity{len(uniq)+1}")
+    return uniq[:n]
+
+
+def _attrs_for(entity: str, seed: str) -> list[str]:
+    h = int(hashlib.sha256((entity + seed).encode()).hexdigest(), 16)
+    pools = [
+        ["id: int", "name: string", "status: string"],
+        ["id: int", "createdAt: date", "active: boolean"],
+        ["code: string", "title: string", "priority: int"],
+        ["id: int", "ownerId: int", "notes: string"],
+    ]
+    return pools[h % len(pools)]
 
 
 class MockProvider:
     name = "mock"
+    model = "mock-local"
 
     def chat(self, system: str, user: str, temperature: float = 0.7) -> str:
         lower = (system + "\n" + user).lower()
         if "repair" in lower or "broken plantuml" in lower:
-            return self._repair(user)
-        if "plantuml" in lower or "@startuml" in lower or "uml expert" in lower:
-            return self._plantuml(user, lower)
+            return self._repair(system, user)
+        dtype = _detect_diagram_type(system, user)
+        # PlantUML generation prompts always ask for PlantUML / UML expert output
+        if (
+            "plantuml" in lower
+            or "@startuml" in lower
+            or "uml expert" in lower
+            or "output only valid plantuml" in lower
+        ):
+            return self._plantuml(user, dtype)
         return self._spec(user)
 
     def vision_score(self, image_path: Path, prompt: str) -> int:
-        # Deterministic 3–5 based on image bytes
         data = image_path.read_bytes() if image_path.is_file() else b"0"
-        h = int(hashlib.sha256(data + prompt.encode()).hexdigest(), 16)
+        focus = _content_focus(prompt)
+        h = int(hashlib.sha256(data + focus.encode()).hexdigest(), 16)
         return 3 + (h % 3)
 
     def _spec(self, user: str) -> str:
-        entities = _slug(user)
+        from app.services.code_analysis import looks_like_source_code, structure_to_spec
+
+        focus = _content_focus(user)
+        if "source code:" in user.lower() or looks_like_source_code(focus):
+            # Infer diagram type from prompt header if present
+            dtype = "class"
+            m = re.search(r"Target diagram type:\s*(\w+)", user, flags=re.I)
+            if m:
+                dtype = m.group(1).lower()
+            elif "flowchart" in user.lower():
+                dtype = "flowchart"
+            return structure_to_spec(focus, dtype)
+
+        entities = _entities_from_text(user, n=5)
+        a, b, c, d, e = entities
+        if "flowchart" in user.lower() or "activity" in user.lower():
+            return (
+                f"## Technical Specification\n"
+                f"### Source intent\n{focus[:500]}\n\n"
+                f"### Process steps\n"
+                f"1. Start: receive request related to {a}\n"
+                f"2. Validate {b}\n"
+                f"3. Decision: is {c} acceptable?\n"
+                f"4. On success: process {d}\n"
+                f"5. On failure: reject and notify about {b}\n"
+                f"6. Complete: notify stakeholder regarding {a} / {e}\n"
+                f"### Actors\n- User / requester\n- System orchestrating {a}\n"
+            )
         return (
             f"## Technical Specification\n"
+            f"### Source intent\n{focus[:500]}\n\n"
             f"### Entities\n"
-            + "\n".join(f"- {e}: id, name, status" for e in entities)
+            + "\n".join(
+                f"- {ent}: "
+                + ", ".join(x.split(":")[0] for x in _attrs_for(ent, focus))
+                for ent in entities
+            )
             + "\n### Relationships\n"
-            f"- {entities[0]} associates with {entities[1]}\n"
-            f"- {entities[0]} composition of {entities[2]}\n"
-            f"- {entities[3]} depends on {entities[1]}\n"
-            "### Modules / Packages\n"
-            "- core: domain entities\n"
-            "- api: interfaces and controllers\n"
-            "- infra: persistence adapters\n"
+            f"- {a} associates with {b}\n"
+            f"- {a} composition of {c}\n"
+            f"- {d} depends on {b}\n"
+            f"- {e} associates with {a}\n"
+            "### Modules\n"
+            f"- domain: {a}, {b}, {c}\n"
+            f"- application: {d}\n"
+            f"- infrastructure: {e}\n"
         )
 
-    def _plantuml(self, user: str, lower: str) -> str:
-        entities = _slug(user)
-        a, b, c, d = entities[:4]
-        if "object" in lower:
+    def _plantuml(self, user: str, diagram_type: str) -> str:
+        focus = _content_focus(user)
+        entities = _entities_from_text(user, n=5)
+        a, b, c, d, e = entities
+        variant = int(hashlib.sha256(focus.encode()).hexdigest(), 16) % 3
+
+        if diagram_type == "object":
             return (
                 "@startuml\n"
-                f"object {a.lower()}_1:{a} {{\n  name = \"demo\"\n}}\n"
-                f"object {b.lower()}_1:{b} {{\n  status = \"active\"\n}}\n"
-                f"{a.lower()}_1 --> {b.lower()}_1 : uses\n"
+                f"title {a} / {b} runtime objects\n"
+                f"object {a.lower()}1:{a} {{\n  name = \"{a.lower()}-1\"\n  status = \"active\"\n}}\n"
+                f"object {b.lower()}1:{b} {{\n  ref = \"{b.lower()}-ref\"\n}}\n"
+                f"object {c.lower()}1:{c} {{\n  flag = true\n}}\n"
+                f"{a.lower()}1 --> {b.lower()}1 : uses\n"
+                f"{a.lower()}1 --> {c.lower()}1 : tracks\n"
                 "@enduml"
             )
-        if "component" in lower:
+
+        if diagram_type == "flowchart":
             return (
                 "@startuml\n"
-                f"[{a}] as {a}\n"
-                f"[{b}] as {b}\n"
-                f"() \"I{c}\" as I{c}\n"
-                f"{a} --> I{c}\n"
-                f"{b} ..> I{c} : use\n"
+                f"title Flow: {a} process\n"
+                "start\n"
+                f":Receive request for {a};\n"
+                f":Validate {b};\n"
+                f"if ({c} OK?) then (yes)\n"
+                f"  :Process {d};\n"
+                f"  :Confirm {a};\n"
+                "else (no)\n"
+                f"  :Reject / show error for {b};\n"
+                "endif\n"
+                f":Notify stakeholder about {a};\n"
+                "stop\n"
                 "@enduml"
             )
-        if "package" in lower:
+
+        if diagram_type == "component":
             return (
                 "@startuml\n"
-                "package core {\n"
-                f"  package domain {{\n    class {a}\n    class {b}\n  }}\n"
-                "}\n"
-                "package api {\n"
+                f"title {a} components\n"
+                f"[{a}Service] as {a}Svc\n"
+                f"[{b}Api] as {b}Api\n"
+                f"[{c}Store] as {c}Store\n"
+                f"() \"I{a}\" as I{a}\n"
+                f"() \"I{b}\" as I{b}\n"
+                f"{a}Svc --> I{a}\n"
+                f"{b}Api ..> I{a} : use\n"
+                f"{b}Api --> I{b}\n"
+                f"{c}Store ..> I{b} : persist\n"
+                "@enduml"
+            )
+
+        if diagram_type == "package":
+            return (
+                "@startuml\n"
+                f"title {a} packages\n"
+                "package domain {\n"
+                f"  class {a}\n"
+                f"  class {b}\n"
                 f"  class {c}\n"
                 "}\n"
-                "package infra {\n"
-                f"  class {d}\n"
+                "package application {\n"
+                f"  class {d}Service\n"
                 "}\n"
-                "api ..> core : uses\n"
-                "infra ..> core : persists\n"
+                "package infrastructure {\n"
+                f"  class {e}Repository\n"
+                "}\n"
+                "application ..> domain : uses\n"
+                "infrastructure ..> domain : persists\n"
                 "@enduml"
             )
+
+        attrs_a = "\n  ".join(f"+{x}" for x in _attrs_for(a, focus))
+        attrs_b = "\n  ".join(f"+{x}" for x in _attrs_for(b, focus))
+        attrs_c = "\n  ".join(f"+{x}" for x in _attrs_for(c, focus))
+        attrs_d = "\n  ".join(f"+{x}" for x in _attrs_for(d, focus))
+
+        if variant == 0:
+            rels = (
+                f"{a} \"1\" --> \"*\" {b} : has\n"
+                f"{a} *-- {c}\n"
+                f"{d} ..> {b} : uses\n"
+            )
+        elif variant == 1:
+            rels = (
+                f"{a} \"1\" --> \"1..*\" {b} : owns\n"
+                f"{c} --> {a} : belongsTo\n"
+                f"{d} --> {c} : manages\n"
+            )
+        else:
+            rels = (
+                f"{a} o-- {b} : aggregates\n"
+                f"{a} --> {c} : references\n"
+                f"{e} ..> {a} : notifies\n"
+                f"{d} --> {e} : uses\n"
+            )
+
+        extra = f"class {e} {{\n  +id: int\n}}\n" if variant == 2 else ""
         return (
             "@startuml\n"
-            f"class {a} {{\n  +id: int\n  +name: string\n}}\n"
-            f"class {b} {{\n  +status: string\n}}\n"
-            f"class {c} {{\n  +value: float\n}}\n"
-            f"{a} \"1\" --> \"*\" {b} : has\n"
-            f"{a} *-- {c}\n"
+            f"title Domain model for {a}\n"
+            f"class {a} {{\n  {attrs_a}\n}}\n"
+            f"class {b} {{\n  {attrs_b}\n}}\n"
+            f"class {c} {{\n  {attrs_c}\n}}\n"
+            f"class {d} {{\n  {attrs_d}\n}}\n"
+            f"{extra}"
+            f"{rels}"
             "@enduml"
         )
 
-    def _repair(self, user: str) -> str:
-        # Prefer regenerating a safe package diagram if package context
-        if "package" in user.lower():
+    def _repair(self, system: str, user: str) -> str:
+        dtype = _detect_diagram_type(system, user)
+        focus = _content_focus(user)
+        entities = _entities_from_text(user, n=3)
+        a, b, c = entities
+        if dtype == "package" or "package" in user.lower()[:400]:
             return (
                 "@startuml\n"
-                "package core {\n  class DomainService\n}\n"
-                "package api {\n  class ApiController\n}\n"
-                "api ..> core : uses\n"
+                "package domain {\n"
+                f"  class {a}\n"
+                f"  class {b}\n"
+                "}\n"
+                "package application {\n"
+                f"  class {c}Service\n"
+                "}\n"
+                "application ..> domain : uses\n"
                 "@enduml"
             )
         m = re.search(r"@startuml.*?@enduml", user, flags=re.I | re.S)
         if m:
-            code = m.group(0)
-            # Strip self-deps like foo ..> foo
-            code = re.sub(r"(?m)^\s*(\w+)\s+\.\.>\s*\1\s*.*$", "", code)
+            code = re.sub(r"(?m)^\s*(\w+)\s+\.\.>\s*\1\s*.*$", "", m.group(0))
             return code
         return (
-            "@startuml\nclass FixedEntity {\n  +id: int\n}\n@enduml"
+            "@startuml\n"
+            f"class {a} {{\n  +id: int\n}}\n"
+            f"class {b} {{\n  +name: string\n}}\n"
+            f"{a} --> {b}\n"
+            "@enduml"
         )

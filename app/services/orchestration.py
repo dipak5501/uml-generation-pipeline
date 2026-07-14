@@ -21,6 +21,7 @@ from app.models import (
     TechnicalSpecification,
     UMLArtifact,
 )
+from app.services.code_analysis import looks_like_source_code, structure_to_spec
 from app.prompts_registry import diagram_prompt_name, render_prompt
 from app.providers.factory import build_chat_provider, build_code_provider, build_vlm_providers
 from app.services.plantuml_validate import ensure_plantuml_bounds, validate_diagram
@@ -50,10 +51,31 @@ def generate_technical_spec(
     requirement: str,
     diagram_type: str,
     settings: Settings | None = None,
+    input_mode: str = "requirement",
 ) -> tuple[str, str, str, str]:
     """Returns (spec_text, prompt_name, prompt_version, model_name)."""
     settings = settings or get_settings()
+    mode = input_mode
+    if mode == "requirement" and looks_like_source_code(requirement):
+        mode = "source_code"
+
     provider = build_chat_provider(settings, model=settings.spec_model)
+    if mode == "source_code":
+        # Deterministic structural recover for mock/offline; LLM path uses prompt
+        if settings.mock_providers:
+            text = structure_to_spec(requirement, diagram_type)
+            return text.strip(), "code_to_tech_spec", "v1", "mock-code-analysis"
+        ref, prompt = render_prompt(
+            "code_to_tech_spec",
+            "v1",
+            source_code=requirement,
+            diagram_type=diagram_type,
+        )
+        system = "You are a senior software architect. Output only the technical specification recovered from code."
+        text = provider.chat(system, prompt, temperature=0.2)
+        model_name = getattr(provider, "model", settings.spec_model)
+        return text.strip(), ref.name, ref.version, str(model_name)
+
     ref, prompt = render_prompt(
         "requirement_to_tech_spec",
         "v1",
@@ -127,6 +149,7 @@ def run_single_generation(
     project_id: int | None = None,
     job_id: int | None = None,
     settings: Settings | None = None,
+    input_mode: str = "requirement",
 ) -> UMLArtifact:
     settings = settings or get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -136,18 +159,24 @@ def run_single_generation(
         project_id = project.id
     assert project_id is not None
 
+    resolved_mode = input_mode
+    if resolved_mode == "requirement" and looks_like_source_code(requirement):
+        resolved_mode = "source_code"
+
     req = RequirementInput(job_id=job_id, raw_text=requirement, diagram_type=diagram_type)
     session.add(req)
     session.commit()
     session.refresh(req)
 
     spec_text, spec_prompt, spec_ver, spec_model = generate_technical_spec(
-        requirement, diagram_type, settings
+        requirement, diagram_type, settings, input_mode=resolved_mode
     )
     tech = TechnicalSpecification(
         requirement_id=req.id,
         raw_text=spec_text,
-        structured_json=json.dumps({"diagram_type": diagram_type}),
+        structured_json=json.dumps(
+            {"diagram_type": diagram_type, "input_mode": resolved_mode}
+        ),
         prompt_name=spec_prompt,
         prompt_version=spec_ver,
         model_name=spec_model,
@@ -244,6 +273,11 @@ def run_single_generation(
             if Path(img) != stable:
                 shutil.copy2(img, stable)
             image_path = stable
+            break
+
+        # Environmental failures cannot be fixed by rewriting PlantUML
+        env_fail = (err or "").lower()
+        if "java" in env_fail or "runtime" in env_fail or "jdk" in env_fail:
             break
 
         if attempt >= settings.max_repair_attempts:

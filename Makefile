@@ -15,6 +15,9 @@ ui:
 demo:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true python scripts/demo_generate.py -n 1
 
+dataset:
+	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true python scripts/generate_dataset.py -n 50
+
 test:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true pytest -q
 
