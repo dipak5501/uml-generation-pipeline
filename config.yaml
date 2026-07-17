@@ -14,10 +14,10 @@ vlm_weights:
   llama32vl11b: 50.7
   aya_vision_8b: 39.9
 
-# Optional Hugging Face benchmark datasets (for download script)
+# Optional Hugging Face open sources (see scripts/build_training_corpus.py for the 8k builder)
 datasets:
   class:
-    repo: nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Scored
+    repo: nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Reasoning-RAW
     diagram_type: class
   object:
     repo: nguyenvanviet/UMLCode_ObjectDiagram_Scored
@@ -28,6 +28,10 @@ datasets:
   package:
     repo: nguyenvanviet/UMLCode_PackageDiagram_Scored
     diagram_type: package
+  # Gated (needs HF_TOKEN + license accept) — optional scored class set
+  class_scored_gated:
+    repo: nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Scored
+    diagram_type: class
 
 diagram_types:
   - class

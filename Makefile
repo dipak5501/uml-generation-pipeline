@@ -1,4 +1,4 @@
-.PHONY: install api ui demo test docker-up docker-down lint
+.PHONY: install api ui demo test docker-up docker-down lint dataset training-corpus
 
 install:
 	python3 -m venv .venv
@@ -17,6 +17,9 @@ demo:
 
 dataset:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true python scripts/generate_dataset.py -n 50
+
+training-corpus:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000
 
 test:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true pytest -q

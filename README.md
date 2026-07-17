@@ -21,6 +21,23 @@ flowchart LR
   H --> I[SQLite + UI]
 ```
 
+## Training corpus (open sources)
+
+Assemble **8,000** training artifacts from public Hugging Face UMLCode datasets:
+
+```bash
+python scripts/build_training_corpus.py --target 8000
+# paper UML types only (no flowchart fill):
+python scripts/build_training_corpus.py --target 8000 --no-flowchart
+```
+
+Outputs (gitignored under `data/`):
+- `data/training/uml_training_8000.parquet`
+- `data/training/uml_training_8000.jsonl`
+- `data/training/manifest.json`
+
+Open sources: class RAW (~5k), object/component/package scored (~1k each), activity/flowchart + deployment for fill. The gated class *Scored* repo is not required.
+
 ## Quick start (local, mock mode)
 
 ```bash

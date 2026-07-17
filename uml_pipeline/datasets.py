@@ -49,6 +49,10 @@ def download_all(
 
     for key, meta in cfg["datasets"].items():
         diagram_type = meta["diagram_type"]
+        # Skip explicitly gated optional entries unless requested by type filter
+        if key.endswith("_gated") and not only_types:
+            print(f"Skipping gated dataset key '{key}' (pass --only {diagram_type} after accepting license)")
+            continue
         if only_types and diagram_type not in only_types:
             continue
 
