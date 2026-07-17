@@ -98,6 +98,8 @@ def artifacts_dataframe(session: Session) -> pd.DataFrame:
             {
                 "id": a.id,
                 "diagram_type": a.diagram_type,
+                "input_mode": a.input_mode,
+                "source_language": a.source_language,
                 "source_requirement": a.source_requirement,
                 "technical_spec": a.technical_spec,
                 "uml_code": a.plantuml_code,

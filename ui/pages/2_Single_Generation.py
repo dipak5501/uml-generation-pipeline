@@ -150,9 +150,17 @@ if not artifact:
 st.divider()
 st.subheader("Result")
 st.markdown("**Your input**")
-if input_mode == "source_code" or "class " in artifact["source_requirement"]:
-    st.code(artifact["source_requirement"], language="python")
+source_lang = artifact.get("source_language")
+artifact_input_mode = artifact.get("input_mode") or input_mode
+if artifact_input_mode == "source_code" or source_lang:
+    lang = source_lang or "unknown"
+    st.caption(f"Input mode: `{artifact_input_mode}` · detected language: `{lang}`")
+    st.code(
+        artifact["source_requirement"],
+        language=lang if lang != "unknown" else None,
+    )
 else:
+    st.caption(f"Input mode: `{artifact_input_mode}`")
     st.write(artifact["source_requirement"])
 
 st.subheader("Paper validation pipeline")
@@ -186,6 +194,8 @@ if artifact.get("validation_messages"):
 c1, c2 = st.columns([1.1, 0.9])
 with c1:
     st.markdown("**Technical specification**")
+    if source_lang:
+        st.caption(f"Source-code mode · detected language: `{source_lang}`")
     st.text(artifact["technical_spec"])
     st.markdown("**PlantUML**")
     st.code(artifact["plantuml_code"], language="text")
@@ -198,7 +208,9 @@ with c2:
     )
     st.markdown(
         f"**Render:** `{artifact['render_status']}` · **Type:** `{artifact['diagram_type']}` · "
-        f"**Dataset:** `{'accepted' if dataset_ok else 'rejected'}`"
+        f"**Input:** `{artifact_input_mode}`"
+        + (f" · **Lang:** `{source_lang}`" if source_lang else "")
+        + f" · **Dataset:** `{'accepted' if dataset_ok else 'rejected'}`"
     )
     if artifact["render_status"] == "success":
         try:

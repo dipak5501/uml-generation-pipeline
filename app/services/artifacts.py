@@ -30,6 +30,8 @@ def artifact_summary(a: UMLArtifact) -> ArtifactSummary:
         composite_score=a.composite_score,
         majority_accepted=a.majority_accepted,
         dataset_accepted=a.dataset_accepted,
+        input_mode=a.input_mode,
+        source_language=a.source_language,
         source_requirement=a.source_requirement,
         created_at=a.created_at,
     )
@@ -67,6 +69,8 @@ def artifact_detail(session: Session, artifact_id: int) -> ArtifactDetail | None
     return ArtifactDetail(
         id=a.id,
         diagram_type=a.diagram_type,
+        input_mode=a.input_mode,
+        source_language=a.source_language,
         source_requirement=a.source_requirement,
         technical_spec=a.technical_spec,
         plantuml_code=a.plantuml_code,

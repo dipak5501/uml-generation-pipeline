@@ -30,7 +30,7 @@ try:
             ("Artifacts", str(summary.get("total_artifacts", 0))),
             ("Dataset accepted", str(summary.get("dataset_accepted_count", 0))),
             ("Majority OK", str(summary.get("majority_accepted_count", 0))),
-            ("Provider", str(health.get("provider", "?")).upper()),
+            ("Provider", str(health.get("provider_summary") or health.get("provider", "?")).upper()),
         ]
     )
     if health.get("status") == "ok":

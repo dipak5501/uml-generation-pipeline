@@ -42,6 +42,8 @@ def _migrate_sqlite_columns() -> None:
             ("dataset_accepted", "BOOLEAN DEFAULT 0"),
             ("acceptance_tau", "FLOAT DEFAULT 4.0"),
             ("used_cot", "BOOLEAN DEFAULT 0"),
+            ("input_mode", "TEXT DEFAULT 'requirement'"),
+            ("source_language", "TEXT"),
         ],
         "compositescore": [
             ("majority_accepted", "BOOLEAN DEFAULT 0"),

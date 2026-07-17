@@ -39,7 +39,13 @@ selected = st.selectbox("Open artifact", ids)
 detail = api_get(f"/api/artifacts/{selected}")
 
 st.subheader(f"Artifact #{selected} — {detail['diagram_type']}")
-st.write(detail["source_requirement"])
+if detail.get("input_mode") == "source_code" or detail.get("source_language"):
+    lang = detail.get("source_language") or "unknown"
+    st.caption(f"Input mode: `{detail.get('input_mode', 'source_code')}` · detected language: `{lang}`")
+    st.code(detail["source_requirement"], language=lang if lang != "unknown" else None)
+else:
+    st.caption(f"Input mode: `{detail.get('input_mode', 'requirement')}`")
+    st.write(detail["source_requirement"])
 with st.expander("Technical specification"):
     st.text(detail["technical_spec"])
 with st.expander("PlantUML"):

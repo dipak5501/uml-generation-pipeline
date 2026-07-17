@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from pathlib import Path
+
 from fastapi import APIRouter, Depends, Query
 from fastapi.responses import Response
 from sqlmodel import Session
@@ -62,12 +64,26 @@ def health(session: Session = Depends(get_session)):
     if settings.mock_providers:
         messages.append("MOCK_PROVIDERS=true — using deterministic mock LLM/VLM responses")
 
+    adapter_ok = Path(settings.finetuned_adapter_path).exists()
+    if settings.use_finetuned_code:
+        if adapter_ok:
+            messages.append(f"USE_FINETUNED_CODE=true — PlantUML via LoRA adapter at {settings.finetuned_adapter_path}")
+        else:
+            messages.append(
+                f"USE_FINETUNED_CODE=true but adapter missing at {settings.finetuned_adapter_path} "
+                "(run: python scripts/finetune_plantuml.py)"
+            )
+
     status = "ok" if database_ok else "degraded"
 
     return HealthResponse(
         status=status,
         provider=settings.provider_name,
+        provider_summary=settings.provider_summary,
         mock_providers=settings.mock_providers,
+        use_finetuned_code=settings.use_finetuned_code,
+        finetuned_adapter_path=str(settings.finetuned_adapter_path),
+        finetuned_adapter_present=adapter_ok,
         database_ok=database_ok,
         plantuml_jar_present=jar_ok,
         java_available=java_ok,

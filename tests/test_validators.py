@@ -49,3 +49,13 @@ def test_unbalanced_braces_fail():
     code = "@startuml\npackage core {\nclass A\n@enduml"
     result = validate_diagram(code, "package")
     assert not result.ok
+
+
+def test_sanitize_plantuml_dedupes_and_trims():
+    from app.services.plantuml_validate import sanitize_plantuml_output
+
+    messy = "@startuml\n@startuml\nclass A {\n  +id: int\n  +id: int\n  +id: int\n}\n@enduml"
+    cleaned = sanitize_plantuml_output(messy)
+    assert cleaned.lower().count("@startuml") == 1
+    assert cleaned.count("+id: int") == 1
+    assert "@enduml" in cleaned.lower()

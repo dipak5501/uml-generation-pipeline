@@ -21,11 +21,21 @@ from app.models import (
     TechnicalSpecification,
     UMLArtifact,
 )
-from app.services.code_analysis import looks_like_source_code, structure_to_spec
+from app.services.code_analysis import (
+    detect_source_language,
+    looks_like_source_code,
+    resolve_input_mode,
+    structure_to_spec,
+)
 from app.prompts_registry import diagram_prompt_name, render_prompt
-from app.providers.factory import build_chat_provider, build_code_provider, build_vlm_providers
+from app.providers.factory import (
+    build_base_code_provider,
+    build_chat_provider,
+    build_code_provider,
+    build_vlm_providers,
+)
 from app.services.cot import COT_SYSTEM, finalize_plantuml_output, has_cot_block
-from app.services.plantuml_validate import ensure_plantuml_bounds, validate_diagram
+from app.services.plantuml_validate import ensure_plantuml_bounds, sanitize_plantuml_output, validate_diagram
 from app.services.repair import repair_plantuml
 from app.services.scoring import VerificationResult, paper_composite, verify_scores
 from app.settings import Settings, get_settings
@@ -100,9 +110,34 @@ def generate_plantuml_code(
     name = diagram_prompt_name(diagram_type)
     ref, prompt = render_prompt(name, "v1", specification=specification)
     system = COT_SYSTEM if settings.enable_cot else "You output only valid PlantUML code between @startuml and @enduml."
-    raw = provider.chat(system, prompt, temperature=0.2)
+    try:
+        raw = provider.chat(system, prompt, temperature=0.2)
+    except Exception as exc:
+        logger.warning("Code provider failed (%s); using base fallback", exc)
+        provider = build_base_code_provider(settings)
+        raw = provider.chat(system, prompt, temperature=0.2)
     used_cot = has_cot_block(raw) or settings.enable_cot
-    code = ensure_plantuml_bounds(finalize_plantuml_output(raw))
+    code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+    validation = validate_diagram(code, diagram_type)
+    if settings.use_finetuned_code and getattr(provider, "name", "") == "finetuned-mlx" and not validation.ok:
+        logger.warning(
+            "Fine-tuned code model produced invalid %s PlantUML; retrying with base provider: %s",
+            diagram_type,
+            ", ".join(validation.messages),
+        )
+        fallback = build_base_code_provider(settings)
+        try:
+            raw_fb = fallback.chat(system, prompt, temperature=0.2)
+        except Exception as exc:
+            logger.warning("Base code fallback also failed: %s", exc)
+            raw_fb = raw
+        code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb))
+        validation_fb = validate_diagram(code_fb, diagram_type)
+        if validation_fb.ok or len(code_fb) < len(code):
+            code = code_fb
+            used_cot = has_cot_block(raw_fb) or used_cot
+            provider = fallback
+            validation = validation_fb
     model_name = getattr(provider, "model", settings.code_model)
     return code, ref.name, ref.version, str(model_name), used_cot
 
@@ -215,9 +250,8 @@ def run_single_generation(
         project_id = project.id
     assert project_id is not None
 
-    resolved_mode = input_mode
-    if resolved_mode == "requirement" and looks_like_source_code(requirement):
-        resolved_mode = "source_code"
+    resolved_mode = resolve_input_mode(requirement, input_mode)
+    source_language = detect_source_language(requirement, input_mode)
 
     req = RequirementInput(job_id=job_id, raw_text=requirement, diagram_type=diagram_type)
     session.add(req)
@@ -254,6 +288,8 @@ def run_single_generation(
         specification_id=tech.id,
         project_id=project_id,
         diagram_type=diagram_type,
+        input_mode=resolved_mode,
+        source_language=source_language,
         source_requirement=requirement,
         technical_spec=spec_text,
         plantuml_code=plantuml,

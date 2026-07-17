@@ -178,17 +178,27 @@ class MockProvider:
         if "repair" in lower or "broken plantuml" in lower:
             return self._repair(system, user)
         dtype = _detect_diagram_type(system, user)
-        # PlantUML generation prompts always ask for PlantUML / UML expert output
-        if (
-            "plantuml" in lower
-            or "@startuml" in lower
-            or "uml expert" in lower
+        # Distinguish "generate PlantUML" from prompts that merely mention it,
+        # such as "Do NOT output PlantUML" in technical-spec instructions.
+        plantuml_generation = (
+            "@startuml" in lower
             or "output only valid plantuml" in lower
-            or "chain-of-thought" in lower
-            or "<think>" in lower
-        ):
+            or "convert the technical specification into syntactically valid plantuml" in lower
+            or "then output only final plantuml" in lower
+            or "uml expert" in system.lower()
+            or "chain-of-thought (required)" in lower
+            or "inside <think>" in lower
+            or "after </think>" in lower
+            or "<think>" in system.lower()
+        )
+        if plantuml_generation:
             code = self._plantuml(user, dtype)
-            if "chain-of-thought" in lower or "<think>" in lower or "think>" in lower:
+            if (
+                "chain-of-thought (required)" in lower
+                or "inside <think>" in lower
+                or "after </think>" in lower
+                or "<think>" in system.lower()
+            ):
                 return (
                     "<think>\n"
                     f"Identify entities from the specification for a {dtype} diagram, "
@@ -209,19 +219,16 @@ class MockProvider:
         from app.services.code_analysis import looks_like_source_code, structure_to_spec
 
         focus = _content_focus(user)
+        dtype = "class"
+        m = re.search(r"Target diagram type:\s*(\w+)", user, flags=re.I)
+        if m:
+            dtype = m.group(1).lower()
         if "source code:" in user.lower() or looks_like_source_code(focus):
-            # Infer diagram type from prompt header if present
-            dtype = "class"
-            m = re.search(r"Target diagram type:\s*(\w+)", user, flags=re.I)
-            if m:
-                dtype = m.group(1).lower()
-            elif "flowchart" in user.lower():
-                dtype = "flowchart"
             return structure_to_spec(focus, dtype)
 
         entities = _entities_from_text(user, n=5)
         a, b, c, d, e = entities
-        if "flowchart" in user.lower() or "activity" in user.lower():
+        if dtype == "flowchart":
             return (
                 f"## Technical Specification\n"
                 f"### Source intent\n{focus[:500]}\n\n"

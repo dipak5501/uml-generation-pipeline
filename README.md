@@ -38,6 +38,26 @@ Outputs (gitignored under `data/`):
 
 Open sources: class RAW (~5k), object/component/package scored (~1k each), activity/flowchart + deployment for fill. The gated class *Scored* repo is not required.
 
+## Fine-tuned PlantUML model (8k LoRA)
+
+After building the open training corpus, fine-tune a small local code model on Apple Silicon (MLX):
+
+```bash
+pip install -r requirements-finetune.txt
+make finetune          # ~2000 LoRA iterations
+# or smoke test: make finetune-quick
+```
+
+Then in `.env`:
+
+```bash
+USE_FINETUNED_CODE=true
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora
+FINETUNED_BASE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit
+```
+
+Only the **PlantUML code** stage uses the LoRA adapter; spec + VLM scoring can stay mock or live. Restart `make api` after changing `.env`.
+
 ## Quick start (local, mock mode)
 
 ```bash

@@ -58,6 +58,8 @@ class UMLArtifact(SQLModel, table=True):
     specification_id: Optional[int] = Field(default=None, foreign_key="technicalspecification.id")
     project_id: int = Field(foreign_key="project.id", index=True)
     diagram_type: str = Field(index=True)
+    input_mode: str = "requirement"  # requirement | source_code
+    source_language: Optional[str] = None  # python | java | javascript | rust | unknown
     source_requirement: str = ""
     technical_spec: str = ""
     plantuml_code: str = ""

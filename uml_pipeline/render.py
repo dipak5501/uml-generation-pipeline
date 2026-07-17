@@ -9,8 +9,38 @@ import urllib.request
 import zlib
 from pathlib import Path
 
+REPO_ROOT = Path(__file__).resolve().parent.parent
 PLANTUML_JAR_URL = "https://github.com/plantuml/plantuml/releases/download/v1.2024.7/plantuml-1.2024.7.jar"
 DEFAULT_PLANTUML_SERVER = "https://www.plantuml.com/plantuml"
+
+
+def find_java_executable() -> str | None:
+    """Resolve a working java binary: JAVA_HOME, bundled tools/jdk, then PATH."""
+    candidates: list[Path] = []
+    java_home = os.getenv("JAVA_HOME")
+    if java_home:
+        candidates.append(Path(java_home) / "bin" / "java")
+
+    tools = REPO_ROOT / "tools"
+    for pattern in ("jdk-17.jre/Contents/Home/bin/java", "jdk-17.jdk/Contents/Home/bin/java"):
+        candidates.append(tools / pattern)
+    for path in sorted(tools.glob("**/bin/java")):
+        candidates.append(path)
+
+    candidates.append(Path("java"))
+
+    for candidate in candidates:
+        exe = str(candidate)
+        try:
+            result = subprocess.run([exe, "-version"], capture_output=True, text=True, timeout=10)
+        except (FileNotFoundError, subprocess.TimeoutExpired, OSError):
+            continue
+        combined = (result.stderr or "") + (result.stdout or "")
+        if "Unable to locate a Java Runtime" in combined:
+            continue
+        if result.returncode == 0 or "version" in combined.lower():
+            return exe
+    return None
 
 
 def ensure_plantuml_jar(jar_path: Path) -> Path:
@@ -34,14 +64,7 @@ def extract_plantuml_block(text: str) -> str:
 
 def java_runtime_ok() -> bool:
     """True only if a real JDK/JRE can execute (Apple's stub returns false)."""
-    try:
-        result = subprocess.run(["java", "-version"], capture_output=True, text=True, timeout=10)
-    except (FileNotFoundError, subprocess.TimeoutExpired):
-        return False
-    combined = (result.stderr or "") + (result.stdout or "")
-    if "Unable to locate a Java Runtime" in combined:
-        return False
-    return result.returncode == 0 or "version" in combined.lower()
+    return find_java_executable() is not None
 
 
 def _plantuml_encode(text: str) -> str:
@@ -103,9 +126,10 @@ def render_plantuml(
     img_path = puml_file.with_suffix(f".{fmt}")
 
     local_err: str | None = None
-    if java_runtime_ok():
+    java_exe = find_java_executable()
+    if java_exe:
         ensure_plantuml_jar(jar_path)
-        cmd = ["java", "-jar", str(jar_path), f"-t{fmt}", str(puml_file)]
+        cmd = [java_exe, "-jar", str(jar_path), f"-t{fmt}", str(puml_file)]
         try:
             result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
         except subprocess.TimeoutExpired:

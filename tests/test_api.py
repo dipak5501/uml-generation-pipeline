@@ -55,9 +55,32 @@ def test_generate_class_artifact(client):
     assert "artifact" in data
     art = data["artifact"]
     assert art["diagram_type"] == "class"
+    assert art.get("input_mode") == "requirement"
+    assert art.get("source_language") is None
     assert "@startuml" in art["plantuml_code"].lower()
     assert "model_scores" in art
     assert isinstance(art["composite_score"], (int, float))
+
+
+def test_generate_source_code_persists_language(client):
+    code = '''
+class User:
+    def authenticate(self, password: str) -> bool:
+        return True
+'''
+    r = client.post(
+        "/api/generate",
+        json={
+            "requirement": code,
+            "diagram_type": "class",
+            "input_mode": "source_code",
+        },
+    )
+    assert r.status_code == 200, r.text
+    art = r.json()["artifact"]
+    assert art["input_mode"] == "source_code"
+    assert art["source_language"] == "python"
+    assert "@startuml" in art["plantuml_code"].lower()
 
 
 @pytest.mark.parametrize(

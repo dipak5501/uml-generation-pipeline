@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 
 from app.services.scoring import strip_private_reasoning
+from app.services.plantuml_validate import sanitize_plantuml_output
 from uml_pipeline.render import extract_plantuml_block
 
 
@@ -19,7 +20,7 @@ COT_SYSTEM = (
 def finalize_plantuml_output(raw: str) -> str:
     """Strip CoT / fences and normalize to a single PlantUML block."""
     cleaned = strip_private_reasoning(raw)
-    return extract_plantuml_block(cleaned)
+    return sanitize_plantuml_output(extract_plantuml_block(cleaned))
 
 
 def has_cot_block(raw: str) -> bool:

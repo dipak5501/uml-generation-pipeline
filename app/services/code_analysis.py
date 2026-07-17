@@ -34,13 +34,30 @@ class CodeStructure:
 def detect_language(code: str) -> str:
     if re.search(r"^\s*def\s+\w+|^\s*class\s+\w+", code, re.M):
         return "python"
-    if re.search(r"\b(public|private|protected)?\s*(class|interface|enum)\s+\w+", code):
-        return "java"
     if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code):
         return "javascript"
+    if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
+        return "java"
+    if re.search(r"(?m)^\s*import\s+[\w.*]+\s*;\s*$|(?m)^\s*package\s+[\w.]+\s*;\s*$", code):
+        return "java"
     if "fn " in code and "impl " in code:
         return "rust"
     return "unknown"
+
+
+def resolve_input_mode(requirement: str, input_mode: str = "requirement") -> str:
+    """Normalize requirement vs source_code based on content heuristics."""
+    if input_mode == "requirement" and looks_like_source_code(requirement):
+        return "source_code"
+    return input_mode
+
+
+def detect_source_language(requirement: str, input_mode: str = "requirement") -> str | None:
+    """Return detected language for source-code inputs, else None."""
+    mode = resolve_input_mode(requirement, input_mode)
+    if mode != "source_code":
+        return None
+    return detect_language(requirement)
 
 
 def looks_like_source_code(text: str) -> bool:

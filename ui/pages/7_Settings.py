@@ -40,6 +40,13 @@ if health.get("mock_providers"):
 else:
     st.warning("Live providers enabled — ensure models/API keys are configured.")
 
+ft = health.get("use_finetuned_code") or health.get("finetuned")
+adapter = health.get("finetuned_adapter_path")
+if ft:
+    st.success(f"Fine-tuned PlantUML code model ON · adapter: `{adapter}`")
+else:
+    st.caption("Fine-tuned code model is OFF. Train with `make finetune`, then set USE_FINETUNED_CODE=true.")
+
 st.markdown(
     """
 ### Configuration flags (environment)

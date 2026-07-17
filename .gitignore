@@ -8,6 +8,7 @@ __pycache__/
 data/
 output/
 tools/plantuml.jar
+tools/jdk-*/
 *.puml
 .ipynb_checkpoints/
 .pytest_cache/
@@ -15,6 +16,8 @@ tools/plantuml.jar
 *.db
 htmlcov/
 .coverage
+models/*
+!models/README.md
 
 # LaTeX build artifacts
 paper/*.aux

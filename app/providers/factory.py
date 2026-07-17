@@ -49,8 +49,32 @@ def build_chat_provider(settings: Settings | None = None, model: str | None = No
 
 
 def build_code_provider(settings: Settings | None = None):
+    """PlantUML code model — prefers local LoRA fine-tune when enabled."""
     settings = settings or get_settings()
+    if settings.use_finetuned_code:
+        from app.providers.finetuned_provider import FinetunedMLXProvider
+
+        return FinetunedMLXProvider(
+            base_model=settings.finetuned_base_model,
+            adapter_path=settings.finetuned_adapter_path,
+            max_tokens=settings.finetuned_max_tokens,
+            temperature=0.2,
+        )
     return build_chat_provider(settings, model=settings.code_model)
+
+
+def build_base_code_provider(settings: Settings | None = None):
+    """Non-fine-tuned code provider for safe fallback retries."""
+    settings = settings or get_settings()
+    if settings.mock_providers:
+        return MockProvider()
+    if settings.use_ollama:
+        return OllamaProvider(settings.code_model)
+    return OpenAIProvider(
+        settings.code_model,
+        base_url=settings.openai_base_url,
+        api_key=settings.openai_api_key,
+    )
 
 
 def build_vlm_providers(settings: Settings | None = None) -> dict[str, object]:

@@ -29,6 +29,44 @@ def ensure_plantuml_bounds(code: str) -> str:
     return m.group(0) if m else text
 
 
+def sanitize_plantuml_output(code: str, *, max_lines: int = 120) -> str:
+    """Clean common LLM failures: duplicate tags, repeated lines, runaway output."""
+    text = ensure_plantuml_bounds(code)
+    lines = text.splitlines()
+    cleaned: list[str] = []
+    seen: set[str] = set()
+    start_count = 0
+    for line in lines:
+        low = line.strip().lower()
+        if low.startswith("@startuml"):
+            start_count += 1
+            if start_count > 1:
+                continue
+        if low.startswith("@enduml") and start_count == 0:
+            continue
+        key = line.strip()
+        if key and key in seen and not key.startswith("@") and not key.endswith("}"):
+            continue
+        if key:
+            seen.add(key)
+        cleaned.append(line.rstrip())
+        if len(cleaned) >= max_lines and not low.startswith("@enduml"):
+            cleaned.append("@enduml")
+            break
+    if not cleaned or cleaned[-1].strip().lower() != "@enduml":
+        if cleaned and cleaned[-1].strip().lower().startswith("@enduml"):
+            pass
+        else:
+            cleaned.append("@enduml")
+    # Balance braces inside diagram body
+    body = "\n".join(cleaned)
+    opens = body.count("{")
+    closes = body.count("}")
+    if opens > closes:
+        body = body.replace("@enduml", "}" * (opens - closes) + "\n@enduml", 1)
+    return body.strip() + "\n"
+
+
 def validate_basic_syntax(code: str) -> ValidationResult:
     msgs: list[str] = []
     if "@startuml" not in code.lower():

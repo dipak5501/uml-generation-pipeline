@@ -47,6 +47,12 @@ class Settings(BaseSettings):
     min_composite_for_dataset: float = 3.0
     enable_cot: bool = True
 
+    # Local LoRA fine-tuned PlantUML generator (MLX on Apple Silicon)
+    use_finetuned_code: bool = False
+    finetuned_base_model: str = "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
+    finetuned_adapter_path: Path = ROOT / "models" / "uml-plantuml-lora"
+    finetuned_max_tokens: int = 512
+
     api_base_url: str = "http://127.0.0.1:8000"
 
     @property
@@ -63,11 +69,25 @@ class Settings(BaseSettings):
 
     @property
     def provider_name(self) -> str:
+        """Primary label for UI: prefer fine-tuned code stage when enabled."""
+        if self.use_finetuned_code:
+            return "finetuned-mlx"
         if self.mock_providers:
             return "mock"
         if self.use_ollama:
             return "ollama"
         return "openai"
+
+    @property
+    def provider_summary(self) -> str:
+        """Human-readable mix of stages (spec / code / VLM)."""
+        code = "finetuned-mlx" if self.use_finetuned_code else (
+            "mock" if self.mock_providers else ("ollama" if self.use_ollama else "openai")
+        )
+        other = "mock" if self.mock_providers else ("ollama" if self.use_ollama else "openai")
+        if self.use_finetuned_code and self.mock_providers:
+            return f"spec/VLM={other} · code={code}"
+        return code
 
 
 @lru_cache

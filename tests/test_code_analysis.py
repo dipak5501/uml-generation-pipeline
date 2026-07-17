@@ -1,6 +1,12 @@
 """Tests for source-code structure extraction."""
 
-from app.services.code_analysis import analyze_source_code, looks_like_source_code, structure_to_spec
+from app.services.code_analysis import (
+    analyze_source_code,
+    detect_source_language,
+    looks_like_source_code,
+    resolve_input_mode,
+    structure_to_spec,
+)
 
 
 SAMPLE = '''
@@ -31,3 +37,13 @@ def test_structure_to_spec_mentions_classes():
     assert "User" in spec
     assert "Order" in spec
     assert "Technical Specification" in spec
+
+
+def test_resolve_input_mode_auto_detects_code():
+    assert resolve_input_mode(SAMPLE, "requirement") == "source_code"
+    assert resolve_input_mode("Build a bookstore.", "requirement") == "requirement"
+
+
+def test_detect_source_language():
+    assert detect_source_language(SAMPLE, "source_code") == "python"
+    assert detect_source_language("Build a bookstore.", "requirement") is None

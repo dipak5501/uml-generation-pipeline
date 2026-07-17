@@ -111,6 +111,8 @@ class ArtifactSummary(BaseModel):
     composite_score: float
     majority_accepted: bool = False
     dataset_accepted: bool = False
+    input_mode: str = "requirement"
+    source_language: Optional[str] = None
     source_requirement: str
     created_at: datetime
 
@@ -118,6 +120,8 @@ class ArtifactSummary(BaseModel):
 class ArtifactDetail(BaseModel):
     id: int
     diagram_type: str
+    input_mode: str = "requirement"
+    source_language: Optional[str] = None
     source_requirement: str
     technical_spec: str
     plantuml_code: str
@@ -157,7 +161,11 @@ class AnalyticsSummary(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     provider: str
+    provider_summary: str = ""
     mock_providers: bool
+    use_finetuned_code: bool = False
+    finetuned_adapter_path: Optional[str] = None
+    finetuned_adapter_present: bool = False
     database_ok: bool
     plantuml_jar_present: bool
     java_available: bool
