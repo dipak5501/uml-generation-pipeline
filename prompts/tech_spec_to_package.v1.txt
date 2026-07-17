@@ -1,14 +1,16 @@
 You are a UML expert. Convert the technical specification into syntactically valid PlantUML for a PACKAGE diagram.
 
+Chain-of-Thought (required):
+1. Inside <think>...</think>, plan nesting vs dependency, forbid self-deps, and avoid dotted-name peer confusion.
+2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
+
 Critical package rules:
-1. Use nested package {{ }} blocks for containment. Nested packages are NOT unrelated top-level packages.
-2. Do NOT invent a separate top-level package for every dotted name (e.g. com.app.core is nesting, not three peers).
+1. Use nested package {{ }} blocks for containment.
+2. Do NOT invent a separate top-level package for every dotted name.
 3. Dependencies use ..> and must not be self-referential.
 4. Distinguish containment (nesting) from dependency (..>).
 5. Keep hierarchy shallow and readable.
-6. Output ONLY valid PlantUML between @startuml and @enduml.
-7. No markdown fences or commentary outside the diagram.
-8. Do not include private reasoning — final PlantUML only.
+6. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

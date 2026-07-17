@@ -59,8 +59,11 @@ def analytics_summary(session: Session) -> dict[str, Any]:
         1 for a in artifacts if a.diagram_type == "package" and a.render_status != "success"
     )
     scores = [a.composite_score for a in artifacts]
+    maj_count = sum(1 for a in artifacts if a.majority_accepted)
+    ds_count = sum(1 for a in artifacts if a.dataset_accepted)
+    n = len(artifacts)
     return {
-        "total_artifacts": len(artifacts),
+        "total_artifacts": n,
         "by_diagram_type": by_type,
         "mean_composite": (sum(scores) / len(scores)) if scores else None,
         "render_failures": sum(1 for a in artifacts if a.render_status != "success"),
@@ -69,6 +72,9 @@ def analytics_summary(session: Session) -> dict[str, Any]:
         "package_failure_count": package_failures,
         "human_review_count": len(reviews),
         "human_vs_ai_correlation": correlation,
+        "majority_accepted_count": maj_count,
+        "dataset_accepted_count": ds_count,
+        "majority_acceptance_rate": (maj_count / n) if n else None,
     }
 
 
@@ -98,6 +104,10 @@ def artifacts_dataframe(session: Session) -> pd.DataFrame:
                 "render_status": a.render_status,
                 "image_path": a.image_path,
                 "scores": a.composite_score,
+                "majority_accepted": a.majority_accepted,
+                "affirmative_votes": a.affirmative_votes,
+                "dataset_accepted": a.dataset_accepted,
+                "used_cot": a.used_cot,
                 "created_at": a.created_at.isoformat() if a.created_at else None,
             }
         )

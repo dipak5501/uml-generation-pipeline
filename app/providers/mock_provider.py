@@ -184,8 +184,19 @@ class MockProvider:
             or "@startuml" in lower
             or "uml expert" in lower
             or "output only valid plantuml" in lower
+            or "chain-of-thought" in lower
+            or "<think>" in lower
         ):
-            return self._plantuml(user, dtype)
+            code = self._plantuml(user, dtype)
+            if "chain-of-thought" in lower or "<think>" in lower or "think>" in lower:
+                return (
+                    "<think>\n"
+                    f"Identify entities from the specification for a {dtype} diagram, "
+                    "choose connectors, and validate hierarchy before emitting PlantUML.\n"
+                    "</think>\n"
+                    f"{code}"
+                )
+            return code
         return self._spec(user)
 
     def vision_score(self, image_path: Path, prompt: str) -> int:

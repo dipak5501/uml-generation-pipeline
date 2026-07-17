@@ -16,14 +16,18 @@ except Exception as exc:
     st.error(exc)
     st.stop()
 
-c1, c2, c3, c4 = st.columns(4)
+c1, c2, c3, c4, c5, c6 = st.columns(6)
 c1.metric("Artifacts", summary["total_artifacts"])
 c2.metric("Render failures", summary["render_failures"])
 c3.metric("Package failures", summary["package_failure_count"])
-c4.metric(
+c4.metric("Majority accepted", summary.get("majority_accepted_count", 0))
+c5.metric("Dataset accepted", summary.get("dataset_accepted_count", 0))
+c6.metric(
     "Human↔AI corr",
     f"{summary['human_vs_ai_correlation']:.3f}" if summary.get("human_vs_ai_correlation") is not None else "n/a",
 )
+if summary.get("majority_acceptance_rate") is not None:
+    st.caption(f"Majority acceptance rate: {100 * summary['majority_acceptance_rate']:.1f}%")
 
 st.subheader("Composite score distribution")
 comp = dist.get("composite") or {}

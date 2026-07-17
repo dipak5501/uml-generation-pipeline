@@ -65,6 +65,11 @@ class UMLArtifact(SQLModel, table=True):
     image_path: Optional[str] = None
     image_format: str = "png"
     composite_score: float = 0.0
+    majority_accepted: bool = False
+    affirmative_votes: int = 0
+    dataset_accepted: bool = False
+    acceptance_tau: float = 4.0
+    used_cot: bool = False
     prompt_name: str = ""
     prompt_version: str = "v1"
     code_model: str = ""
@@ -113,6 +118,10 @@ class CompositeScore(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     artifact_id: int = Field(foreign_key="umlartifact.id", index=True)
     final_score: float = 0.0
+    majority_accepted: bool = False
+    affirmative_votes: int = 0
+    dataset_accepted: bool = False
+    tau: float = 4.0
     formula_snapshot: str = ""
     created_at: datetime = Field(default_factory=utcnow)
 

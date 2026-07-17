@@ -24,9 +24,10 @@ from app.models import (
 from app.services.code_analysis import looks_like_source_code, structure_to_spec
 from app.prompts_registry import diagram_prompt_name, render_prompt
 from app.providers.factory import build_chat_provider, build_code_provider, build_vlm_providers
+from app.services.cot import COT_SYSTEM, finalize_plantuml_output, has_cot_block
 from app.services.plantuml_validate import ensure_plantuml_bounds, validate_diagram
 from app.services.repair import repair_plantuml
-from app.services.scoring import formula_snapshot, paper_composite
+from app.services.scoring import VerificationResult, paper_composite, verify_scores
 from app.settings import Settings, get_settings
 from uml_pipeline.render import render_plantuml
 
@@ -92,16 +93,18 @@ def generate_plantuml_code(
     specification: str,
     diagram_type: str,
     settings: Settings | None = None,
-) -> tuple[str, str, str, str]:
+) -> tuple[str, str, str, str, bool]:
+    """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot)."""
     settings = settings or get_settings()
     provider = build_code_provider(settings)
     name = diagram_prompt_name(diagram_type)
     ref, prompt = render_prompt(name, "v1", specification=specification)
-    system = "You output only valid PlantUML code between @startuml and @enduml."
+    system = COT_SYSTEM if settings.enable_cot else "You output only valid PlantUML code between @startuml and @enduml."
     raw = provider.chat(system, prompt, temperature=0.2)
-    code = ensure_plantuml_bounds(raw)
+    used_cot = has_cot_block(raw) or settings.enable_cot
+    code = ensure_plantuml_bounds(finalize_plantuml_output(raw))
     model_name = getattr(provider, "model", settings.code_model)
-    return code, ref.name, ref.version, str(model_name)
+    return code, ref.name, ref.version, str(model_name), used_cot
 
 
 def score_image(
@@ -138,8 +141,61 @@ def score_image(
                 "explanation": str(exc),
                 "raw_output": None,
             }
-    composite = paper_composite(scores, weights)
+    composite = paper_composite(scores, weights, render_ok=True)
     return scores, meta, composite
+
+
+def apply_verification(
+    artifact: UMLArtifact,
+    scores: dict[str, int],
+    meta: dict[str, dict],
+    verification: VerificationResult,
+    session: Session,
+    *,
+    clear_existing: bool = False,
+) -> None:
+    """Persist model scores + composite verification onto an artifact."""
+    settings = get_settings()
+    if clear_existing:
+        for old in session.exec(select(ModelScore).where(ModelScore.artifact_id == artifact.id)).all():
+            session.delete(old)
+        for old in session.exec(
+            select(CompositeScore).where(CompositeScore.artifact_id == artifact.id)
+        ).all():
+            session.delete(old)
+        session.commit()
+
+    artifact.composite_score = verification.composite
+    artifact.majority_accepted = verification.majority_accepted
+    artifact.affirmative_votes = verification.affirmative_votes
+    artifact.dataset_accepted = verification.dataset_accepted
+    artifact.acceptance_tau = verification.tau
+
+    for key, weight in settings.vlm_weight_map.items():
+        m = meta.get(key, {})
+        session.add(
+            ModelScore(
+                artifact_id=artifact.id,
+                model_key=key,
+                model_name=str(m.get("model_name", key)),
+                score=int(scores.get(key, 0)),
+                weight=weight,
+                available=bool(m.get("available", True)),
+                explanation=m.get("explanation"),
+                raw_output=m.get("raw_output"),
+            )
+        )
+    session.add(
+        CompositeScore(
+            artifact_id=artifact.id,
+            final_score=verification.composite,
+            majority_accepted=verification.majority_accepted,
+            affirmative_votes=verification.affirmative_votes,
+            dataset_accepted=verification.dataset_accepted,
+            tau=verification.tau,
+            formula_snapshot=verification.formula_snapshot,
+        )
+    )
 
 
 def run_single_generation(
@@ -186,7 +242,9 @@ def run_single_generation(
     session.commit()
     session.refresh(tech)
 
-    plantuml, p_name, p_ver, code_model = generate_plantuml_code(spec_text, diagram_type, settings)
+    plantuml, p_name, p_ver, code_model, used_cot = generate_plantuml_code(
+        spec_text, diagram_type, settings
+    )
     validation = validate_diagram(plantuml, diagram_type)
     validation_msgs = list(validation.messages)
 
@@ -204,6 +262,8 @@ def run_single_generation(
         prompt_version=p_ver,
         code_model=code_model,
         provider=settings.provider_name,
+        used_cot=used_cot,
+        acceptance_tau=settings.acceptance_tau,
         validation_messages="\n".join(validation_msgs) if validation_msgs else None,
     )
     session.add(artifact)
@@ -311,59 +371,37 @@ def run_single_generation(
 
     scores: dict[str, int] = {k: 0 for k in settings.vlm_weight_map}
     meta: dict[str, dict] = {}
-    composite = 0.0
 
     if image_path is None:
         artifact.render_status = "failed"
         artifact.image_path = None
-        artifact.composite_score = 0.0
-        # Persist zero scores
-        for key, weight in settings.vlm_weight_map.items():
-            session.add(
-                ModelScore(
-                    artifact_id=artifact.id,
-                    model_key=key,
-                    model_name=key,
-                    score=0,
-                    weight=weight,
-                    available=True,
-                    explanation=last_err or "render failed",
-                )
-            )
-        session.add(
-            CompositeScore(
-                artifact_id=artifact.id,
-                final_score=0.0,
-                formula_snapshot=formula_snapshot(scores, settings.vlm_weight_map, 0.0),
-            )
+        for key in settings.vlm_weight_map:
+            meta[key] = {
+                "model_name": key,
+                "available": True,
+                "explanation": last_err or "render failed",
+                "raw_output": None,
+            }
+        verification = verify_scores(
+            scores,
+            settings.vlm_weight_map,
+            render_ok=False,
+            tau=settings.acceptance_tau,
+            min_composite=settings.min_composite_for_dataset,
         )
     else:
         artifact.render_status = "success"
         artifact.image_path = str(image_path)
-        scores, meta, composite = score_image(image_path, spec_text, settings)
-        artifact.composite_score = composite
-        for key, weight in settings.vlm_weight_map.items():
-            m = meta.get(key, {})
-            session.add(
-                ModelScore(
-                    artifact_id=artifact.id,
-                    model_key=key,
-                    model_name=str(m.get("model_name", key)),
-                    score=int(scores.get(key, 0)),
-                    weight=weight,
-                    available=bool(m.get("available", True)),
-                    explanation=m.get("explanation"),
-                    raw_output=m.get("raw_output"),
-                )
-            )
-        session.add(
-            CompositeScore(
-                artifact_id=artifact.id,
-                final_score=composite,
-                formula_snapshot=formula_snapshot(scores, settings.vlm_weight_map, composite),
-            )
+        scores, meta, _ = score_image(image_path, spec_text, settings)
+        verification = verify_scores(
+            scores,
+            settings.vlm_weight_map,
+            render_ok=True,
+            tau=settings.acceptance_tau,
+            min_composite=settings.min_composite_for_dataset,
         )
 
+    apply_verification(artifact, scores, meta, verification, session)
     session.add(artifact)
     session.commit()
     session.refresh(artifact)

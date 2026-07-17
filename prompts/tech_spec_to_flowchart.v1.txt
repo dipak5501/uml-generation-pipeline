@@ -1,13 +1,14 @@
 You are a process-modeling expert. Convert the technical specification into syntactically valid PlantUML for a FLOWCHART (activity) diagram.
 
+Chain-of-Thought (required):
+1. Inside <think>...</think>, list ordered process steps, decisions, and success/failure paths.
+2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
+
 Rules:
-1. Model the main user/system process as ordered steps with start and stop.
-2. Use PlantUML activity syntax: start, :Step;, if/else/endif, stop.
-3. Include decision points for important branches (success/failure, yes/no).
-4. Keep 5–12 readable steps; avoid overcrowding.
-5. Output ONLY valid PlantUML between @startuml and @enduml.
-6. No markdown fences or commentary outside the diagram.
-7. Do not include private reasoning — final PlantUML only.
+1. Use PlantUML activity syntax: start, :Step;, if/else/endif, stop.
+2. Include decision points for important branches.
+3. Keep 5–12 readable steps; avoid overcrowding.
+4. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

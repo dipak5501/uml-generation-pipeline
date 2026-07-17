@@ -28,8 +28,8 @@ try:
     stats_row(
         [
             ("Artifacts", str(summary.get("total_artifacts", 0))),
-            ("Mean score", f"{(summary.get('mean_composite') or 0):.2f}"),
-            ("Render failures", str(summary.get("render_failures", 0))),
+            ("Dataset accepted", str(summary.get("dataset_accepted_count", 0))),
+            ("Majority OK", str(summary.get("majority_accepted_count", 0))),
             ("Provider", str(health.get("provider", "?")).upper()),
         ]
     )

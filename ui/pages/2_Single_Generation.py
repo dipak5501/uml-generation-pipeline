@@ -59,8 +59,9 @@ class PaymentService:
 
 panel(
     "Input",
-    "Choose Requirement text or Source code, then generate. Every run still goes through "
-    "PlantUML validation → render gate → 3 VLM scorers → weighted composite score (thesis paper).",
+    "Choose Requirement text or Source code, then generate. Pipeline: CoT PlantUML → "
+    "validation → render gate → 3 VLMs → weighted composite S + majority vote A (τ=4) → "
+    "dataset gate (A=1 and S≥3). Flowchart is an extra diagram type beyond the paper’s four UML types.",
 )
 
 input_mode_label = st.radio(
@@ -161,12 +162,23 @@ scores = artifact.get("model_scores") or []
 available = [s for s in scores if s.get("available", True)]
 vlm_ok = bool(available) and render_ok
 composite = artifact.get("composite_score", 0)
+majority_ok = bool(artifact.get("majority_accepted"))
+dataset_ok = bool(artifact.get("dataset_accepted"))
+votes = artifact.get("affirmative_votes", 0)
+tau = artifact.get("acceptance_tau", 4.0)
 
-v1, v2, v3, v4 = st.columns(4)
-v1.metric("1. Spec generated", "Pass")
+v1, v2, v3, v4, v5 = st.columns(5)
+v1.metric("1. Spec + CoT", "Pass" if artifact.get("used_cot", True) else "Spec only")
 v2.metric("2. PlantUML syntax", "Pass" if syntax_ok else "Flags")
 v3.metric("3. Render gate", "Pass" if render_ok else "Fail → score 0")
-v4.metric("4. Composite (VLMs)", f"{composite:.2f}")
+v4.metric("4. Composite S", f"{composite:.2f}")
+v5.metric("5. Majority A", f"{'Yes' if majority_ok else 'No'} ({votes}/3 ≥τ={tau:g})")
+
+st.caption(
+    f"Dataset entry accepted: **{'Yes' if dataset_ok else 'No'}** "
+    f"(requires majority A=1 and composite S ≥ 3.0). "
+    "Flowchart is an extension beyond the paper’s four UML types."
+)
 
 if artifact.get("validation_messages"):
     st.warning(artifact["validation_messages"])
@@ -182,9 +194,12 @@ with c2:
     st.metric("Final weighted score", f"{artifact['composite_score']:.3f}")
     st.caption(
         "Weights (MMMU): Qwen 53.1 · LLaMA-Vision 50.7 · Aya-Vision 39.9 · "
-        "only scores > 0; render failure forces 0."
+        "render failure forces S=0; majority vote τ=4 (≥2 VLMs)."
     )
-    st.markdown(f"**Render:** `{artifact['render_status']}` · **Type:** `{artifact['diagram_type']}`")
+    st.markdown(
+        f"**Render:** `{artifact['render_status']}` · **Type:** `{artifact['diagram_type']}` · "
+        f"**Dataset:** `{'accepted' if dataset_ok else 'rejected'}`"
+    )
     if artifact["render_status"] == "success":
         try:
             img = api_get_bytes(f"/api/artifacts/{artifact['id']}/image")

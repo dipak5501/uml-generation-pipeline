@@ -3,7 +3,7 @@
 **Author:** [Dipak Yadav](https://github.com/dipak5501)  
 **Repository:** [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
-End-to-end **thesis demo application** that turns plain-English software requirements into design-phase UML diagrams (Class, Object, Component, Package), renders them with PlantUML, scores them with a multimodal VLM ensemble, and supports human evaluation + analytics.
+End-to-end **thesis demo application** that turns plain-English software requirements (or source code) into design-phase UML diagrams (**Class, Object, Component, Package**) plus an extra **Flowchart**, renders them with PlantUML, scores them with a multimodal VLM ensemble (weighted composite **S** + majority-vote gate **A**), and supports human evaluation + analytics.
 
 This repository implements the system described in **Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design** (Dipak Yadav, Yutong Zhao).
 
@@ -11,13 +11,14 @@ This repository implements the system described in **Automated UML Dataset Gener
 
 ```mermaid
 flowchart LR
-  A[Requirement] --> B[Tech Spec LLM]
-  B --> C[PlantUML LLM]
+  A[Requirement / Code] --> B[Tech Spec LLM]
+  B --> C[CoT PlantUML LLM]
   C --> D[Validate / Repair]
-  D --> E[PlantUML Render]
-  E --> F[VLM Ensemble]
-  F --> G[Weighted Composite]
-  G --> H[SQLite Artifacts + UI]
+  D --> E[PlantUML Render Gate]
+  E --> F[3 VLMs]
+  F --> G[Composite S + Majority A]
+  G --> H[Dataset gate A and S≥3]
+  H --> I[SQLite + UI]
 ```
 
 ## Quick start (local, mock mode)

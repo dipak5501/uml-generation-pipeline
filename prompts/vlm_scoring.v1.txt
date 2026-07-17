@@ -4,11 +4,17 @@ The specification may come from natural-language requirements OR reverse-enginee
 Specification:
 {specification}
 
-Score the diagram from 0 to 6:
-- 0: diagram missing, unreadable, or shows none of the requirements/code structure
-- 1-2: major elements missing or wrong diagram type
-- 3-4: partial alignment with notable gaps
+Score the diagram from 0 to 6 using these paper criteria jointly:
+1. Semantic correctness — entities/relationships/constraints match the specification (penalize hallucination/omission)
+2. Structural completeness — all major mandated components are present
+3. Syntactic accuracy — correct UML/PlantUML notation for the diagram type
+4. Overall coherence — clear, usable, consistent layout and naming
+
+Scale:
+- 0: missing, unreadable, non-renderable, or no alignment
+- 1-2: major gaps or wrong diagram type
+- 3-4: partial alignment with notable issues
 - 5: strong alignment with minor issues
-- 6: complete alignment (entities/steps, relationships, constraints)
+- 6: complete alignment
 
 Reply with a single integer score only.

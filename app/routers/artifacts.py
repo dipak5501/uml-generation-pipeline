@@ -9,11 +9,12 @@ from fastapi.responses import FileResponse, PlainTextResponse
 from sqlmodel import Session, select
 
 from app.db import get_session
-from app.models import CompositeScore, GenerationJob, ModelScore, RepairAttempt, RenderAttempt, UMLArtifact
+from app.models import GenerationJob, RepairAttempt, RenderAttempt, UMLArtifact
 from app.schemas import ArtifactDetail, ArtifactSummary, JobResponse
 from app.services.artifacts import artifact_detail, artifact_summary
+from app.services.orchestration import apply_verification, score_image
 from app.services.repair import repair_plantuml
-from app.services.scoring import formula_snapshot
+from app.services.scoring import verify_scores
 from app.settings import get_settings
 from uml_pipeline.render import render_plantuml
 
@@ -42,6 +43,7 @@ def list_artifacts(
     diagram_type: Optional[str] = None,
     min_score: Optional[float] = None,
     render_status: Optional[str] = None,
+    dataset_accepted: Optional[bool] = None,
     session: Session = Depends(get_session),
 ):
     q = select(UMLArtifact)
@@ -53,6 +55,8 @@ def list_artifacts(
         if min_score is not None and a.composite_score < min_score:
             continue
         if render_status and a.render_status != render_status:
+            continue
+        if dataset_accepted is not None and a.dataset_accepted is not dataset_accepted:
             continue
         out.append(artifact_summary(a))
     out.sort(key=lambda x: x.id, reverse=True)
@@ -86,8 +90,6 @@ def get_plantuml(artifact_id: int, session: Session = Depends(get_session)):
 
 @router.post("/artifacts/{artifact_id}/rescore", response_model=ArtifactDetail)
 def rescore(artifact_id: int, session: Session = Depends(get_session)):
-    from app.services.orchestration import score_image
-
     settings = get_settings()
     a = session.get(UMLArtifact, artifact_id)
     if not a:
@@ -95,39 +97,16 @@ def rescore(artifact_id: int, session: Session = Depends(get_session)):
     if a.render_status != "success" or not a.image_path:
         raise HTTPException(400, "Cannot rescore: render failed or image missing (score remains 0)")
 
-    # clear old scores
-    old = session.exec(select(ModelScore).where(ModelScore.artifact_id == artifact_id)).all()
-    for o in old:
-        session.delete(o)
-    oldc = session.exec(select(CompositeScore).where(CompositeScore.artifact_id == artifact_id)).all()
-    for o in oldc:
-        session.delete(o)
-    session.commit()
-
-    scores, meta, composite = score_image(Path(a.image_path), a.technical_spec, settings)
-    a.composite_score = composite
-    session.add(a)
-    for key, weight in settings.vlm_weight_map.items():
-        m = meta.get(key, {})
-        session.add(
-            ModelScore(
-                artifact_id=a.id,
-                model_key=key,
-                model_name=str(m.get("model_name", key)),
-                score=int(scores.get(key, 0)),
-                weight=weight,
-                available=bool(m.get("available", True)),
-                explanation=m.get("explanation"),
-                raw_output=m.get("raw_output"),
-            )
-        )
-    session.add(
-        CompositeScore(
-            artifact_id=a.id,
-            final_score=composite,
-            formula_snapshot=formula_snapshot(scores, settings.vlm_weight_map, composite),
-        )
+    scores, meta, _ = score_image(Path(a.image_path), a.technical_spec, settings)
+    verification = verify_scores(
+        scores,
+        settings.vlm_weight_map,
+        render_ok=True,
+        tau=settings.acceptance_tau,
+        min_composite=settings.min_composite_for_dataset,
     )
+    apply_verification(a, scores, meta, verification, session, clear_existing=True)
+    session.add(a)
     session.commit()
     detail = artifact_detail(session, artifact_id)
     assert detail
@@ -179,34 +158,31 @@ def repair_artifact(artifact_id: int, session: Session = Depends(get_session)):
             shutil.copy2(img, stable)
         a.image_path = str(stable)
         a.render_status = "success"
-        from app.services.orchestration import score_image
-
-        scores, meta, composite = score_image(stable, a.technical_spec, settings)
-        a.composite_score = composite
-        for key, weight in settings.vlm_weight_map.items():
-            m = meta.get(key, {})
-            session.add(
-                ModelScore(
-                    artifact_id=a.id,
-                    model_key=key,
-                    model_name=str(m.get("model_name", key)),
-                    score=int(scores.get(key, 0)),
-                    weight=weight,
-                    available=bool(m.get("available", True)),
-                    explanation=m.get("explanation"),
-                    raw_output=m.get("raw_output"),
-                )
-            )
-        session.add(
-            CompositeScore(
-                artifact_id=a.id,
-                final_score=composite,
-                formula_snapshot=formula_snapshot(scores, settings.vlm_weight_map, composite),
-            )
+        scores, meta, _ = score_image(stable, a.technical_spec, settings)
+        verification = verify_scores(
+            scores,
+            settings.vlm_weight_map,
+            render_ok=True,
+            tau=settings.acceptance_tau,
+            min_composite=settings.min_composite_for_dataset,
         )
+        apply_verification(a, scores, meta, verification, session, clear_existing=True)
     else:
         a.render_status = "failed"
         a.composite_score = 0.0
+        a.majority_accepted = False
+        a.affirmative_votes = 0
+        a.dataset_accepted = False
+        zero = {k: 0 for k in settings.vlm_weight_map}
+        verification = verify_scores(
+            zero,
+            settings.vlm_weight_map,
+            render_ok=False,
+            tau=settings.acceptance_tau,
+            min_composite=settings.min_composite_for_dataset,
+        )
+        meta = {k: {"model_name": k, "available": True, "explanation": err, "raw_output": None} for k in zero}
+        apply_verification(a, zero, meta, verification, session, clear_existing=True)
     session.add(a)
     session.commit()
     detail = artifact_detail(session, artifact_id)

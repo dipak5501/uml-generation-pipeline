@@ -42,6 +42,11 @@ class Settings(BaseSettings):
     weight_llama32vl11b: float = 50.7
     weight_aya_vision_8b: float = 39.9
 
+    # Paper majority-vote acceptance gate
+    acceptance_tau: float = 4.0
+    min_composite_for_dataset: float = 3.0
+    enable_cot: bool = True
+
     api_base_url: str = "http://127.0.0.1:8000"
 
     @property

@@ -25,7 +25,41 @@ def init_db() -> None:
     from app import models  # noqa: F401 — register metadata
 
     SQLModel.metadata.create_all(get_engine())
+    _migrate_sqlite_columns()
     _ensure_default_project()
+
+
+def _migrate_sqlite_columns() -> None:
+    """Add paper-alignment columns on existing SQLite DBs (create_all won't alter)."""
+    settings = get_settings()
+    if not settings.database_url.startswith("sqlite"):
+        return
+    engine = get_engine()
+    additions = {
+        "umlartifact": [
+            ("majority_accepted", "BOOLEAN DEFAULT 0"),
+            ("affirmative_votes", "INTEGER DEFAULT 0"),
+            ("dataset_accepted", "BOOLEAN DEFAULT 0"),
+            ("acceptance_tau", "FLOAT DEFAULT 4.0"),
+            ("used_cot", "BOOLEAN DEFAULT 0"),
+        ],
+        "compositescore": [
+            ("majority_accepted", "BOOLEAN DEFAULT 0"),
+            ("affirmative_votes", "INTEGER DEFAULT 0"),
+            ("dataset_accepted", "BOOLEAN DEFAULT 0"),
+            ("tau", "FLOAT DEFAULT 4.0"),
+        ],
+    }
+    with engine.begin() as conn:
+        for table, cols in additions.items():
+            existing = {
+                row[1] for row in conn.exec_driver_sql(f"PRAGMA table_info({table})").fetchall()
+            }
+            if not existing:
+                continue
+            for name, ddl in cols:
+                if name not in existing:
+                    conn.exec_driver_sql(f"ALTER TABLE {table} ADD COLUMN {name} {ddl}")
 
 
 def _ensure_default_project() -> None:

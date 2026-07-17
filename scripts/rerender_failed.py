@@ -4,7 +4,6 @@
 from __future__ import annotations
 
 import argparse
-import shutil
 import sys
 from pathlib import Path
 
@@ -17,9 +16,9 @@ load_dotenv()
 from sqlmodel import Session, select
 
 from app.db import get_engine, init_db
-from app.models import CompositeScore, ModelScore, RenderAttempt, UMLArtifact
-from app.services.orchestration import score_image
-from app.services.scoring import formula_snapshot
+from app.models import RenderAttempt, UMLArtifact
+from app.services.orchestration import apply_verification, score_image
+from app.services.scoring import verify_scores
 from app.settings import get_settings
 from uml_pipeline.render import render_plantuml
 
@@ -59,46 +58,49 @@ def main() -> None:
             )
             if img is None:
                 a.render_status = "failed"
-                a.composite_score = 0.0
                 a.image_path = None
+                zero = {k: 0 for k in settings.vlm_weight_map}
+                meta = {
+                    k: {
+                        "model_name": k,
+                        "available": True,
+                        "explanation": err or "render failed",
+                        "raw_output": None,
+                    }
+                    for k in zero
+                }
+                verification = verify_scores(
+                    zero,
+                    settings.vlm_weight_map,
+                    render_ok=False,
+                    tau=settings.acceptance_tau,
+                    min_composite=settings.min_composite_for_dataset,
+                )
+                apply_verification(a, zero, meta, verification, session, clear_existing=True)
                 fail += 1
                 print(f"FAIL id={a.id}: {err}")
             else:
+                import shutil
+
                 stable = out_dir / f"diagram.{settings.image_format}"
                 if Path(img) != stable:
                     shutil.copy2(img, stable)
                 a.image_path = str(stable)
                 a.render_status = "success"
-                scores, meta, composite = score_image(stable, a.technical_spec, settings)
-                a.composite_score = composite
-                # replace scores
-                for old in session.exec(select(ModelScore).where(ModelScore.artifact_id == a.id)).all():
-                    session.delete(old)
-                for old in session.exec(select(CompositeScore).where(CompositeScore.artifact_id == a.id)).all():
-                    session.delete(old)
-                for key, weight in settings.vlm_weight_map.items():
-                    m = meta.get(key, {})
-                    session.add(
-                        ModelScore(
-                            artifact_id=a.id,
-                            model_key=key,
-                            model_name=str(m.get("model_name", key)),
-                            score=int(scores.get(key, 0)),
-                            weight=weight,
-                            available=bool(m.get("available", True)),
-                            explanation=m.get("explanation"),
-                            raw_output=m.get("raw_output"),
-                        )
-                    )
-                session.add(
-                    CompositeScore(
-                        artifact_id=a.id,
-                        final_score=composite,
-                        formula_snapshot=formula_snapshot(scores, settings.vlm_weight_map, composite),
-                    )
+                scores, meta, _ = score_image(stable, a.technical_spec, settings)
+                verification = verify_scores(
+                    scores,
+                    settings.vlm_weight_map,
+                    render_ok=True,
+                    tau=settings.acceptance_tau,
+                    min_composite=settings.min_composite_for_dataset,
                 )
+                apply_verification(a, scores, meta, verification, session, clear_existing=True)
                 ok += 1
-                print(f"OK   id={a.id} score={composite:.2f}")
+                print(
+                    f"OK   id={a.id} score={verification.composite:.2f} "
+                    f"majority={verification.majority_accepted} dataset={verification.dataset_accepted}"
+                )
             session.add(a)
             session.commit()
     print(f"Done. success={ok} failed={fail}")

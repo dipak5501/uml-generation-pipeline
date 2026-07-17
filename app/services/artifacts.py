@@ -28,6 +28,8 @@ def artifact_summary(a: UMLArtifact) -> ArtifactSummary:
         diagram_type=a.diagram_type,
         render_status=a.render_status,
         composite_score=a.composite_score,
+        majority_accepted=a.majority_accepted,
+        dataset_accepted=a.dataset_accepted,
         source_requirement=a.source_requirement,
         created_at=a.created_at,
     )
@@ -72,6 +74,11 @@ def artifact_detail(session: Session, artifact_id: int) -> ArtifactDetail | None
         image_path=a.image_path,
         image_format=a.image_format,
         composite_score=a.composite_score,
+        majority_accepted=a.majority_accepted,
+        affirmative_votes=a.affirmative_votes,
+        dataset_accepted=a.dataset_accepted,
+        acceptance_tau=a.acceptance_tau,
+        used_cot=a.used_cot,
         validation_messages=a.validation_messages,
         model_scores=[
             ModelScoreOut(

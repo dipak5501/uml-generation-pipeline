@@ -109,6 +109,8 @@ class ArtifactSummary(BaseModel):
     diagram_type: str
     render_status: str
     composite_score: float
+    majority_accepted: bool = False
+    dataset_accepted: bool = False
     source_requirement: str
     created_at: datetime
 
@@ -123,6 +125,11 @@ class ArtifactDetail(BaseModel):
     image_path: Optional[str]
     image_format: str
     composite_score: float
+    majority_accepted: bool = False
+    affirmative_votes: int = 0
+    dataset_accepted: bool = False
+    acceptance_tau: float = 4.0
+    used_cot: bool = False
     validation_messages: Optional[str]
     model_scores: list[ModelScoreOut]
     render_attempts: list[RenderAttemptOut]
@@ -142,6 +149,9 @@ class AnalyticsSummary(BaseModel):
     package_failure_count: int
     human_review_count: int
     human_vs_ai_correlation: Optional[float] = None
+    majority_accepted_count: int = 0
+    dataset_accepted_count: int = 0
+    majority_acceptance_rate: Optional[float] = None
 
 
 class HealthResponse(BaseModel):
