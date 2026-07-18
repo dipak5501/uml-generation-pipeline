@@ -14,9 +14,26 @@ class CodeStructure:
     methods: dict[str, list[str]] = field(default_factory=dict)
     functions: list[str] = field(default_factory=list)
     imports: list[str] = field(default_factory=list)
+    variables: list[str] = field(default_factory=list)
+    steps: list[str] = field(default_factory=list)
 
     def entity_names(self, n: int = 6) -> list[str]:
-        names = list(self.classes) + [f for f in self.functions if f[:1].isupper()]
+        names = list(self.classes)
+        if not names:
+            names = [
+                v[0].upper() + v[1:] if len(v) > 1 else v.upper()
+                for v in self.variables
+                if v and not v.startswith("_")
+            ]
+        if not names:
+            for step in self.steps:
+                words = re.findall(r"[A-Za-z]{3,}", step)
+                if words:
+                    title = words[0][0].upper() + words[0][1:]
+                    if title not in names:
+                        names.append(title)
+        if not names:
+            names = [f for f in self.functions if f[:1].isupper()]
         if not names:
             names = list(self.functions)
         # Unique preserve order
@@ -34,11 +51,25 @@ class CodeStructure:
 def detect_language(code: str) -> str:
     if re.search(r"^\s*def\s+\w+|^\s*class\s+\w+", code, re.M):
         return "python"
+    python_script = [
+        r"^\s*#",
+        r"\bprint\s*\(",
+        r"\binput\s*\(",
+        r"\belif\b",
+        r"\b(True|False|None)\b",
+        r"\bimport\s+\w",
+        r"\bfrom\s+\w+\s+import",
+        r"\bint\s*\(",
+        r"\bfloat\s*\(",
+        r"\bstr\s*\(",
+    ]
+    if sum(1 for p in python_script if re.search(p, code, re.M)) >= 2:
+        return "python"
     if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code):
         return "javascript"
     if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
         return "java"
-    if re.search(r"(?m)^\s*import\s+[\w.*]+\s*;\s*$|(?m)^\s*package\s+[\w.]+\s*;\s*$", code):
+    if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
         return "java"
     if "fn " in code and "impl " in code:
         return "rust"
@@ -71,6 +102,9 @@ def looks_like_source_code(text: str) -> bool:
         r"^\s{2,}\w+",
         r"->|=>|::",
         r"\(\s*self\s*[,)]",
+        r"\bprint\s*\(",
+        r"\binput\s*\(",
+        r"^\s*#",
     ]
     for p in patterns:
         if re.search(p, t, re.M):
@@ -83,6 +117,22 @@ def analyze_source_code(code: str) -> CodeStructure:
     struct = CodeStructure(language=lang)
 
     struct.imports = re.findall(r"(?m)^\s*(?:import|from|using|require)\s+[^\n]+", code)[:20]
+    struct.variables = [
+        v
+        for v in re.findall(r"(?m)^\s*([A-Za-z_]\w*)\s*=", code)
+        if v not in {"if", "elif", "for", "while"}
+    ][:12]
+    for line in code.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#"):
+            step = stripped.lstrip("#").strip()
+            if step:
+                struct.steps.append(step)
+        m = re.search(r'print\s*\(\s*["\']([^"\']+)["\']', stripped)
+        if m:
+            step = m.group(1).rstrip(":").strip()
+            if step:
+                struct.steps.append(step)
 
     if lang == "python":
         for m in re.finditer(r"(?m)^\s*class\s+(\w+)(?:\s*\(([^)]*)\))?:", code):
@@ -148,6 +198,12 @@ def structure_to_spec(code: str, diagram_type: str) -> str:
     else:
         for f in s.functions[:8]:
             lines.append(f"- {f}: callable unit")
+        if s.variables:
+            for var in s.variables[:6]:
+                lines.append(f"- {var}: state variable")
+        if s.steps:
+            for step in s.steps[:6]:
+                lines.append(f"- {step}: process step")
     lines.append("### Relationships")
     if s.bases:
         for child, parents in s.bases.items():
@@ -155,11 +211,16 @@ def structure_to_spec(code: str, diagram_type: str) -> str:
                 lines.append(f"- {child} inherits {p}")
     elif len(s.classes) >= 2:
         lines.append(f"- {s.classes[0]} associates with {s.classes[1]}")
+    elif s.variables and len(s.variables) >= 2:
+        lines.append(f"- {s.variables[0]} flows into {s.variables[-1]}")
+    elif s.steps:
+        for i in range(min(len(s.steps) - 1, 5)):
+            lines.append(f"- {s.steps[i]} then {s.steps[i + 1]}")
     else:
         lines.append("- modules collaborate through call dependencies")
-    if diagram_type == "flowchart":
+    if diagram_type == "flowchart" or (not s.classes and s.steps):
         lines.append("### Process steps")
-        steps = s.functions[:6] or s.classes[:6] or ["Initialize", "Process", "Finalize"]
+        steps = s.steps or s.functions[:6] or s.classes[:6] or ["Initialize", "Process", "Finalize"]
         for i, step in enumerate(steps, 1):
             lines.append(f"{i}. {step}")
     if s.imports:

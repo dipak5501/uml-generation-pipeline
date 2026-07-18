@@ -111,13 +111,47 @@ def render_plantuml_remote(code: str, out_path: Path, fmt: str = "png") -> tuple
     return out_path, None
 
 
+def _plantuml_render_succeeded(result: subprocess.CompletedProcess[str], img_path: Path) -> bool:
+    """True when PlantUML wrote a real diagram, not a Graphviz/dot error image."""
+    if result.returncode != 0 or not img_path.is_file():
+        return False
+    combined = f"{result.stderr or ''}\n{result.stdout or ''}".lower()
+    error_markers = (
+        "cannot find graphviz",
+        "dot executable does not exist",
+        "error line",
+        "syntax error",
+        "some diagram description contains errors",
+    )
+    if any(marker in combined for marker in error_markers):
+        return False
+    try:
+        data = img_path.read_bytes()
+    except OSError:
+        return False
+    if len(data) < 256:
+        return False
+    text = data.decode("latin1", errors="ignore").lower()
+    return "cannot find graphviz" not in text and "dot executable does not exist" not in text
+
+
+def _local_plantuml_env() -> dict[str, str]:
+    """Drop broken Graphviz paths that make PlantUML embed error text in PNGs."""
+    env = dict(os.environ)
+    for key in ("GRAPHVIZ_DOT", "DOT_PATH", "PLANTUML_DOT_PATH"):
+        path = env.get(key)
+        if path and not Path(path).is_file():
+            env.pop(key, None)
+    return env
+
+
 def render_plantuml(
     uml_code: str,
     out_dir: Path,
     jar_path: Path,
     fmt: str = "png",
 ) -> tuple[Path | None, str | None]:
-    """Render PlantUML to image. Local Java first, then remote server fallback."""
+    """Render PlantUML to image. Remote server first when enabled, else local Java."""
     code = extract_plantuml_block(uml_code)
     digest = hashlib.sha256(code.encode()).hexdigest()[:16]
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -125,26 +159,40 @@ def render_plantuml(
     puml_file.write_text(code, encoding="utf-8")
     img_path = puml_file.with_suffix(f".{fmt}")
 
+    use_remote = os.getenv("PLANTUML_REMOTE", "true").lower() in ("1", "true", "yes")
+    remote_err: str | None = None
+    if use_remote:
+        remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
+        if remote_img is not None:
+            return remote_img, None
+
     local_err: str | None = None
     java_exe = find_java_executable()
     if java_exe:
         ensure_plantuml_jar(jar_path)
         cmd = [java_exe, "-jar", str(jar_path), f"-t{fmt}", str(puml_file)]
         try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=120)
+            result = subprocess.run(
+                cmd,
+                capture_output=True,
+                text=True,
+                timeout=120,
+                env=_local_plantuml_env(),
+            )
         except subprocess.TimeoutExpired:
             local_err = "PlantUML render timeout"
         except FileNotFoundError:
             local_err = "Java not found; install JDK to render diagrams"
         else:
-            if result.returncode == 0 and img_path.is_file():
+            if _plantuml_render_succeeded(result, img_path):
                 return img_path, None
-            local_err = (result.stderr or result.stdout or "PlantUML failed").strip()[:500]
+            local_err = (result.stderr or result.stdout or "PlantUML produced an error image").strip()[:500]
     else:
         local_err = "No usable Java Runtime (PlantUML jar needs a JDK/JRE)"
 
-    remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
-    if remote_img is not None:
-        return remote_img, None
+    if not use_remote:
+        remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
+        if remote_img is not None:
+            return remote_img, None
 
     return None, f"{local_err}; remote fallback: {remote_err}"

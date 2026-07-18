@@ -44,7 +44,7 @@ After building the open training corpus, fine-tune a small local code model on A
 
 ```bash
 pip install -r requirements-finetune.txt
-make finetune          # ~2000 LoRA iterations
+make finetune          # resume toward 2000 LoRA iterations (Apple Silicon)
 # or smoke test: make finetune-quick
 ```
 

@@ -33,6 +33,9 @@ _STOP = {
     "like", "just", "make", "made", "does", "doing", "done", "demo", "sample",
     "example", "please", "thanks", "intent", "domain", "application",
     "infrastructure", "service", "repository", "model", "view", "snapshot",
+    "detected", "language", "technical", "specification", "reverse", "engineered",
+    "structural", "provided", "collaborate", "dependencies", "callable", "orchestration",
+    "unknown", "primary", "process", "variable", "state", "modules",
     "true", "false", "active", "status", "name", "string", "float", "boolean",
     "date", "notes", "flag", "title", "priority", "ownerid", "createdat",
     "associates", "depends", "composition", "modules", "core",
@@ -52,18 +55,18 @@ def _content_focus(text: str) -> str:
         m = re.search(marker, text, flags=re.I)
         if m:
             body = text[m.end() :].strip()
-            # Prefer extracted entity bullet names when present
-            ents = re.findall(r"^-\s*([A-Za-z][A-Za-z0-9_]+)\s*:", body, flags=re.M)
-            if len(ents) >= 2:
-                return " ".join(ents) + "\n" + body
-            # If nested "Source intent" section exists, use that paragraph
-            intent = re.search(
-                r"###\s*Source intent\s*\n(.+?)(?:\n###|\Z)",
-                body,
-                flags=re.I | re.S,
-            )
-            if intent:
-                return intent.group(1).strip()
+            from_source = "from source code" in body.lower()
+            if not from_source:
+                ents = re.findall(r"^-\s*([A-Za-z][A-Za-z0-9_]+)\s*:", body, flags=re.M)
+                if len(ents) >= 2:
+                    return " ".join(ents) + "\n" + body
+                intent = re.search(
+                    r"###\s*Source intent\s*\n(.+?)(?:\n###|\Z)",
+                    body,
+                    flags=re.I | re.S,
+                )
+                if intent:
+                    return intent.group(1).strip()
             return body
     lines = [ln for ln in text.splitlines() if ln.strip()]
     if len(lines) > 3 and lines[0].lower().startswith("you "):
@@ -93,10 +96,70 @@ def _detect_diagram_type(system: str, user: str) -> str:
     return "class"
 
 
+def _entities_from_entities_section(text: str, n: int = 5) -> list[str] | None:
+    """Parse ### Entities bullets before stripping that section away."""
+    section = re.search(r"###\s*Entities\s*\n(.*?)(?:\n###|\Z)", text, flags=re.I | re.S)
+    if not section:
+        return None
+    names: list[str] = []
+    for line in section.group(1).splitlines():
+        match = re.match(r"^-\s*([A-Za-z_]\w*)\s*:", line.strip())
+        if not match:
+            continue
+        name = match.group(1)
+        if name.lower() in {"domain", "application", "infrastructure", "python", "java", "javascript", "unknown"}:
+            continue
+        if name.islower() and name.isidentifier():
+            name = name[0].upper() + name[1:]
+        if name not in names:
+            names.append(name)
+    if not names:
+        return None
+    while len(names) < n:
+        names.append(f"Module{len(names)+1}")
+    return names[:n]
+
+
+def _strip_spec_boilerplate(text: str) -> str:
+    """Drop auto-generated spec headings so entity extraction stays on user content."""
+    m = re.search(r"source code:\s*", text, flags=re.I)
+    if m:
+        return text[m.end() :].strip()
+    cleaned: list[str] = []
+    skip_prefixes = (
+        "## technical specification",
+        "### detected language",
+        "### source intent",
+        "### entities",
+        "### modules",
+        "### relationships",
+        "### imports",
+        "### process steps",
+    )
+    for line in text.splitlines():
+        low = line.strip().lower()
+        if any(low.startswith(p) for p in skip_prefixes):
+            continue
+        if re.match(r"^-\s*(domain|application|infrastructure|unknown|python|java|javascript)\s*:?\s*$", low):
+            continue
+        if re.match(r"^-\s*(domain|application|infrastructure)\s*:", low):
+            continue
+        if "reverse-engineered structural model" in low:
+            continue
+        cleaned.append(line)
+    return "\n".join(cleaned).strip() or text
+
+
 def _entities_from_text(text: str, n: int = 5) -> list[str]:
     from app.services.code_analysis import analyze_source_code, looks_like_source_code
 
-    focus = _content_focus(text)
+    raw_focus = _content_focus(text)
+    from_section = _entities_from_entities_section(raw_focus, n=n)
+    if from_section:
+        return from_section
+
+    focus = _strip_spec_boilerplate(raw_focus)
+
     if looks_like_source_code(focus) or "source code:" in text.lower():
         names = analyze_source_code(focus).entity_names(n=n)
         if names and not all(x.startswith("Module") for x in names):

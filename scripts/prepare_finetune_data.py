@@ -94,17 +94,24 @@ def main() -> None:
         )
 
     df = pd.read_parquet(args.input)
-    if args.prefer_accepted and "dataset_accepted" in df.columns:
-        df = df.sort_values("dataset_accepted", ascending=False)
-
     records: list[dict] = []
     for row in df.to_dict(orient="records"):
         msg = row_to_messages(row, args.max_spec_chars, args.max_uml_chars)
-        if msg:
-            records.append(msg)
+        if not msg:
+            continue
+        msg["_accepted"] = bool(row.get("dataset_accepted"))
+        records.append(msg)
+
+    if args.prefer_accepted:
+        # Upsample scored-accepted examples so they appear more often in training
+        accepted = [r for r in records if r.get("_accepted")]
+        if accepted:
+            records = records + accepted
 
     rng = random.Random(args.seed)
     rng.shuffle(records)
+    for r in records:
+        r.pop("_accepted", None)
     n = len(records)
     n_test = max(1, int(n * args.test_ratio))
     n_valid = max(1, int(n * args.valid_ratio))

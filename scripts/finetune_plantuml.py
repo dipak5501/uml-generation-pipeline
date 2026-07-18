@@ -51,6 +51,22 @@ def main() -> None:
         help="Override to a short run (200 iters) for pipeline validation",
     )
     parser.add_argument("--skip-prepare", action="store_true")
+    parser.add_argument(
+        "--resume",
+        action="store_true",
+        help="Resume from latest checkpoint under adapter-path (e.g. 0000800_adapters.safetensors)",
+    )
+    parser.add_argument(
+        "--resume-adapter-file",
+        type=Path,
+        default=None,
+        help="Explicit adapter file to resume from",
+    )
+    parser.add_argument(
+        "--test",
+        action="store_true",
+        help="Run test-set eval after training",
+    )
     args = parser.parse_args()
 
     if args.quick:
@@ -60,7 +76,11 @@ def main() -> None:
 
     if not args.skip_prepare or not (args.data / "train.jsonl").is_file():
         prep = subprocess.run(
-            [sys.executable, str(ROOT / "scripts" / "prepare_finetune_data.py")],
+            [
+                sys.executable,
+                str(ROOT / "scripts" / "prepare_finetune_data.py"),
+                "--prefer-accepted",
+            ],
             cwd=str(ROOT),
             check=False,
         )
@@ -72,6 +92,31 @@ def main() -> None:
         raise SystemExit(f"Missing {train_path}")
 
     args.adapter_path.mkdir(parents=True, exist_ok=True)
+
+    resume_file = args.resume_adapter_file
+    if resume_file is None and args.resume:
+        checkpoints = sorted(args.adapter_path.glob("*_adapters.safetensors"))
+        if checkpoints:
+            resume_file = checkpoints[-1]
+            print(f"Resuming from {resume_file}")
+        elif (args.adapter_path / "adapters.safetensors").is_file():
+            resume_file = args.adapter_path / "adapters.safetensors"
+            print(f"Resuming from {resume_file}")
+
+    # If resuming a partial run, train remaining iters toward the requested total when meta exists
+    prior_iters = 0
+    meta_path = args.adapter_path / "finetune_meta.json"
+    if resume_file and meta_path.is_file():
+        try:
+            prior = json.loads(meta_path.read_text(encoding="utf-8"))
+            prior_iters = int(prior.get("iters_completed") or prior.get("iters") or 0)
+        except (json.JSONDecodeError, TypeError, ValueError):
+            prior_iters = 0
+        # When --resume and prior < requested, run the remaining steps
+        if prior_iters and prior_iters < args.iters and not args.quick:
+            remaining = args.iters - prior_iters
+            print(f"Prior iters={prior_iters}; continuing for {remaining} more (target {args.iters})")
+            args.iters = remaining
 
     cmd = [
         sys.executable,
@@ -106,15 +151,24 @@ def main() -> None:
         str(args.steps_per_report),
         "--grad-checkpoint",
     ]
+    if resume_file:
+        cmd.extend(["--resume-adapter-file", str(resume_file)])
+    if args.test:
+        cmd.append("--test")
     print("Running:", " ".join(cmd))
     result = subprocess.run(cmd, cwd=str(ROOT))
     if result.returncode != 0:
         raise SystemExit(result.returncode)
 
+    completed = prior_iters + args.iters if resume_file and prior_iters else args.iters
     meta = {
         "base_model": args.model,
         "adapter_path": str(args.adapter_path),
-        "iters": args.iters,
+        "iters": completed,
+        "iters_completed": completed,
+        "iters_this_run": args.iters,
+        "resumed_from": str(resume_file) if resume_file else None,
+        "stopped_early": False,
         "batch_size": args.batch_size,
         "learning_rate": args.learning_rate,
         "num_layers": args.num_layers,
@@ -127,7 +181,7 @@ def main() -> None:
     )
     print(f"\nFine-tune complete. Adapters → {args.adapter_path}")
     print("Enable in app:")
-    print("  MOCK_PROVIDERS=false")
+    print("  MOCK_PROVIDERS=true")
     print("  USE_FINETUNED_CODE=true")
     print(f"  FINETUNED_ADAPTER_PATH={args.adapter_path}")
     print(f"  FINETUNED_BASE_MODEL={args.model}")

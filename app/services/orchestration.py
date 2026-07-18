@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 import shutil
 from datetime import datetime, timezone
 from pathlib import Path
@@ -42,6 +43,35 @@ from app.settings import Settings, get_settings
 from uml_pipeline.render import render_plantuml
 
 logger = logging.getLogger(__name__)
+
+_GENERIC_CLASS_NAMES = {
+    "entity",
+    "entities",
+    "detected",
+    "language",
+    "unknown",
+    "model",
+    "class",
+    "process",
+    "module",
+    "module1",
+    "module2",
+}
+
+
+def _finetuned_output_needs_fallback(code: str, specification: str, validation_ok: bool) -> bool:
+    """Retry with mock/base provider when LoRA output is invalid or ignores the spec."""
+    if not validation_ok:
+        return True
+    classes = re.findall(r"(?m)^\s*class\s+(\w+)", code, flags=re.I)
+    if classes and all(c.lower() in _GENERIC_CLASS_NAMES for c in classes):
+        return True
+    spec_entities = re.findall(r"(?m)^-\s*([A-Za-z_]\w*)\s*:", specification)
+    if spec_entities:
+        code_lower = code.lower()
+        if not any(ent.lower() in code_lower for ent in spec_entities[:8]):
+            return True
+    return False
 
 
 def _utcnow() -> datetime:
@@ -103,10 +133,16 @@ def generate_plantuml_code(
     specification: str,
     diagram_type: str,
     settings: Settings | None = None,
+    *,
+    input_mode: str = "requirement",
 ) -> tuple[str, str, str, str, bool]:
     """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot)."""
     settings = settings or get_settings()
-    provider = build_code_provider(settings)
+    # LoRA was trained on requirement→PlantUML pairs; source-code mode uses the mock/base provider.
+    if input_mode == "source_code":
+        provider = build_base_code_provider(settings)
+    else:
+        provider = build_code_provider(settings)
     name = diagram_prompt_name(diagram_type)
     ref, prompt = render_prompt(name, "v1", specification=specification)
     system = COT_SYSTEM if settings.enable_cot else "You output only valid PlantUML code between @startuml and @enduml."
@@ -119,11 +155,15 @@ def generate_plantuml_code(
     used_cot = has_cot_block(raw) or settings.enable_cot
     code = sanitize_plantuml_output(finalize_plantuml_output(raw))
     validation = validate_diagram(code, diagram_type)
-    if settings.use_finetuned_code and getattr(provider, "name", "") == "finetuned-mlx" and not validation.ok:
+    if settings.use_finetuned_code and getattr(provider, "name", "") == "finetuned-mlx" and _finetuned_output_needs_fallback(
+        code, specification, validation.ok
+    ):
+        reason = "invalid syntax" if not validation.ok else "generic or spec-mismatched output"
         logger.warning(
-            "Fine-tuned code model produced invalid %s PlantUML; retrying with base provider: %s",
+            "Fine-tuned code model produced weak %s PlantUML (%s); retrying with base provider: %s",
             diagram_type,
-            ", ".join(validation.messages),
+            reason,
+            ", ".join(validation.messages) if validation.messages else "n/a",
         )
         fallback = build_base_code_provider(settings)
         try:
@@ -277,7 +317,7 @@ def run_single_generation(
     session.refresh(tech)
 
     plantuml, p_name, p_ver, code_model, used_cot = generate_plantuml_code(
-        spec_text, diagram_type, settings
+        spec_text, diagram_type, settings, input_mode=resolved_mode
     )
     validation = validate_diagram(plantuml, diagram_type)
     validation_msgs = list(validation.messages)

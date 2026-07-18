@@ -34,7 +34,7 @@ finetune-prepare:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py
 
 finetune:
-	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 800
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 2000 --resume
 
 finetune-quick:
 	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --quick
