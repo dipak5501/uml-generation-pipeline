@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>UML-Pipeline · Automated UML from Requirements</title>
+  <meta name="description" content="Turn software requirements into PlantUML UML diagrams with multimodal VLM verification. Thesis system by Dipak Yadav & Yutong Zhao." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=IBM+Plex+Sans:wght@400;500;600&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --ink: #0e1a1f;
+      --paper: #e8f0f2;
+      --mist: #b7c9cf;
+      --teal: #1f6f78;
+      --teal-bright: #2a9aa6;
+      --copper: #c47a3a;
+      --line: rgba(14, 26, 31, 0.12);
+    }
+
+    * { box-sizing: border-box; }
+    html, body { margin: 0; min-height: 100%; }
+    body {
+      font-family: "IBM Plex Sans", system-ui, sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(1200px 700px at 12% -10%, rgba(42, 154, 166, 0.28), transparent 55%),
+        radial-gradient(900px 600px at 100% 0%, rgba(196, 122, 58, 0.18), transparent 50%),
+        linear-gradient(165deg, #f4f8f9 0%, #d9e6ea 48%, #c5d5db 100%);
+      line-height: 1.55;
+    }
+
+    .wrap {
+      width: min(1080px, calc(100% - 2.5rem));
+      margin: 0 auto;
+    }
+
+    header.hero {
+      min-height: 100vh;
+      display: grid;
+      align-content: center;
+      padding: 4rem 0 3rem;
+      position: relative;
+      overflow: hidden;
+    }
+
+    header.hero::before {
+      content: "";
+      position: absolute;
+      inset: 8% -5% auto auto;
+      width: min(52vw, 560px);
+      height: min(52vw, 560px);
+      border-radius: 40% 60% 55% 45%;
+      background:
+        repeating-linear-gradient(
+          -18deg,
+          transparent,
+          transparent 14px,
+          rgba(31, 111, 120, 0.08) 14px,
+          rgba(31, 111, 120, 0.08) 15px
+        ),
+        linear-gradient(140deg, rgba(31, 111, 120, 0.35), rgba(14, 26, 31, 0.08));
+      filter: blur(0.2px);
+      animation: drift 18s ease-in-out infinite alternate;
+      pointer-events: none;
+    }
+
+    @keyframes drift {
+      from { transform: translateY(0) rotate(0deg); }
+      to { transform: translateY(18px) rotate(4deg); }
+    }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(16px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .brand {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(2.8rem, 8vw, 5.2rem);
+      font-weight: 700;
+      letter-spacing: -0.03em;
+      line-height: 0.95;
+      margin: 0 0 1rem;
+      animation: rise 0.8s ease both;
+    }
+
+    .brand span {
+      color: var(--teal);
+    }
+
+    .lede {
+      max-width: 34rem;
+      font-size: clamp(1.05rem, 2.2vw, 1.25rem);
+      color: rgba(14, 26, 31, 0.82);
+      margin: 0 0 1.75rem;
+      animation: rise 0.9s ease 0.08s both;
+    }
+
+    .actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem 1rem;
+      animation: rise 1s ease 0.16s both;
+    }
+
+    a.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.85rem 1.25rem;
+      border-radius: 0.35rem;
+      text-decoration: none;
+      font-weight: 600;
+      transition: transform 0.2s ease, background 0.2s ease, box-shadow 0.2s ease;
+    }
+
+    a.btn:hover { transform: translateY(-2px); }
+
+    a.btn-primary {
+      background: var(--ink);
+      color: #f3f7f8;
+      box-shadow: 0 10px 30px rgba(14, 26, 31, 0.18);
+    }
+
+    a.btn-secondary {
+      background: transparent;
+      color: var(--ink);
+      border: 1.5px solid rgba(14, 26, 31, 0.35);
+    }
+
+    main {
+      padding: 0 0 4.5rem;
+    }
+
+    section {
+      padding: 2.25rem 0;
+      border-top: 1px solid var(--line);
+      animation: rise 0.8s ease both;
+    }
+
+    h2 {
+      font-family: Fraunces, Georgia, serif;
+      font-size: clamp(1.5rem, 3vw, 2rem);
+      margin: 0 0 0.6rem;
+      letter-spacing: -0.02em;
+    }
+
+    p.support {
+      margin: 0 0 1.25rem;
+      max-width: 40rem;
+      color: rgba(14, 26, 31, 0.78);
+    }
+
+    .flow {
+      display: grid;
+      gap: 0.65rem;
+      font-family: "IBM Plex Sans", monospace;
+      font-size: 0.92rem;
+      background: rgba(255, 255, 255, 0.45);
+      border: 1px solid var(--line);
+      padding: 1rem 1.1rem;
+      border-radius: 0.4rem;
+    }
+
+    .note {
+      margin-top: 1rem;
+      padding: 0.9rem 1rem;
+      background: rgba(31, 111, 120, 0.1);
+      border-left: 3px solid var(--teal);
+      border-radius: 0 0.35rem 0.35rem 0;
+      font-size: 0.95rem;
+    }
+
+    .note code {
+      font-size: 0.88em;
+      background: rgba(14, 26, 31, 0.06);
+      padding: 0.1em 0.35em;
+      border-radius: 0.25rem;
+    }
+
+    footer {
+      border-top: 1px solid var(--line);
+      padding: 1.5rem 0 2.5rem;
+      color: rgba(14, 26, 31, 0.65);
+      font-size: 0.92rem;
+    }
+
+    footer a { color: var(--teal); }
+  </style>
+</head>
+<body>
+  <header class="hero">
+    <div class="wrap">
+      <h1 class="brand">UML<span>-Pipeline</span></h1>
+      <p class="lede">
+        Requirements become design-phase UML — PlantUML render, multimodal VLM scoring,
+        and dataset gates from the Yadav &amp; Zhao thesis method.
+      </p>
+      <div class="actions">
+        <a class="btn btn-primary" id="live-app" href="https://github.com/dipak5501/uml-generation-pipeline#go-live-public-website--no-cursor-needed">Open live app</a>
+        <a class="btn btn-secondary" href="https://github.com/dipak5501/uml-generation-pipeline">GitHub repo</a>
+      </div>
+    </div>
+  </header>
+
+  <main class="wrap">
+    <section>
+      <h2>What this site is</h2>
+      <p class="support">
+        This <code>.github.io</code> page is the public project home.
+        The interactive Streamlit + FastAPI application needs a Python host
+        (Render Blueprint from the same repo) — GitHub Pages cannot run those services.
+      </p>
+      <div class="note">
+        After you deploy Render, set the homepage or edit this page’s
+        <code>Open live app</code> link to your <code>uml-pipeline-ui</code> URL
+        (for example <code>https://uml-pipeline-ui.onrender.com</code>).
+      </div>
+    </section>
+
+    <section>
+      <h2>Pipeline</h2>
+      <p class="support">One path from text (or source code) to verified diagrams.</p>
+      <div class="flow">
+        Requirement / code → tech spec → PlantUML → validate / repair → render gate →
+        3 VLMs → composite S + majority A → dataset if A=1 and S≥3
+      </div>
+    </section>
+
+    <section>
+      <h2>Run it</h2>
+      <p class="support">
+        Local: <code>make run</code> → http://127.0.0.1:8501 ·
+        Cloud: Render Blueprint · see <code>docs/deploy.md</code>.
+      </p>
+      <div class="actions">
+        <a class="btn btn-secondary" href="https://github.com/dipak5501/uml-generation-pipeline/blob/main/docs/deploy.md">Deploy guide</a>
+        <a class="btn btn-secondary" href="https://github.com/dipak5501/uml-generation-pipeline/blob/main/docs/Application_Walkthrough_Guide.pdf">Walkthrough PDF</a>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <div class="wrap">
+      <strong>UML-Pipeline</strong> · Dipak Yadav &amp; Yutong Zhao ·
+      <a href="https://github.com/dipak5501/uml-generation-pipeline">github.com/dipak5501/uml-generation-pipeline</a>
+    </div>
+  </footer>
+
+  <script>
+    // If a Render UI URL is known via ?app=, rewrite the primary CTA.
+    const params = new URLSearchParams(location.search);
+    const app = params.get("app");
+    if (app) {
+      const a = document.getElementById("live-app");
+      a.href = app;
+      a.textContent = "Open live app";
+    }
+  </script>
+</body>
+</html>

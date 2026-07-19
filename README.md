@@ -98,7 +98,7 @@ make run
 
 ### Go live (public website — no Cursor needed)
 
-GitHub stores the code; **Render** (or Railway) runs it online from that repo.
+**Interactive app (Streamlit + API):** deploy with **Render** (or Railway) from this repo — GitHub Pages cannot run Python backends.
 
 Full steps: [docs/deploy.md](docs/deploy.md)
 
@@ -109,6 +109,11 @@ Full steps: [docs/deploy.md](docs/deploy.md)
 3. Deploy; open the **uml-pipeline-ui** HTTPS URL and share that link.
 
 Config file in repo: [`render.yaml`](render.yaml)
+
+**Project landing page (GitHub Pages):**  
+https://dipak5501.github.io/uml-generation-pipeline/
+
+That `.github.io` site is a static home page (architecture + links). Point its “Open live app” button at your Render UI URL once deployed.
 
 ### Demo dataset (CLI)
 

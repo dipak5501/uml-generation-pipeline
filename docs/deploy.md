@@ -1,12 +1,32 @@
 # Go live with UML-Pipeline (via GitHub)
 
-GitHub hosts your **code**. A free cloud host runs the app 24/7 so you do not need Cursor open.
+GitHub hosts your **code** (and an optional **`.github.io` landing page**).  
+A free cloud host runs the **interactive app** 24/7 so you do not need Cursor open.
 
-**Recommended:** [Render](https://render.com) Blueprint (connected to your GitHub repo).
+**Important:** [GitHub Pages](https://pages.github.com/) only serves static HTML. It cannot run FastAPI or Streamlit. Use Pages for the project site; use **Render** for the working UML generator UI.
+
+| Surface | URL pattern | What it is |
+|---------|-------------|------------|
+| GitHub Pages | `https://dipak5501.github.io/uml-generation-pipeline/` | Static landing / docs entry |
+| Render UI | `https://uml-pipeline-ui.onrender.com` (after deploy) | Live Streamlit app |
 
 ---
 
-## Option A — Render from GitHub (recommended)
+## Option 0 — GitHub Pages landing (`.github.io`)
+
+Already configured in this repo (`site/` + `.github/workflows/pages.yml`).
+
+1. Push `main` to GitHub (includes the Pages workflow).
+2. On the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
+3. Open: https://dipak5501.github.io/uml-generation-pipeline/
+
+Optional: after Render is live, open the landing with your app URL:
+
+`https://dipak5501.github.io/uml-generation-pipeline/?app=https://YOUR-UI.onrender.com`
+
+---
+
+## Option A — Render from GitHub (recommended for the real app)
 
 Your repo already includes `render.yaml` (API + UI).
 
