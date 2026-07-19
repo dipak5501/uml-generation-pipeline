@@ -1,7 +1,7 @@
 # Gap Analysis: UML Generation Thesis Application
 
-**Date:** 2026-07-13  
-**Paper:** *Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design* (Dipak Yadav, Yutong Zhao)  
+**Date:** 2026-07-13 
+**Paper:** *Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design* (Dipak Yadav, Yutong Zhao) 
 **Repo:** [dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
 ## Current repo capabilities
@@ -27,16 +27,16 @@
 
 ## Target application capabilities
 
-1. Requirement intake (single + batch) → structured technical specs  
-2. Diagram-specific PlantUML generation (class, object, component, package)  
-3. Render PNG/SVG with failure handling  
-4. Package-aware validation + repair/retry  
-5. Multimodal scoring with paper weights (53.1 / 50.7 / 39.9)  
-6. Persist full artifact traces in SQLite (optional Postgres)  
-7. REST API + Streamlit thesis UI  
-8. Human review rubric + analytics + export  
-9. Local runnable via mock providers without paid APIs  
-10. Real tests, Docker, complete README  
+1. Requirement intake (single + batch) → structured technical specs 
+2. Diagram-specific PlantUML generation (class, object, component, package) 
+3. Render PNG/SVG with failure handling 
+4. Package-aware validation + repair/retry 
+5. Multimodal scoring with paper weights (53.1 / 50.7 / 39.9) 
+6. Persist full artifact traces in SQLite (optional Postgres) 
+7. REST API + Streamlit thesis UI 
+8. Human review rubric + analytics + export 
+9. Local runnable via mock providers without paid APIs 
+10. Real tests, Docker, complete README 
 
 ## Paper requirements vs repo
 
@@ -52,22 +52,22 @@
 
 ## Missing modules (to build)
 
-- `app/` — FastAPI, SQLModel models, services, routers, job runner  
-- `ui/` — Streamlit multipage thesis demo  
-- `prompts/` — versioned prompt templates + registry  
-- `app/providers/` — OpenAI / Ollama / Mock with swap via config  
-- Package validator + repair service  
-- Human review + analytics services  
-- `tests/` — scoring, repair, API, e2e smoke  
-- Docker, Makefile, updated README  
+- `app/` — FastAPI, SQLModel models, services, routers, job runner 
+- `ui/` — Streamlit multipage application 
+- `prompts/` — versioned prompt templates + registry 
+- `app/providers/` — OpenAI / Ollama / Mock with swap via config 
+- Package validator + repair service 
+- Human review + analytics services 
+- `tests/` — scoring, repair, API, e2e smoke 
+- Docker, Makefile, updated README 
 
 ## Quick wins
 
-1. Reuse `render.py`, `scoring.py`, `pipeline.generate_*`, `llm_client` as core engines  
-2. Wrap existing functions in services instead of rewriting  
-3. Fix composite score to return `0.0` when no valid scores (per the paper formula)  
-4. Ship **mock mode** so the demo runs without GPUs/APIs  
-5. SQLite default — zero external infra for thesis demo  
+1. Reuse `render.py`, `scoring.py`, `pipeline.generate_*`, `llm_client` as core engines 
+2. Wrap existing functions in services instead of rewriting 
+3. Fix composite score to return `0.0` when no valid scores (per the paper formula) 
+4. Ship **mock mode** so the demo runs without GPUs/APIs 
+5. SQLite default — zero external infra for application 
 
 ## Risky areas
 
@@ -81,14 +81,14 @@
 
 ## Recommended implementation order
 
-1. Gap docs + assumptions  
-2. Persistence + pydantic/SQLModel data model  
-3. Provider abstraction + mock  
-4. Orchestrated generation service (intake → spec → PlantUML → render → repair → score)  
-5. FastAPI endpoints  
-6. Streamlit UI (all pages)  
-7. Human review + analytics export  
-8. Tests, Docker, README, sample/demo dataset  
+1. Gap docs + assumptions 
+2. Persistence + pydantic/SQLModel data model 
+3. Provider abstraction + mock 
+4. Orchestrated generation service (intake → spec → PlantUML → render → repair → score) 
+5. FastAPI endpoints 
+6. Streamlit UI (all pages) 
+7. Human review + analytics export 
+8. Tests, Docker, README, sample/demo dataset 
 
 ## Verdict
 

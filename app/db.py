@@ -70,9 +70,15 @@ def _ensure_default_project() -> None:
     from app.models import Project
 
     with Session(get_engine()) as session:
-        existing = session.exec(select(Project).where(Project.name == "Thesis Demo")).first()
+        existing = session.exec(select(Project).where(Project.name == "UML-Pipeline")).first()
         if existing is None:
-            session.add(Project(name="Thesis Demo", description="Default thesis demonstration project"))
+            legacy = session.exec(select(Project).where(Project.name == "Thesis Demo")).first()
+            if legacy is not None:
+                legacy.name = "UML-Pipeline"
+                legacy.description = "Default UML-Pipeline project"
+                session.add(legacy)
+            else:
+                session.add(Project(name="UML-Pipeline", description="Default UML-Pipeline project"))
             session.commit()
 
 

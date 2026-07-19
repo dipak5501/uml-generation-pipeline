@@ -5,7 +5,7 @@ from ui.theme import apply_theme
 
 from ui.api_client import API_BASE, api_get
 
-st.set_page_config(page_title="Analytics", layout="wide")
+st.set_page_config(page_title="UML-Pipeline · Analytics", layout="wide")
 apply_theme()
 st.title("Analytics")
 

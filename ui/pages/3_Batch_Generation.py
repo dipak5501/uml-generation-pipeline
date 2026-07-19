@@ -6,11 +6,11 @@ from ui.theme import apply_theme
 
 from ui.api_client import api_get, api_post
 
-st.set_page_config(page_title="Batch Generation", layout="wide")
+st.set_page_config(page_title="UML-Pipeline · Batch", layout="wide")
 apply_theme()
 st.title("Batch Generation")
 st.markdown(
-    "Generate a large demo dataset from built-in sample sentences "
+    "Generate a large evaluation dataset from built-in sample sentences "
     "(50 requirements × 4 diagram types = **200 artifacts**)."
 )
 

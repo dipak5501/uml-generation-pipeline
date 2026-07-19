@@ -4,7 +4,7 @@ from ui.theme import apply_theme
 
 from ui.api_client import API_BASE, api_get
 
-st.set_page_config(page_title="Settings", layout="wide")
+st.set_page_config(page_title="UML-Pipeline · Settings", layout="wide")
 apply_theme()
 st.title("Settings")
 
@@ -36,7 +36,7 @@ if summary.get("render_failures", 0) == 0 and summary.get("total_artifacts", 0) 
     st.success("All stored artifacts currently have successful renders.")
 
 if health.get("mock_providers"):
-    st.info("Mock providers are ON — ideal for thesis demos without API keys.")
+    st.info("Mock providers are ON — offline mode without external API keys.")
 else:
     st.warning("Live providers enabled — ensure models/API keys are configured.")
 
@@ -53,7 +53,7 @@ st.markdown(
 
 | Variable | Purpose |
 |----------|---------|
-| `MOCK_PROVIDERS` | `true` for offline demo (default) |
+| `MOCK_PROVIDERS` | `true` for offline mode without API keys (default) |
 | `PLANTUML_REMOTE` | Use plantuml.com when Java is missing (default true) |
 | `USE_OLLAMA` | Use local Ollama instead of OpenAI |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | Remote OpenAI-compatible API |

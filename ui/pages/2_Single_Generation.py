@@ -3,14 +3,14 @@ import streamlit as st
 from ui.api_client import api_get_bytes, api_post
 from ui.theme import apply_theme, hero, panel
 
-st.set_page_config(page_title="Generate diagram", layout="wide", page_icon="▦")
+st.set_page_config(page_title="UML-Pipeline · Generate", layout="wide", page_icon="▦")
 apply_theme()
 
 hero(
     "Generate from text or source code",
-    "Paste a requirement paragraph OR software code. The thesis pipeline builds a "
-    "technical specification, PlantUML, render gate, and multimodal VLM validation scores.",
-    chips=["Requirements", "Source code", "Paper validation"],
+    "Paste a requirement paragraph or software source. UML-Pipeline builds a "
+    "technical specification, PlantUML, render gate, and multimodal validation scores.",
+    chips=["Requirements", "Source code", "Verification"],
 )
 
 REQ_EXAMPLES = {

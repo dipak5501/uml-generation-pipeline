@@ -59,7 +59,7 @@ Dockerfile, docker-compose.yml, Makefile
 
 ## Data model (SQLModel)
 
-- **Project** — named workspace (default “Thesis Demo”)
+- **Project** — named workspace (default “UML-Pipeline”)
 - **GenerationJob** — single/batch status, progress, errors
 - **RequirementInput** — raw text, diagram type, mode
 - **TechnicalSpecification** — structured + raw text, prompt/model meta

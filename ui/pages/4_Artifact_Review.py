@@ -4,7 +4,7 @@ from ui.theme import apply_theme
 
 from ui.api_client import api_get, api_get_bytes
 
-st.set_page_config(page_title="Artifact Review", layout="wide")
+st.set_page_config(page_title="UML-Pipeline · Artifacts", layout="wide")
 apply_theme()
 st.title("Artifact Review")
 

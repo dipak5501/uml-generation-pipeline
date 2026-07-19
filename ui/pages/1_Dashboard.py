@@ -3,13 +3,13 @@ import streamlit as st
 from ui.api_client import api_get
 from ui.theme import apply_theme, hero, stats_row
 
-st.set_page_config(page_title="Dashboard", layout="wide", page_icon="▦")
+st.set_page_config(page_title="UML-Pipeline · Dashboard", layout="wide", page_icon="▦")
 apply_theme()
 
 hero(
-    "Project dashboard",
-    "Live counts, score health, and recent artifacts from your generation runs.",
-    chips=["Analytics snapshot", "Thesis demo"],
+    "Dashboard",
+    "Live counts, score health, and recent artifacts from generation runs.",
+    chips=["UML-Pipeline", "Analytics"],
 )
 
 try:

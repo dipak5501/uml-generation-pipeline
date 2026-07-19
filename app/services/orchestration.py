@@ -79,9 +79,17 @@ def _utcnow() -> datetime:
 
 
 def get_or_create_default_project(session: Session) -> Project:
-    project = session.exec(select(Project).where(Project.name == "Thesis Demo")).first()
+    project = session.exec(select(Project).where(Project.name == "UML-Pipeline")).first()
     if project is None:
-        project = Project(name="Thesis Demo", description="Default thesis demonstration project")
+        legacy = session.exec(select(Project).where(Project.name == "Thesis Demo")).first()
+        if legacy is not None:
+            legacy.name = "UML-Pipeline"
+            legacy.description = "Default UML-Pipeline project"
+            session.add(legacy)
+            session.commit()
+            session.refresh(legacy)
+            return legacy
+        project = Project(name="UML-Pipeline", description="Default UML-Pipeline project")
         session.add(project)
         session.commit()
         session.refresh(project)

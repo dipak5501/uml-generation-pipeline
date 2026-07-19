@@ -1,6 +1,6 @@
 # Application Walkthrough Guide
 
-Professor-facing PDF that explains every UI page and the end-to-end pipeline step by step.
+Application user guide covering each UI page and the end-to-end generation pipeline.
 
 ```bash
 PYTHONPATH=. python scripts/generate_app_walkthrough_pdf.py

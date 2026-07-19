@@ -6,7 +6,7 @@ from ui.theme import apply_theme
 
 from ui.api_client import api_get, api_post
 
-st.set_page_config(page_title="Human Evaluation", layout="wide")
+st.set_page_config(page_title="UML-Pipeline · Evaluation", layout="wide")
 apply_theme()
 st.title("Human Evaluation")
 
@@ -31,7 +31,7 @@ artifact_id = options[label]
 detail = api_get(f"/api/artifacts/{artifact_id}")
 st.write(detail["source_requirement"][:500])
 
-reviewer_name = st.text_input("Reviewer name", value="Thesis Reviewer")
+reviewer_name = st.text_input("Reviewer name", value="Reviewer")
 reviewer_role = st.selectbox("Role", ["expert", "student", "advisor", "author"])
 
 c1, c2 = st.columns(2)

@@ -1,4 +1,4 @@
-"""Mock provider for offline thesis demos — content-aware diagrams."""
+"""Mock provider for offline runs — content-aware diagrams."""
 
 from __future__ import annotations
 
