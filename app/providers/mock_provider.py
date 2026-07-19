@@ -15,31 +15,49 @@ _STOP = {
     "commentary", "outside", "keep", "readable", "avoid", "unnecessary",
     "complexity", "private", "reasoning", "final", "rules", "generate",
     "uml", "software", "requirement", "feature", "story", "act",
-    "senior", "system", "architect", "produce", "detailed", "suitable",
+    "senior", "system", "systems", "architect", "produce", "detailed", "suitable",
     "design", "phase", "engineering", "identify", "structure", "entities",
     "when", "relevant", "modules", "interfaces", "packages", "hierarchy",
     "relationships", "association", "composition", "aggregation", "dependency",
     "ownership", "containment", "inheritance", "appropriate", "constraints",
     "code", "source", "chain", "thought", "clear", "structured", "headings",
-    "bullets", "target", "type", "will", "want", "need", "needs", "should",
-    "must", "can", "have", "has", "been", "being", "their", "them", "they",
+    "bullets", "target", "type", "will", "would", "want", "need", "needs", "should",
+    "shall", "must", "may", "might", "can", "have", "has", "been", "being",
+    "their", "them", "they",
     "also", "using", "used", "uses", "via", "per", "each", "all", "any",
     "some", "more", "than", "into", "onto", "about", "above", "after",
     "before", "below", "between", "under", "over", "where", "which", "who",
     "whom", "whose", "what", "how", "why", "description", "descriptions",
-    "instance", "instances", "create", "build", "implement", "provide",
-    "provides", "allow", "allows", "enable", "enables", "support", "supports",
-    "manage", "manages", "management", "across", "multiple", "receive", "based",
+    "instance", "instances", "create", "creates", "creating", "build", "implement",
+    "provide", "provides", "providing", "allow", "allows", "allowing", "allowed",
+    "enable", "enables", "support", "supports",
+    "manage", "manages", "managing", "management", "monitor", "monitors", "monitoring",
+    "register", "registers", "registering", "registration",
+    "across", "multiple", "receive", "receives", "receiving", "based",
     "like", "just", "make", "made", "does", "doing", "done", "demo", "sample",
     "example", "please", "thanks", "intent", "domain", "application",
     "infrastructure", "service", "repository", "model", "view", "snapshot",
     "detected", "language", "technical", "specification", "reverse", "engineered",
     "structural", "provided", "collaborate", "dependencies", "callable", "orchestration",
-    "unknown", "primary", "process", "variable", "state", "modules",
-    "true", "false", "active", "status", "name", "string", "float", "boolean",
+    "unknown", "primary", "process", "processes", "processing", "variable", "state",
+    "modules", "true", "false", "active", "status", "name", "string", "float", "boolean",
     "date", "notes", "flag", "title", "priority", "ownerid", "createdat",
     "associates", "depends", "composition", "modules", "core",
+    "then", "than", "such", "etc", "via", "per", "within", "without", "upon",
+    "limits", "limit", "offerings", "offering", "reminders", "reminder",
+    "confirm", "confirms", "confirming", "assign", "assigns", "assigning",
+    "complete", "completes", "completing", "cancel", "cancels", "cancelled",
+    "notify", "notifies", "notifying", "submit", "submits", "submitting",
+    "update", "updates", "updating", "delete", "deletes", "deleting",
+    "perform", "performs", "performing", "related", "regarding", "including",
 }
+
+
+def _strip_prompt_meta(body: str) -> str:
+    """Drop template trails like 'Target diagram type:' from focused bodies."""
+    body = re.split(r"(?im)^\s*Target diagram type:\s*", body, maxsplit=1)[0]
+    body = re.split(r"(?im)^\s*Validation errors:\s*", body, maxsplit=1)[0]
+    return body.strip()
 
 
 def _content_focus(text: str) -> str:
@@ -54,7 +72,7 @@ def _content_focus(text: str) -> str:
     for marker in markers:
         m = re.search(marker, text, flags=re.I)
         if m:
-            body = text[m.end() :].strip()
+            body = _strip_prompt_meta(text[m.end() :].strip())
             from_source = "from source code" in body.lower()
             if not from_source:
                 ents = re.findall(r"^-\s*([A-Za-z][A-Za-z0-9_]+)\s*:", body, flags=re.M)
@@ -66,12 +84,79 @@ def _content_focus(text: str) -> str:
                     flags=re.I | re.S,
                 )
                 if intent:
-                    return intent.group(1).strip()
+                    return _strip_prompt_meta(intent.group(1).strip())
             return body
     lines = [ln for ln in text.splitlines() if ln.strip()]
     if len(lines) > 3 and lines[0].lower().startswith("you "):
-        return "\n".join(lines[3:]).strip() or text
-    return text.strip()
+        return _strip_prompt_meta("\n".join(lines[3:]).strip() or text)
+    return _strip_prompt_meta(text.strip())
+
+
+def _title_entity(raw: str) -> str | None:
+    """Normalize a candidate token into a PascalCase entity name."""
+    title = re.sub(r"[^A-Za-z0-9]", "", raw)
+    if not title or len(title) < 3:
+        return None
+    title = title[0].upper() + title[1:]
+    if title.endswith("ies") and len(title) > 4:
+        title = title[:-3] + "y"
+    elif title.endswith("s") and not title.endswith("ss") and len(title) > 4:
+        title = title[:-1]
+    if title.lower() in _STOP:
+        return None
+    return title
+
+
+# Prefer domain noun fillers over generic EntityN when padding
+_DOMAIN_FILLERS = [
+    "Enrollment",
+    "Payment",
+    "Session",
+    "Profile",
+    "Ticket",
+    "Notification",
+    "Account",
+]
+
+
+def _entities_from_requirement_roles(text: str, n: int = 5) -> list[str] | None:
+    """
+    Pull domain actors/objects from requirement prose.
+
+    Patterns: 'students to register', 'for courses', 'with doctors',
+    'to monitor enrollment'.
+    """
+    names: list[str] = []
+
+    def _add(raw: str) -> None:
+        ent = _title_entity(raw)
+        if ent and ent not in names:
+            names.append(ent)
+
+    for raw in re.findall(r"\b([A-Za-z][a-z]{2,})\s+to\s+[a-z]+\b", text):
+        _add(raw)
+    for raw in re.findall(
+        r"\b(?:for|with|across|of|via|using)\s+([A-Za-z][a-z]{2,})\b", text, flags=re.I
+    ):
+        _add(raw)
+    # Object of an infinitive verb phrase: "to monitor enrollment"
+    for raw in re.findall(r"\bto\s+[a-z]{2,}\s+([A-Za-z][a-z]{3,})\b", text):
+        _add(raw)
+    # Capitalized multi-word domain nouns already present
+    for raw in re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-z]+)+)\b", text):
+        _add(raw)
+
+    if len(names) < 2:
+        return None
+    fi = 0
+    while len(names) < n:
+        filler = _DOMAIN_FILLERS[fi % len(_DOMAIN_FILLERS)]
+        if filler not in names:
+            names.append(filler)
+        else:
+            names.append(f"Entity{len(names) + 1}")
+        fi += 1
+    return names[:n]
 
 
 def _detect_diagram_type(system: str, user: str) -> str:
@@ -183,21 +268,16 @@ def _entities_from_text(text: str, n: int = 5) -> list[str]:
             out.append(f"Entity{len(out)+1}")
         return out[:n]
 
+    # Requirement prose: prefer actor/object roles over modal/verb tokens
+    from_roles = _entities_from_requirement_roles(focus, n=n)
+    if from_roles:
+        return from_roles
+
     words = re.findall(r"[A-Za-z][A-Za-z0-9_-]{2,}", focus)
     uniq: list[str] = []
     for w in words:
-        low = re.sub(r"[^a-z0-9]", "", w.lower())
-        if low in _STOP or len(low) < 3:
-            continue
-        title = re.sub(r"[^A-Za-z0-9]", "", w)
+        title = _title_entity(w)
         if not title:
-            continue
-        title = title[0].upper() + title[1:]
-        if title.endswith("ies") and len(title) > 4:
-            title = title[:-3] + "y"
-        elif title.endswith("s") and not title.endswith("ss") and len(title) > 4:
-            title = title[:-1]
-        if title.lower() in _STOP:
             continue
         if title not in uniq:
             uniq.append(title)

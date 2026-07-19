@@ -313,8 +313,8 @@ def build():
         "targeted repair retries when needed.",
         "<b>Render gate</b> — Render PNG/SVG. If rendering fails, composite score is forced to <b>0</b> "
         "(paper rule).",
-        "<b>Multimodal scoring</b> — Three VLMs each assign 0–6. Composite uses only scores &gt; 0, "
-        "weighted by MMMU benchmarks.",
+        "<b>Multimodal scoring</b> — Three VLMs each assign 0–6. Composite is the "
+        "MMMU-weighted average of all three scores (zeros included), matching thesis Eq. (weighted).",
         "<b>Persist + review</b> — Store full artifact trace; optional human rubric; analytics/export.",
       ],
       s["bullet"],
@@ -323,14 +323,14 @@ def build():
 
   story.append(Paragraph("4. Scoring Formula (Paper-Faithful)", s["h1"]))
   story.append(Paragraph(
-    "Let score<sub>i</sub> ∈ {0,…,6} be the score from model i with weight w<sub>i</sub>. "
-    "Valid pairs are those with score<sub>i</sub> &gt; 0. Then:",
+    "Let score<sub>i</sub> ∈ {0,…,6} be the score from model i with weight w<sub>i</sub>, "
+    "and let δ=1 when the diagram passes the render gate (else δ=0). Then:",
     s["body"],
   ))
   story.append(Paragraph(
     "<font face='Courier' size='9'>"
-    "final = 0, if no valid scores;<br/>"
-    "final = Σ (score_i × w_i) / Σ w_i, otherwise."
+    "S = δ · Σ (score_i × w_i) / Σ w_i<br/>"
+    "A = 1 if at least two models score ≥ τ (τ=4); dataset entry if A=1 and S≥3."
     "</font>",
     s["body"],
   ))

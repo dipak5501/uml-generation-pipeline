@@ -85,6 +85,12 @@ def validate_package_semantics(code: str) -> ValidationResult:
     """Guards for the hardest failure mode: package diagrams."""
     msgs: list[str] = []
     lines = code.splitlines()
+    body = re.sub(r"(?is)@startuml|@enduml|^\s*title\b.*$", "", code).strip()
+    if len(body) < 12:
+        msgs.append("Package diagram appears empty or incomplete")
+
+    if not re.search(r"(?im)^\s*package\s+", code):
+        msgs.append("Package diagram has no package { } declarations")
 
     # Self-referential dependencies
     for line in lines:
@@ -136,12 +142,28 @@ def validate_component_syntax(code: str) -> ValidationResult:
 
 def validate_flowchart_syntax(code: str) -> ValidationResult:
     msgs: list[str] = []
-    low = code.lower()
-    has_step = bool(re.search(r"(?m)^\s*:[^;]+;", code))
-    if not has_step and "start" not in low:
+    # Strip diagram delimiters so "@startuml" does not count as activity "start"
+    body = re.sub(r"(?is)@startuml|@enduml", "", code)
+    low = body.lower()
+    has_step = bool(re.search(r"(?m)^\s*:[^;\n]+;", body))
+    has_flow_start = bool(re.search(r"(?m)^\s*start\s*$", body, re.I))
+    has_flow_stop = bool(re.search(r"(?m)^\s*(stop|end)\s*$", body, re.I))
+    has_activity = has_flow_start or has_step or has_flow_stop or "endif" in low
+    has_class_like = bool(re.search(r"(?m)^\s*class\s+\w+", body))
+    has_object_like = bool(re.search(r"(?m)^\s*object\s+\w+", body))
+
+    if (has_class_like or has_object_like) and not has_activity:
+        msgs.append(
+            "Flowchart looks like a structural UML diagram; "
+            "use activity syntax (start / :Step; / if / stop)"
+        )
+    if not has_step and not has_flow_start:
         msgs.append("Flowchart has no activity steps (:Step;) or start")
-    if "start" in low and "stop" not in low and "end" not in low:
+    if has_flow_start and not has_flow_stop:
         msgs.append("Flowchart has start but missing stop/end")
+    # Class-style arrows inside activity diagrams are usually wrong
+    if has_activity and re.search(r"(?m)^\s*:\w+.*-->\s*\w+", body):
+        msgs.append("Flowchart steps should not use class-style --> arrows")
     return ValidationResult(ok=not msgs, messages=msgs)
 
 

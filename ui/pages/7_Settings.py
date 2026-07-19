@@ -54,15 +54,18 @@ st.markdown(
 | Variable | Purpose |
 |----------|---------|
 | `MOCK_PROVIDERS` | `true` = offline mock (default); `false` = live models |
-| `USE_HF_INFERENCE` | Use Hugging Face Inference Providers (Llama + DeepSeek) |
-| `HF_TOKEN` | Hugging Face token with Inference Providers permission |
-| `SPEC_MODEL` | Spec LLM (default `meta-llama/Llama-3.2-1B-Instruct`) |
-| `CODE_MODEL` | Code LLM (default `deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`) |
-| `USE_OLLAMA` | Local Ollama instead of HF / OpenAI |
+| `USE_OLLAMA` | Local Ollama (free) for spec / VLM / code fallback |
+| `USE_FINETUNED_CODE` | Local MLX LoRA for class/object/component PlantUML |
+| `USE_HF_INFERENCE` | Hugging Face Inference Providers (paid/credits for many models) |
+| `HF_TOKEN` | Hugging Face token (only if using HF) |
+| `SPEC_MODEL` | Spec LLM (default `meta-llama/Llama-3.2-1B-Instruct` → Ollama `llama3.2:1b`) |
+| `CODE_MODEL` | Code LLM fallback (DeepSeek 32B rarely local; falls back to spec model) |
+| `VLM_MODELS` | Vision scorers (Ollama tags; remapped to HF IDs when using HF) |
 | `PLANTUML_REMOTE` | Use plantuml.com when Java is missing (default true) |
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | Other OpenAI-compatible APIs |
 | `DATABASE_URL` | SQLite (default) or Postgres URL |
 
-Copy `.env.example` → `.env`, set `HF_TOKEN`, then `MOCK_PROVIDERS=false` and `USE_HF_INFERENCE=true`. Test with `python scripts/test_hf_models.py`.
+**Recommended local free setup:** `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_FINETUNED_CODE=true`, `USE_HF_INFERENCE=false`.  
+Start with `make run` (or `./scripts/run_local.sh`). Package/flowchart skip LoRA and use Ollama + typed templates.
 """
 )

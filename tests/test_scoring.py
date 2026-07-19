@@ -76,6 +76,14 @@ def test_verify_scores_dual_signal():
     assert "majority=True" in result.formula_snapshot
 
 
+def test_legacy_weighted_composite_includes_zero():
+    from uml_pipeline.scoring import weighted_composite
+
+    scores = {"qwen25vl3b": 0, "llama32vl11b": 4, "aya_vision_8b": 2}
+    expected = (0 * 53.1 + 4 * 50.7 + 2 * 39.9) / (53.1 + 50.7 + 39.9)
+    assert abs(weighted_composite(scores, WEIGHTS) - expected) < 1e-9
+
+
 def test_formula_snapshot_contains_final():
     scores = {"qwen25vl3b": 3}
     snap = formula_snapshot(scores, {"qwen25vl3b": 53.1}, 3.0)

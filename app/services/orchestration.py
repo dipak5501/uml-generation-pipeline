@@ -58,9 +58,31 @@ _GENERIC_CLASS_NAMES = {
     "module2",
 }
 
+# LoRA corpus is mostly class-style UML; these types need the base/mock generators.
+_LORA_SKIP_TYPES = frozenset({"package", "flowchart"})
 
-def _finetuned_output_needs_fallback(code: str, specification: str, validation_ok: bool) -> bool:
+
+def _safe_template_plantuml(specification: str, diagram_type: str) -> str:
+    """Deterministic last-resort diagram when models produce wrong/broken PlantUML."""
+    from app.providers.mock_provider import MockProvider
+
+    return sanitize_plantuml_output(
+        MockProvider()._plantuml(  # noqa: SLF001 — intentional template reuse
+            f"Technical specification:\n{specification}",
+            diagram_type,
+        )
+    )
+
+
+def _finetuned_output_needs_fallback(
+    code: str,
+    specification: str,
+    validation_ok: bool,
+    diagram_type: str = "class",
+) -> bool:
     """Retry with mock/base provider when LoRA output is invalid or ignores the spec."""
+    if diagram_type in _LORA_SKIP_TYPES:
+        return True
     if not validation_ok:
         return True
     classes = re.findall(r"(?m)^\s*class\s+(\w+)", code, flags=re.I)
@@ -146,25 +168,40 @@ def generate_plantuml_code(
 ) -> tuple[str, str, str, str, bool]:
     """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot)."""
     settings = settings or get_settings()
-    # LoRA was trained on requirement→PlantUML pairs; source-code mode uses the mock/base provider.
-    if input_mode == "source_code":
+    # LoRA was trained mainly on class UML; package/flowchart + source-code use base provider.
+    if input_mode == "source_code" or diagram_type in _LORA_SKIP_TYPES:
         provider = build_base_code_provider(settings)
     else:
         provider = build_code_provider(settings)
     name = diagram_prompt_name(diagram_type)
     ref, prompt = render_prompt(name, "v1", specification=specification)
     system = COT_SYSTEM if settings.enable_cot else "You output only valid PlantUML code between @startuml and @enduml."
+    if diagram_type == "flowchart":
+        system = (
+            "You output only valid PlantUML ACTIVITY/FLOWCHART syntax using "
+            "start, :Step;, if/else/endif, and stop. Do NOT emit class diagrams."
+        )
+    elif diagram_type == "package":
+        system = (
+            "You output only valid PlantUML PACKAGE diagrams with nested "
+            "package { } blocks and ..> dependencies. No self-dependencies."
+        )
     try:
         raw = provider.chat(system, prompt, temperature=0.2)
     except Exception as exc:
         logger.warning("Code provider failed (%s); using base fallback", exc)
         provider = build_base_code_provider(settings)
-        raw = provider.chat(system, prompt, temperature=0.2)
+        try:
+            raw = provider.chat(system, prompt, temperature=0.2)
+        except Exception as exc2:
+            logger.warning("Base code provider failed (%s); using template", exc2)
+            code = _safe_template_plantuml(specification, diagram_type)
+            return code, ref.name, ref.version, "template-fallback", False
     used_cot = has_cot_block(raw) or settings.enable_cot
     code = sanitize_plantuml_output(finalize_plantuml_output(raw))
     validation = validate_diagram(code, diagram_type)
     if settings.use_finetuned_code and getattr(provider, "name", "") == "finetuned-mlx" and _finetuned_output_needs_fallback(
-        code, specification, validation.ok
+        code, specification, validation.ok, diagram_type
     ):
         reason = "invalid syntax" if not validation.ok else "generic or spec-mismatched output"
         logger.warning(
@@ -181,11 +218,22 @@ def generate_plantuml_code(
             raw_fb = raw
         code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb))
         validation_fb = validate_diagram(code_fb, diagram_type)
-        if validation_fb.ok or len(code_fb) < len(code):
+        if validation_fb.ok or (not validation.ok and len(code_fb) >= 20):
             code = code_fb
             used_cot = has_cot_block(raw_fb) or used_cot
             provider = fallback
             validation = validation_fb
+
+    # Last resort: deterministic typed template (fixes LoRA/Ollama class-as-flowchart failures)
+    if not validation.ok:
+        logger.warning(
+            "PlantUML for %s still invalid after model attempts (%s); using safe template",
+            diagram_type,
+            "; ".join(validation.messages[:3]),
+        )
+        code = _safe_template_plantuml(specification, diagram_type)
+        return code, ref.name, ref.version, "template-fallback", used_cot
+
     model_name = getattr(provider, "model", settings.code_model)
     return code, ref.name, ref.version, str(model_name), used_cot
 

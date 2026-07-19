@@ -51,6 +51,46 @@ def test_unbalanced_braces_fail():
     assert not result.ok
 
 
+def test_empty_package_fails():
+    code = "@startuml\nand @enduml\n@enduml"
+    result = validate_diagram(code, "package")
+    assert not result.ok
+
+
+def test_flowchart_rejects_class_diagram():
+    code = """
+@startuml
+class Customer {
+  +id: int
+}
+class Order {
+  +total: float
+}
+Customer --> Order
+@enduml
+"""
+    result = validate_diagram(code, "flowchart")
+    assert not result.ok
+    assert any("class diagram" in m.lower() or "activity" in m.lower() for m in result.messages)
+
+
+def test_valid_flowchart_passes():
+    code = """
+@startuml
+start
+:Receive request;
+if (OK?) then (yes)
+  :Process;
+else (no)
+  :Reject;
+endif
+stop
+@enduml
+"""
+    result = validate_diagram(code, "flowchart")
+    assert result.ok
+
+
 def test_sanitize_plantuml_dedupes_and_trims():
     from app.services.plantuml_validate import sanitize_plantuml_output
 

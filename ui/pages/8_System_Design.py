@@ -35,7 +35,7 @@ st.code(
                     ┌───────────────────┼───────────────────┐
                     ▼                   ▼                   ▼
               [Providers]         [PlantUML render]    [SQLite + PNG]
-           Mock / LoRA / LLM      remote or local Java   data/artifacts/
+     Mock / Ollama / LoRA / HF    remote or local Java   data/artifacts/
 """.strip(),
     language="text",
 )
@@ -44,7 +44,7 @@ c1, c2, c3 = st.columns(3)
 with c1:
     panel(
         "Clients",
-        "Streamlit pages (Generate, Batch, Review, Analytics) and optional CLI scripts call the same API.",
+        "Streamlit pages (Generate, Batch, Review, Analytics, System Design) and optional CLI scripts call the same API.",
     )
 with c2:
     panel(
@@ -58,12 +58,14 @@ with c3:
     )
 
 st.subheader("2 · Generation pipeline")
-st.caption("On validation/render failure, the repair loop returns to Validate.")
+st.caption("On validation/render failure, the repair loop returns to Validate. Typed templates cover package/flowchart failures.")
 
 st.code(
     """
 Input → Tech Spec → PlantUML (+CoT) → Validate ⇄ Repair → Render PNG
                                               → 3× VLM scores → Dataset gate → Persist
+
+Package / flowchart: skip LoRA → base LLM (Ollama/mock) → typed template if still invalid
 """.strip(),
     language="text",
 )
@@ -83,7 +85,8 @@ with g2:
 with g3:
     st.markdown("**Composite S**")
     st.write(
-        "MMMU-weighted score across models. Dataset entry requires **S ≥ 3**, together with a successful render and majority acceptance."
+        "Thesis Eq. (weighted): MMMU-weighted average of all three VLM scores "
+        "(zeros count). Dataset entry requires **S ≥ 3**, together with render OK and majority **A**."
     )
 
 st.info(
@@ -94,15 +97,18 @@ st.info(
 st.subheader("4 · Provider routing")
 st.markdown(
     """
-| Stage | Default configuration | Alternatives |
-|-------|----------------------|--------------|
-| Technical specification | Mock provider / structural code analysis | Ollama or OpenAI-compatible API |
-| PlantUML (natural-language requirement) | MLX LoRA when `USE_FINETUNED_CODE=true`, else mock | Live LLM |
-| PlantUML (source-code input) | Base provider (LoRA trained on specification→PlantUML pairs) | Live LLM |
-| VLM scoring | Mock scores (0–6) | Three vision models (Qwen / LLaMA-Vision / Aya) |
+| Stage | Local free path (recommended) | Alternatives |
+|-------|------------------------------|--------------|
+| Technical specification | **Ollama** `llama3.2:1b` (`USE_OLLAMA=true`) | Mock · HF Inference · OpenAI-compatible |
+| PlantUML — class / object / component | **MLX LoRA** when `USE_FINETUNED_CODE=true` | Ollama / mock / HF DeepSeek |
+| PlantUML — **package / flowchart** | Base provider (Ollama or mock); **LoRA skipped** | Typed safe template on validation failure |
+| PlantUML — source-code input | Base provider (LoRA trained on spec→PlantUML pairs) | Same |
+| VLM scoring | Ollama vision (e.g. `qwen2.5vl:3b`) or mock | Paper trio: Qwen / LLaMA-Vision / Aya |
 | Rendering | Remote PlantUML server, or local Java + jar | Same |
 
-The fine-tuned code stage uses an 8 000-row open UML corpus and a LoRA adapter on Qwen2.5-0.5B (`models/uml-plantuml-lora/`). Invalid or low-quality PlantUML from the adapter is retried with the base provider.
+**Why package/flowchart skip LoRA:** the fine-tuned adapter was trained mainly on class-style UML and often emits class diagrams or broken braces for those types. Validators reject class-as-flowchart and empty packages; repair + templates recover.
+
+The fine-tuned code stage uses an 8 000-row open UML corpus and a LoRA adapter on Qwen2.5-0.5B (`models/uml-plantuml-lora/`).
 """
 )
 
@@ -116,8 +122,8 @@ with d1:
 1. Class  
 2. Object  
 3. Component  
-4. Package  
-5. Flowchart (activity-style)
+4. Package (nested `package { }` + `..>` deps)  
+5. Flowchart (activity: `start` / `:Step;` / `if` / `stop`)
 
 **Input modes:** natural-language requirement, or source code (language auto-detected).
 """
@@ -134,10 +140,29 @@ with d2:
 """
     )
 
-st.subheader("6 · Typical usage path")
+st.subheader("6 · Run locally")
 st.markdown(
     """
-1. Open **System Design** for the architecture overview.  
+```bash
+# One-shot (keeps API :8000 + UI :8501 alive)
+make run
+# or: ./scripts/run_local.sh
+
+# Manual (two terminals)
+make api
+make ui
+```
+
+Open **http://127.0.0.1:8501** (UI). API docs: **http://127.0.0.1:8000/docs**.
+
+**Ollama (free local LLMs):** install Ollama → `ollama pull llama3.2:1b` → optional `ollama pull qwen2.5vl:3b` → set `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_HF_INFERENCE=false` in `.env`.
+"""
+)
+
+st.subheader("7 · Typical usage path")
+st.markdown(
+    """
+1. Open **System Design** for this architecture overview.  
 2. Use **Single Generation** with a short requirement and a diagram type.  
 3. Inspect the validation summary: specification, PlantUML syntax, render status, composite **S**, majority **A**, and dataset acceptance.  
 4. Open **Artifact Review** for stored PlantUML, PNG, and per-model scores.  

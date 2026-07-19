@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui demo test smoke dataset training-corpus finetune finetune-quick finetune-prepare
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus finetune finetune-quick finetune-prepare
 
 install:
 	python3 -m venv .venv
@@ -20,6 +20,9 @@ api:
 
 ui:
 	. .venv/bin/activate && set -a && [ -f .env ] && . ./.env; set +a && PYTHONPATH=. streamlit run ui/streamlit_app.py --server.port 8501
+
+run:
+	./scripts/run_local.sh
 
 demo:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true python scripts/demo_generate.py -n 1

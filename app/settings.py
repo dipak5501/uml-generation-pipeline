@@ -103,7 +103,16 @@ class Settings(BaseSettings):
         if self.use_finetuned_code and self.mock_providers:
             return f"spec/VLM={other} · code={code}"
         if self.use_hf_inference and not self.mock_providers:
-            return f"HF · spec={self.spec_model.split('/')[-1]} · code={self.code_model.split('/')[-1]}"
+            code_label = (
+                "finetuned-mlx"
+                if self.use_finetuned_code
+                else self.code_model.split("/")[-1]
+            )
+            return (
+                f"HF · spec={self.spec_model.split('/')[-1]} · code={code_label}"
+            )
+        if self.use_finetuned_code:
+            return f"spec/VLM={other} · code={code}"
         return code
 
 @lru_cache

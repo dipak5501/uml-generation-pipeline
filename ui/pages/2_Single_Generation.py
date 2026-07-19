@@ -61,7 +61,8 @@ panel(
     "Input",
     "Choose Requirement text or Source code, then generate. Pipeline: CoT PlantUML → "
     "validation → render gate → 3 VLMs → weighted composite S + majority vote A (τ=4) → "
-    "dataset gate (A=1 and S≥3). Flowchart is an extra diagram type beyond the paper’s four UML types.",
+    "dataset gate (A=1 and S≥3). Package/flowchart skip LoRA and use typed validators + "
+    "safe templates when models emit class UML. Flowchart is an extra type beyond the paper’s four UML types.",
 )
 
 input_mode_label = st.radio(
@@ -112,7 +113,12 @@ with right:
     gen_all = st.checkbox("Also generate the other diagram types", value=False)
 
 can_run = bool((requirement or "").strip())
-run = st.button("Generate + validate", type="primary", disabled=not can_run, width="stretch")
+run = st.button(
+    "Generate + validate",
+    type="primary",
+    disabled=not can_run,
+    use_container_width=True,
+)
 if not can_run:
     st.caption("Enter a requirement or paste code to enable generation.")
 
@@ -215,7 +221,11 @@ with c2:
     if artifact["render_status"] == "success":
         try:
             img = api_get_bytes(f"/api/artifacts/{artifact['id']}/image")
-            st.image(img, caption="Rendered + multimodal-validated diagram", width="stretch")
+            st.image(
+                img,
+                caption="Rendered + multimodal-validated diagram",
+                use_column_width=True,
+            )
             st.download_button(
                 "Download image",
                 img,

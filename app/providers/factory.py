@@ -17,11 +17,32 @@ _OLLAMA_MODEL_MAP = {
     "deepseek-ai/deepseek-r1-distill-qwen-32b": "deepseek-r1:32b",
 }
 
+# Ollama-style VLM tags → Hugging Face vision model IDs
+_HF_VLM_MAP = {
+    "qwen2.5vl:3b": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "qwen2.5-vl:3b": "Qwen/Qwen2.5-VL-3B-Instruct",
+    "llama3.2-vision:11b": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+    "llama3.2-vision": "meta-llama/Llama-3.2-11B-Vision-Instruct",
+    "aya-vision:8b": "CohereForAI/aya-vision-8b",
+    "aya-vision": "CohereForAI/aya-vision-8b",
+}
+
 
 def _ollama_model_id(model: str) -> str:
     if "/" not in model:
         return model
     return _OLLAMA_MODEL_MAP.get(model) or _OLLAMA_MODEL_MAP.get(model.lower()) or model.split("/")[-1].lower()
+
+
+def _resolve_model_for_provider(settings: Settings, model: str) -> str:
+    """Map Ollama tags ↔ HF repo ids depending on the active backend."""
+    if settings.use_ollama:
+        return _ollama_model_id(model)
+    if settings.use_hf_inference:
+        mapped = _HF_VLM_MAP.get(model) or _HF_VLM_MAP.get(model.lower())
+        if mapped:
+            return mapped
+    return model
 
 
 class OpenAIProvider:
@@ -81,6 +102,7 @@ class OllamaProvider:
 
 def _live_chat_provider(settings: Settings, model: str):
     """Non-mock chat provider for a given model id."""
+    model = _resolve_model_for_provider(settings, model)
     if settings.use_ollama:
         return OllamaProvider(model)
     if settings.use_hf_inference:
@@ -132,7 +154,13 @@ def build_base_code_provider(settings: Settings | None = None):
     settings = settings or get_settings()
     if settings.mock_providers:
         return MockProvider()
-    return _live_chat_provider(settings, settings.code_model)
+    # DeepSeek-32B is rarely installed locally; fall back to the spec Ollama model.
+    model = settings.code_model
+    if settings.use_ollama:
+        mapped = _ollama_model_id(model)
+        if "deepseek" in mapped.lower() and "32b" in mapped.lower():
+            model = settings.spec_model
+    return _live_chat_provider(settings, model)
 
 
 def build_vlm_providers(settings: Settings | None = None) -> dict[str, object]:

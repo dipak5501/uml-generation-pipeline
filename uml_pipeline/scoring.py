@@ -7,15 +7,18 @@ def weighted_composite(
     scores: dict[str, float | int | None],
     weights: dict[str, float],
 ) -> float | None:
-    """MMMU-weighted average over valid VLM scores (>0)."""
+    """
+    MMMU-weighted average matching thesis Eq. (weighted).
+
+    Numeric scores (including 0) participate; None is skipped.
+    Returns None only when no numeric scores remain (caller maps to 0.0).
+    """
     num = 0.0
     den = 0.0
     for model, score in scores.items():
         if score is None:
             continue
         s = float(score)
-        if s <= 0:
-            continue
         w = weights.get(model, 1.0)
         num += s * w
         den += w

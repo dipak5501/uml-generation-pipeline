@@ -94,8 +94,10 @@ Do **not** commit `.env` secrets. Set keys only in the host dashboard if you ena
 ## Local development (unchanged)
 
 ```bash
-make api
-make ui
+make run          # recommended: API + UI together
+# or:
+make api          # terminal 1
+make ui           # terminal 2
 ```
 
 http://127.0.0.1:8501
