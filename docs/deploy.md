@@ -1,33 +1,59 @@
-# Launch this website live
+# Go live with UML-Pipeline (via GitHub)
 
-You have two processes: **API** (FastAPI `:8000`) and **UI** (Streamlit `:8501`).  
-For a public demo, deploy both (Docker is easiest).
+GitHub hosts your **code**. A free cloud host runs the app 24/7 so you do not need Cursor open.
 
-## Option A — Fastest personal demo (temporary public URL)
+**Recommended:** [Render](https://render.com) Blueprint (connected to your GitHub repo).
 
-On your laptop (API + UI already running):
+---
 
-```bash
-# Terminal 1
-make api
+## Option A — Render from GitHub (recommended)
 
-# Terminal 2
-make ui
+Your repo already includes `render.yaml` (API + UI).
 
-# Terminal 3 — install once: https://ngrok.com
-ngrok http 8501
-```
+### Steps
 
-Ngrok gives a public HTTPS link to the UI.  
-Also expose the API if the UI is configured with a remote `API_BASE_URL`, or keep both local behind one reverse proxy.
+1. Push latest `main` to GitHub (this repo: `dipak5501/uml-generation-pipeline`).
+2. Create a free account at https://render.com and sign in with **GitHub**.
+3. In Render: **New → Blueprint**.
+4. Select repository **`dipak5501/uml-generation-pipeline`** (grant access if asked).
+5. Render reads `render.yaml` and creates:
+   - `uml-pipeline-api` — FastAPI
+   - `uml-pipeline-ui` — Streamlit (UML-Pipeline website)
+6. Click **Apply** / deploy. Wait until both services are **Live** (first build ~5–10 minutes).
+7. Open the **uml-pipeline-ui** public URL (looks like `https://uml-pipeline-ui.onrender.com`).
 
-Good for class/thesis demos lasting hours, not months.
+That UI URL is what you share. No Cursor required afterward.
 
-## Option B — Docker on a cloud VM (recommended for a stable site)
+### After every `git push` to `main`
 
-1. Push the repo to GitHub (already done: `dipak5501/uml-generation-pipeline`).
-2. Create a small VM (DigitalOcean, AWS Lightsail, Linode, Google Cloud) with Docker.
-3. On the VM:
+Render can auto-redeploy if you enable auto-deploy on the services (default for Blueprints).
+
+### Free-tier note
+
+Idle free services **sleep** after ~15 minutes. The first visit after sleep can take 30–60 seconds to wake.
+
+### Fine-tuned LoRA on Render
+
+Cloud free instances usually cannot load MLX LoRA (Apple Silicon). The blueprint sets `USE_FINETUNED_CODE=false` and uses mock/base providers online. Local Mac demos can still use your fine-tuned adapters.
+
+---
+
+## Option B — Railway (alternative)
+
+1. https://railway.app → **New Project** → **Deploy from GitHub**.
+2. Add **two** services from the same repo:
+
+| Service | Start command |
+|---------|----------------|
+| api | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
+| ui | `streamlit run ui/streamlit_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true` |
+
+3. Env (both): `PYTHONPATH=.` `MOCK_PROVIDERS=true` `PLANTUML_REMOTE=true`
+4. UI only: `API_BASE_URL=https://YOUR-API-PUBLIC-URL`
+
+---
+
+## Option C — Docker on a cloud VM
 
 ```bash
 git clone https://github.com/dipak5501/uml-generation-pipeline.git
@@ -35,71 +61,41 @@ cd uml-generation-pipeline
 docker compose up --build -d
 ```
 
-Open:
 - UI: `http://YOUR_SERVER_IP:8501`
-- API docs: `http://YOUR_SERVER_IP:8000/docs`
+- API: `http://YOUR_SERVER_IP:8000`
 
-Optional: point a domain + HTTPS with Caddy/Nginx reverse proxy to port `8501`.
+---
 
-## Option C — Railway / Render / Fly.io
-
-### Railway (simple)
-
-1. Create a Railway project from the GitHub repo.
-2. Add **two services** from the same repo:
-   - **api**: start command  
-     `uvicorn app.main:app --host 0.0.0.0 --port $PORT`
-   - **ui**: start command  
-     `streamlit run ui/streamlit_app.py --server.port $PORT --server.address 0.0.0.0`
-3. Environment variables (both):
-
-```env
-MOCK_PROVIDERS=true
-PLANTUML_REMOTE=true
-PYTHONPATH=.
-```
-
-4. For the UI service set:
-
-```env
-API_BASE_URL=https://YOUR-API-SERVICE.up.railway.app
-```
-
-5. Deploy. Share the **UI** public URL.
-
-Render is similar: one Web Service for API, one for Streamlit, same env vars.
-
-## Option D — Streamlit Community Cloud (UI only)
-
-Streamlit Cloud can host the UI for free, but **not** the FastAPI backend by itself.
-
-Use only if you also host the API elsewhere, then set:
-
-```env
-API_BASE_URL=https://your-api-host.example.com
-```
-
-## What you need from your side
-
-| Item | Needed? |
-|------|---------|
-| GitHub repo | Already have |
-| Cloud account (Railway / Render / DigitalOcean) | Yes for permanent live site |
-| Domain name | Optional |
-| OpenAI / Ollama keys | Optional (`MOCK_PROVIDERS=true` works without keys) |
-| Java JDK on server | Optional if `PLANTUML_REMOTE=true` |
-
-## Security notes for public demos
-
-- Keep `MOCK_PROVIDERS=true` for public demos unless you intend to pay for model APIs.
-- Do not commit `.env` with secrets.
-- If you enable live models, put API keys only in the host’s secret env vars.
-
-## Local attractive UI after pull
+## Option D — Temporary link from your laptop
 
 ```bash
 make api   # terminal 1
 make ui    # terminal 2
+ngrok http 8501   # terminal 3
 ```
 
-Then open http://127.0.0.1:8501
+Only while your machine is on — not a permanent site.
+
+---
+
+## Environment summary
+
+| Variable | Online default |
+|----------|----------------|
+| `MOCK_PROVIDERS` | `true` |
+| `PLANTUML_REMOTE` | `true` |
+| `API_BASE_URL` | Public API URL (set on UI service) |
+| `USE_FINETUNED_CODE` | `false` on free cloud |
+
+Do **not** commit `.env` secrets. Set keys only in the host dashboard if you enable live models.
+
+---
+
+## Local development (unchanged)
+
+```bash
+make api
+make ui
+```
+
+http://127.0.0.1:8501

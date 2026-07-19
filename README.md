@@ -1,9 +1,9 @@
-# UML Generation Thesis Application
+# UML-Pipeline
 
-**Author:** [Dipak Yadav](https://github.com/dipak5501)  
+**Author:** [Dipak Yadav](https://github.com/dipak5501) 
 **Repository:** [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
-End-to-end **thesis demo application** that turns plain-English software requirements (or source code) into design-phase UML diagrams (**Class, Object, Component, Package**) plus an extra **Flowchart**, renders them with PlantUML, scores them with a multimodal VLM ensemble (weighted composite **S** + majority-vote gate **A**), and supports human evaluation + analytics.
+End-to-end application that turns plain-English software requirements (or source code) into design-phase UML diagrams (**Class, Object, Component, Package**) plus an extra **Flowchart**, renders them with PlantUML, scores them with a multimodal VLM ensemble (weighted composite **S** + majority-vote gate **A**), and supports human evaluation + analytics.
 
 This repository implements the system described in **Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design** (Dipak Yadav, Yutong Zhao).
 
@@ -11,14 +11,14 @@ This repository implements the system described in **Automated UML Dataset Gener
 
 ```mermaid
 flowchart LR
-  A[Requirement / Code] --> B[Tech Spec LLM]
-  B --> C[CoT PlantUML LLM]
-  C --> D[Validate / Repair]
-  D --> E[PlantUML Render Gate]
-  E --> F[3 VLMs]
-  F --> G[Composite S + Majority A]
-  G --> H[Dataset gate A and S≥3]
-  H --> I[SQLite + UI]
+ A[Requirement / Code] --> B[Tech Spec LLM]
+ B --> C[CoT PlantUML LLM]
+ C --> D[Validate / Repair]
+ D --> E[PlantUML Render Gate]
+ E --> F[3 VLMs]
+ F --> G[Composite S + Majority A]
+ G --> H[Dataset gate A and S≥3]
+ H --> I[SQLite + UI]
 ```
 
 ## Training corpus (open sources)
@@ -44,7 +44,7 @@ After building the open training corpus, fine-tune a small local code model on A
 
 ```bash
 pip install -r requirements-finetune.txt
-make finetune          # resume toward 2000 LoRA iterations (Apple Silicon)
+make finetune     # resume toward 2000 LoRA iterations (Apple Silicon)
 # or smoke test: make finetune-quick
 ```
 
@@ -74,16 +74,22 @@ make api
 make ui
 ```
 
-- API docs: http://127.0.0.1:8000/docs  
-- Streamlit UI: http://127.0.0.1:8501  
+- API docs: http://127.0.0.1:8000/docs 
+- Streamlit UI: http://127.0.0.1:8501 
 
-### Go live (public website)
+### Go live (public website — no Cursor needed)
 
-See the full guide: [docs/deploy.md](docs/deploy.md)
+GitHub stores the code; **Render** (or Railway) runs it online from that repo.
 
-Short version:
-- **Quick demo:** run locally + `ngrok http 8501`
-- **Stable site:** `docker compose up --build -d` on a cloud VM, or deploy API+UI on Railway/Render
+Full steps: [docs/deploy.md](docs/deploy.md)
+
+**Short version (Render):**
+
+1. Push `main` to GitHub.
+2. https://render.com → **New → Blueprint** → select `dipak5501/uml-generation-pipeline`.
+3. Deploy; open the **uml-pipeline-ui** HTTPS URL and share that link.
+
+Config file in repo: [`render.yaml`](render.yaml)
 
 ### Demo dataset (CLI)
 
@@ -103,7 +109,7 @@ make test
 
 ```bash
 make docker-up
-# API :8000  UI :8501
+# API :8000 UI :8501
 ```
 
 ## PlantUML / Java
@@ -121,7 +127,7 @@ Check health: `GET /api/settings/health`
 
 | Mode | Config | Notes |
 |------|--------|-------|
-| Mock (default) | `MOCK_PROVIDERS=true` | Offline thesis demo |
+| Mock (default) | `MOCK_PROVIDERS=true` | Offline mode without API keys |
 | Ollama | `MOCK_PROVIDERS=false` `USE_OLLAMA=true` | Local LLMs/VLMs |
 | OpenAI-compatible | `MOCK_PROVIDERS=false` + `OPENAI_API_KEY` | Cloud / vLLM |
 
@@ -131,36 +137,36 @@ Composite score uses only scores `> 0`; if none are valid (including render fail
 
 ## UI pages
 
-1. Dashboard  
-2. Single Generation (full artifact trace)  
-3. Batch Generation  
-4. Artifact Review  
-5. Human Evaluation (rubric)  
-6. Analytics + export links  
-7. Settings / health  
+1. Dashboard 
+2. Single Generation (full artifact trace) 
+3. Batch Generation 
+4. Artifact Review 
+5. Human Evaluation (rubric) 
+6. Analytics + export links 
+7. Settings / health 
 
 ## API highlights
 
-- `POST /api/generate`  
-- `POST /api/generate/batch`  
-- `GET /api/jobs/{id}`  
-- `GET /api/artifacts/{id}` (+ `/image`, `/plantuml`)  
-- `POST /api/artifacts/{id}/rescore` / `/repair`  
-- `POST /api/human-review`  
-- `GET /api/analytics/summary` / `/distributions`  
-- `GET /api/export/dataset?fmt=jsonl|csv|parquet`  
+- `POST /api/generate` 
+- `POST /api/generate/batch` 
+- `GET /api/jobs/{id}` 
+- `GET /api/artifacts/{id}` (+ `/image`, `/plantuml`) 
+- `POST /api/artifacts/{id}/rescore` / `/repair` 
+- `POST /api/human-review` 
+- `GET /api/analytics/summary` / `/distributions` 
+- `GET /api/export/dataset?fmt=jsonl|csv|parquet` 
 
 ## Project layout
 
 ```
-app/            FastAPI + SQLModel services
-ui/             Streamlit multipage demo
-uml_pipeline/   Original research pipeline (reused)
-prompts/        Versioned prompt templates
-docs/           Gap analysis + implementation plan
-sample_data/    Demo requirements
-tests/          Unit + API + e2e smoke tests
-paper/          LaTeX paper (Overleaf sync)
+app/      FastAPI + SQLModel services
+ui/       Streamlit multipage UI (UML-Pipeline)
+uml_pipeline/  Original research pipeline (reused)
+prompts/    Versioned prompt templates
+docs/      Gap analysis + implementation plan
+sample_data/  Demo requirements
+tests/     Unit + API + e2e smoke tests
+paper/     LaTeX paper (Overleaf sync)
 ```
 
 ## Research paper / Overleaf

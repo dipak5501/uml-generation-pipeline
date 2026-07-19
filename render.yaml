@@ -1,0 +1,52 @@
+# UML-Pipeline — Deploy from GitHub on Render
+# Dashboard: https://dashboard.render.com → New → Blueprint → connect this repo
+#
+# After deploy, open the **ui** service URL (Streamlit).
+# Free tier services sleep after ~15 min idle; first request may take ~30–60s.
+
+services:
+  - type: web
+    name: uml-pipeline-api
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn app.main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /api/settings/health
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: PYTHONPATH
+        value: "."
+      - key: MOCK_PROVIDERS
+        value: "true"
+      - key: PLANTUML_REMOTE
+        value: "true"
+      - key: PLANTUML_SERVER_URL
+        value: "https://www.plantuml.com/plantuml"
+      - key: USE_FINETUNED_CODE
+        value: "false"
+      - key: DATABASE_URL
+        value: "sqlite:///./data/uml_app.db"
+
+  - type: web
+    name: uml-pipeline-ui
+    runtime: python
+    plan: free
+    region: oregon
+    buildCommand: pip install -r requirements.txt
+    startCommand: streamlit run ui/streamlit_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true --browser.gatherUsageStats false
+    envVars:
+      - key: PYTHON_VERSION
+        value: "3.11.9"
+      - key: PYTHONPATH
+        value: "."
+      - key: MOCK_PROVIDERS
+        value: "true"
+      - key: PLANTUML_REMOTE
+        value: "true"
+      - key: API_BASE_URL
+        fromService:
+          name: uml-pipeline-api
+          type: web
+          property: hosturl
