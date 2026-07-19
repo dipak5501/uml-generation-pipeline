@@ -63,6 +63,14 @@ def health(session: Session = Depends(get_session)):
 
     if settings.mock_providers:
         messages.append("MOCK_PROVIDERS=true — using deterministic mock LLM/VLM responses")
+    elif settings.use_hf_inference:
+        messages.append(
+            f"USE_HF_INFERENCE=true — spec={settings.spec_model} · code={settings.code_model}"
+        )
+        if not (settings.hf_token or settings.openai_api_key):
+            messages.append("HF_TOKEN is empty — set it before generating with live models")
+    elif settings.use_ollama:
+        messages.append(f"USE_OLLAMA=true — Ollama at {settings.ollama_base_url}")
 
     adapter_ok = Path(settings.finetuned_adapter_path).exists()
     if settings.use_finetuned_code:

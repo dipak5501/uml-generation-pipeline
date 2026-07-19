@@ -128,8 +128,32 @@ Check health: `GET /api/settings/health`
 | Mode | Config | Notes |
 |------|--------|-------|
 | Mock (default) | `MOCK_PROVIDERS=true` | Offline mode without API keys |
-| Ollama | `MOCK_PROVIDERS=false` `USE_OLLAMA=true` | Local LLMs/VLMs |
+| **Hugging Face** (paper models) | `MOCK_PROVIDERS=false` `USE_HF_INFERENCE=true` + `HF_TOKEN` | Llama-3.2-1B-Instruct (spec) + DeepSeek-R1-Distill-Qwen-32B (code) via [Inference Providers](https://huggingface.co/docs/inference-providers) |
+| Ollama | `MOCK_PROVIDERS=false` `USE_OLLAMA=true` | Local: `ollama pull llama3.2:1b` and `ollama pull deepseek-r1:32b` |
 | OpenAI-compatible | `MOCK_PROVIDERS=false` + `OPENAI_API_KEY` | Cloud / vLLM |
+
+### Enable the Hugging Face paper models
+
+```bash
+# 1) Token with Inference Providers: https://huggingface.co/settings/tokens
+# 2) Accept Llama license: https://huggingface.co/meta-llama/Llama-3.2-1B-Instruct
+# 3) In .env:
+MOCK_PROVIDERS=false
+USE_HF_INFERENCE=true
+USE_FINETUNED_CODE=false
+HF_TOKEN=hf_...
+SPEC_MODEL=meta-llama/Llama-3.2-1B-Instruct
+CODE_MODEL=deepseek-ai/DeepSeek-R1-Distill-Qwen-32B
+
+# 4) Test:
+PYTHONPATH=. python scripts/test_hf_models.py
+
+# 5) Restart API/UI
+make api
+make ui
+```
+
+DeepSeek-R1 32B is large and may require HF credits on Inference Providers. If the code-model call fails, keep mock/LoRA for demos or run DeepSeek via Ollama on a machine with enough RAM/VRAM.
 
 VLM weights from the paper (MMMU): Qwen2.5-VL-3B **53.1**, LLaMA-3.2-11B-Vision **50.7**, Aya-Vision-8B **39.9**.
 

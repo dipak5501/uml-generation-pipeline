@@ -33,8 +33,14 @@ class Settings(BaseSettings):
     ollama_base_url: str = "http://localhost:11434"
     use_ollama: bool = False
 
-    spec_model: str = "llama3.2:1b"
-    code_model: str = "deepseek-r1:32b"
+    # Hugging Face Inference Providers (OpenAI-compatible router)
+    use_hf_inference: bool = False
+    hf_token: str = ""
+    hf_base_url: str = "https://router.huggingface.co/v1"
+
+    # Paper models (HF repo ids). Ollama tags are mapped automatically when USE_OLLAMA=true.
+    spec_model: str = "meta-llama/Llama-3.2-1B-Instruct"
+    code_model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
     vlm_models: str = "qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b"
 
     # VLM weights (MMMU) from the paper
@@ -76,19 +82,29 @@ class Settings(BaseSettings):
             return "mock"
         if self.use_ollama:
             return "ollama"
+        if self.use_hf_inference:
+            return "huggingface"
         return "openai"
 
     @property
     def provider_summary(self) -> str:
         """Human-readable mix of stages (spec / code / VLM)."""
-        code = "finetuned-mlx" if self.use_finetuned_code else (
-            "mock" if self.mock_providers else ("ollama" if self.use_ollama else "openai")
-        )
-        other = "mock" if self.mock_providers else ("ollama" if self.use_ollama else "openai")
+        if self.mock_providers and not self.use_finetuned_code:
+            return "mock"
+        if self.mock_providers:
+            other = "mock"
+        elif self.use_ollama:
+            other = "ollama"
+        elif self.use_hf_inference:
+            other = "huggingface"
+        else:
+            other = "openai"
+        code = "finetuned-mlx" if self.use_finetuned_code else other
         if self.use_finetuned_code and self.mock_providers:
             return f"spec/VLM={other} · code={code}"
+        if self.use_hf_inference and not self.mock_providers:
+            return f"HF · spec={self.spec_model.split('/')[-1]} · code={self.code_model.split('/')[-1]}"
         return code
-
 
 @lru_cache
 def get_settings() -> Settings:

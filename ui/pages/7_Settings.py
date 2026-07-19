@@ -53,12 +53,16 @@ st.markdown(
 
 | Variable | Purpose |
 |----------|---------|
-| `MOCK_PROVIDERS` | `true` for offline mode without API keys (default) |
+| `MOCK_PROVIDERS` | `true` = offline mock (default); `false` = live models |
+| `USE_HF_INFERENCE` | Use Hugging Face Inference Providers (Llama + DeepSeek) |
+| `HF_TOKEN` | Hugging Face token with Inference Providers permission |
+| `SPEC_MODEL` | Spec LLM (default `meta-llama/Llama-3.2-1B-Instruct`) |
+| `CODE_MODEL` | Code LLM (default `deepseek-ai/DeepSeek-R1-Distill-Qwen-32B`) |
+| `USE_OLLAMA` | Local Ollama instead of HF / OpenAI |
 | `PLANTUML_REMOTE` | Use plantuml.com when Java is missing (default true) |
-| `USE_OLLAMA` | Use local Ollama instead of OpenAI |
-| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | Remote OpenAI-compatible API |
+| `OPENAI_API_KEY` / `OPENAI_BASE_URL` | Other OpenAI-compatible APIs |
 | `DATABASE_URL` | SQLite (default) or Postgres URL |
 
-Copy `.env.example` → `.env` and restart the API after changes.
+Copy `.env.example` → `.env`, set `HF_TOKEN`, then `MOCK_PROVIDERS=false` and `USE_HF_INFERENCE=true`. Test with `python scripts/test_hf_models.py`.
 """
 )
