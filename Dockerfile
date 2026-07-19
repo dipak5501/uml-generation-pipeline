@@ -10,12 +10,17 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt
 
 COPY . .
-RUN mkdir -p data/artifacts output tools
+RUN mkdir -p data/artifacts output tools \
+    && chmod +x scripts/start_cloud.sh
 
 ENV PYTHONPATH=/app
 ENV MOCK_PROVIDERS=true
+ENV PLANTUML_REMOTE=true
+ENV USE_FINETUNED_CODE=false
+ENV API_BASE_URL=http://127.0.0.1:8000
 ENV DATABASE_URL=sqlite:////app/data/uml_app.db
 
+# Public port is set by the host ($PORT). start_cloud.sh runs API + UI together.
 EXPOSE 8000 8501
 
-CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000"]
+CMD ["./scripts/start_cloud.sh"]
