@@ -1,8 +1,5 @@
 #!/usr/bin/env bash
 # Start API + Streamlit on one host (Render free Web Service).
-# Render sets PORT for the public HTTP port; Streamlit binds there.
-# API listens on 8000 loopback; UI calls it via API_BASE_URL.
-
 set -euo pipefail
 
 export PYTHONPATH="${PYTHONPATH:-.}"
@@ -25,11 +22,14 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# Wait until API health responds (max ~60s)
-for i in $(seq 1 60); do
+for i in $(seq 1 90); do
   if curl -sf "http://127.0.0.1:8000/api/settings/health" >/dev/null; then
     echo "API ready."
     break
+  fi
+  if ! kill -0 "$API_PID" 2>/dev/null; then
+    echo "API process died during startup" >&2
+    exit 1
   fi
   sleep 1
 done
@@ -39,4 +39,6 @@ exec streamlit run ui/streamlit_app.py \
   --server.port "$PORT" \
   --server.address 0.0.0.0 \
   --server.headless true \
+  --server.enableCORS false \
+  --server.enableXsrfProtection false \
   --browser.gatherUsageStats false

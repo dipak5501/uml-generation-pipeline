@@ -21,8 +21,11 @@ try:
     health = api_get("/api/settings/health")
     summary = api_get("/api/analytics/summary")
     live = health.get("status") == "ok"
-except Exception:
+except Exception as exc:
     live = False
+    _api_error = str(exc)
+else:
+    _api_error = None
 
 apply_theme(live=live)
 
@@ -46,7 +49,8 @@ if live and health and summary:
 elif not live:
     panel(
         "API offline",
-        f"Cannot reach {API_BASE}. Start the API with <code>make api</code>, then refresh this page.",
+        f"Cannot reach API at <code>{API_BASE}</code>. "
+        f"{('Details: ' + _api_error) if _api_error else 'Start the API, then refresh.'}",
     )
     footer()
     st.stop()

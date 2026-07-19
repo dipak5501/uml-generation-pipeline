@@ -1,7 +1,9 @@
+# Cloud image for Render / Railway (no local Java — PlantUML remote only).
+# Keeps memory under free-tier limits.
+
 FROM python:3.11-slim
 
 RUN apt-get update && apt-get install -y --no-install-recommends \
-    openjdk-21-jre-headless \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
@@ -20,7 +22,6 @@ ENV USE_FINETUNED_CODE=false
 ENV API_BASE_URL=http://127.0.0.1:8000
 ENV DATABASE_URL=sqlite:////app/data/uml_app.db
 
-# Public port is set by the host ($PORT). start_cloud.sh runs API + UI together.
 EXPOSE 8000 8501
 
 CMD ["./scripts/start_cloud.sh"]
