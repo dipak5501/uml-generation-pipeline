@@ -40,9 +40,9 @@ if by:
         }
         for k, v in by.items()
     ]
-    st.dataframe(rows, use_container_width=True)
+    st.table(rows)
 else:
     st.info("No artifacts yet. Open Generate and paste a requirement.")
 
 st.subheader("Recent artifacts")
-st.dataframe(artifacts[:25] if artifacts else [], use_container_width=True)
+st.table(artifacts[:25] if artifacts else [])

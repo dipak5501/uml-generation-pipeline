@@ -29,7 +29,7 @@ except Exception as exc:
     st.error(exc)
     st.stop()
 
-st.dataframe(artifacts, use_container_width=True)
+st.table(artifacts)
 ids = [a["id"] for a in artifacts]
 if not ids:
     st.info("No artifacts match filters.")
@@ -61,10 +61,10 @@ if detail["render_status"] == "success":
         st.error(exc)
 
 st.write("**Model scores**")
-st.dataframe(detail.get("model_scores") or [], use_container_width=True)
+st.table(detail.get("model_scores") or [])
 if detail.get("repair_attempts"):
     st.write("**Repairs**")
-    st.dataframe(detail["repair_attempts"], use_container_width=True)
+    st.table(detail["repair_attempts"])
 if detail.get("human_reviews"):
     st.write("**Human reviews**")
-    st.dataframe(detail["human_reviews"], use_container_width=True)
+    st.table(detail["human_reviews"])

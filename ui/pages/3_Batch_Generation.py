@@ -79,5 +79,5 @@ if job_id:
     st.subheader("Artifacts")
     arts = api_get("/api/artifacts")
     st.metric("Total artifacts now", len(arts))
-    st.dataframe(arts[:100], use_container_width=True)
+    st.table(arts[:100])
     st.markdown("Download dataset from **Analytics** or `/api/export/dataset?fmt=jsonl`")

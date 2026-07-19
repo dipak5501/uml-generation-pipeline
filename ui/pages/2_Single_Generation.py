@@ -227,16 +227,16 @@ with c2:
         st.error("Render failed — paper rule: composite score = 0. PlantUML still available.")
 
 st.subheader("Per-model VLM scores")
-st.dataframe(artifact.get("model_scores") or [], width="stretch")
+st.table(artifact.get("model_scores") or [])
 
 if artifact.get("repair_attempts"):
     st.subheader("Repair attempts")
-    st.dataframe(artifact["repair_attempts"], width="stretch")
+    st.table(artifact["repair_attempts"])
 
 extras = st.session_state.get("last_artifacts") or []
 if len(extras) > 1:
     st.subheader("Other diagram types")
-    st.dataframe(
+    st.table(
         [
             {
                 "id": a["id"],
@@ -245,6 +245,5 @@ if len(extras) > 1:
                 "composite_score": a["composite_score"],
             }
             for a in extras
-        ],
-        width="stretch",
+        ]
     )

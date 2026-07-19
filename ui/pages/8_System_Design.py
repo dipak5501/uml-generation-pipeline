@@ -27,31 +27,17 @@ aligned with the paper method.
 st.subheader("1 · High-level architecture")
 st.caption("The UI and API share one orchestration service. Model fine-tuning is performed offline.")
 
-st.graphviz_chart(
+st.code(
     """
-digraph arch {
-  rankdir=LR;
-  bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fontname="Helvetica", fontsize=11];
-  edge [fontname="Helvetica", fontsize=9, color="#3a4a57"];
-
-  UI [label="Streamlit UI\\n:8501", fillcolor="#e8f5f3", color="#0f766e"];
-  CLI [label="CLI scripts", fillcolor="#f3efe6", color="#14212b"];
-  API [label="FastAPI\\n/api/generate\\n:8000", fillcolor="#dcefea", color="#0f766e"];
-  ORCH [label="Orchestration\\nspec → PlantUML\\n→ score → gate", fillcolor="#14212b", fontcolor="#f7f3ea", color="#14212b"];
-  PROV [label="Providers\\nMock · MLX LoRA\\nOllama / OpenAI", fillcolor="#f7f3ea", color="#c45c26"];
-  STORE [label="SQLite + PNG\\ndata/uml_app.db\\ndata/artifacts/", fillcolor="#f3efe6", color="#14212b"];
-  RENDER [label="PlantUML\\nremote / local Java", fillcolor="#f7f3ea", color="#0f766e"];
-
-  UI -> API;
-  CLI -> API;
-  API -> ORCH;
-  ORCH -> PROV;
-  ORCH -> RENDER;
-  ORCH -> STORE;
-}
-""",
-    use_container_width=True,
+[Streamlit UI] ──┐
+                 ├──► [FastAPI] ──► [Orchestration]
+[CLI scripts] ───┘                      │
+                    ┌───────────────────┼───────────────────┐
+                    ▼                   ▼                   ▼
+              [Providers]         [PlantUML render]    [SQLite + PNG]
+           Mock / LoRA / LLM      remote or local Java   data/artifacts/
+""".strip(),
+    language="text",
 )
 
 c1, c2, c3 = st.columns(3)
@@ -63,7 +49,7 @@ with c1:
 with c2:
     panel(
         "Core",
-        "<code>run_single_generation()</code> in <code>app/services/orchestration.py</code> implements the end-to-end pipeline.",
+        "`run_single_generation()` in `app/services/orchestration.py` implements the end-to-end pipeline.",
     )
 with c3:
     panel(
@@ -72,33 +58,14 @@ with c3:
     )
 
 st.subheader("2 · Generation pipeline")
-st.caption("Dashed edges show the repair loop when PlantUML fails validation or rendering.")
+st.caption("On validation/render failure, the repair loop returns to Validate.")
 
-st.graphviz_chart(
+st.code(
     """
-digraph pipe {
-  rankdir=LR;
-  bgcolor="transparent";
-  node [shape=box, style="rounded,filled", fillcolor="#e8f5f3", color="#0f766e", fontname="Helvetica", fontsize=10];
-  edge [color="#3a4a57", fontname="Helvetica", fontsize=8];
-
-  I [label="Input\\nrequirement or\\nsource code"];
-  S [label="Tech Spec\\nLLM / analysis"];
-  P [label="PlantUML\\n+ CoT"];
-  V [label="Validate"];
-  R [label="Repair", fillcolor="#fde8dc", color="#c45c26"];
-  G [label="Render PNG"];
-  M [label="3× VLM\\nscores"];
-  D [label="Dataset gate\\nmajority A + S"];
-  O [label="Persist"];
-
-  I -> S -> P -> V;
-  V -> R [style=dashed, color="#c45c26", label="fail"];
-  R -> V [style=dashed, color="#c45c26"];
-  V -> G -> M -> D -> O;
-}
-""",
-    use_container_width=True,
+Input → Tech Spec → PlantUML (+CoT) → Validate ⇄ Repair → Render PNG
+                                              → 3× VLM scores → Dataset gate → Persist
+""".strip(),
+    language="text",
 )
 
 st.subheader("3 · Dual-signal verification (dataset entry)")

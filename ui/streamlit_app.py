@@ -55,19 +55,16 @@ elif not live:
     footer()
     st.stop()
 
-st.markdown(
-    """
-    <div class="nav-cards">
-      <div class="nav-card"><strong>Generate</strong><span>Turn a requirement or source file into a scored UML / flowchart diagram.</span></div>
-      <div class="nav-card"><strong>Batch</strong><span>Run multi-type generation jobs and build evaluation sets.</span></div>
-      <div class="nav-card"><strong>Review & analytics</strong><span>Inspect artifacts, human rubrics, scores, and exports.</span></div>
-      <div class="nav-card"><strong>System design</strong><span>Architecture: pipeline stages, providers, verification, and storage.</span></div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+n1, n2, n3, n4 = st.columns(4)
+with n1:
+    panel("Generate", "Turn a requirement or source file into a scored UML / flowchart diagram.")
+with n2:
+    panel("Batch", "Run multi-type generation jobs and build evaluation sets.")
+with n3:
+    panel("Review & analytics", "Inspect artifacts, human rubrics, scores, and exports.")
+with n4:
+    panel("System design", "Architecture: pipeline stages, providers, verification, and storage.")
 
-st.write("")
 c1, c2, c3 = st.columns(3)
 with c1:
     panel("1 · Write a requirement", "Open Generate. Free text is the primary input; examples are optional.")
