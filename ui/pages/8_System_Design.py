@@ -103,8 +103,18 @@ st.markdown(
 | PlantUML — class / object / component | **MLX LoRA** when `USE_FINETUNED_CODE=true` | Ollama / mock / HF DeepSeek |
 | PlantUML — **package / flowchart** | Base provider (Ollama or mock); **LoRA skipped** | Typed safe template on validation failure |
 | PlantUML — source-code input | Base provider (LoRA trained on spec→PlantUML pairs) | Same |
-| VLM scoring | Ollama vision (e.g. `qwen2.5vl:3b`) or mock | Paper trio: Qwen / LLaMA-Vision / Aya |
+| VLM scoring | **3× Ollama vision** (see below) or mock | Paper HF IDs when `USE_HF_INFERENCE=true` |
 | Rendering | Remote PlantUML server, or local Java + jar | Same |
+
+**Local VLM ensemble** (`VLM_MODELS`, paper weight keys unchanged):
+
+| Weight key (MMMU) | Paper model | Local runtime |
+|-------------------|-------------|----------------|
+| `qwen25vl3b` (53.1) | **Qwen2.5-VL-3B-Instruct** | Ollama `qwen2.5vl:3b` on **:11435** (v0.32) |
+| `llama32vl11b` (50.7) | **LLaMA-3.2-11B-Vision-Instruct** | Ollama `llama3.2-vision:11b` on **:11434** (v0.24) |
+| `aya_vision_8b` (39.9) | **Aya-Vision-8B** | Not on Ollama → auto `llava:7b` stand-in on :11434 |
+
+**Why two Ollama versions:** latest Ollama (0.32) cannot load `llama3.2-vision` (`mllama` unsupported). Ollama 0.24 can, but cannot run `qwen2.5vl`. `scripts/ensure_ollama_dual.sh` (called by `make run`) starts both. **Aya-Vision-8B** is Cohere and is not in the Ollama library.
 
 **Why package/flowchart skip LoRA:** the fine-tuned adapter was trained mainly on class-style UML and often emits class diagrams or broken braces for those types. Validators reject class-as-flowchart and empty packages; repair + templates recover.
 
@@ -155,7 +165,23 @@ make ui
 
 Open **http://127.0.0.1:8501** (UI). API docs: **http://127.0.0.1:8000/docs**.
 
-**Ollama (free local LLMs):** install Ollama → `ollama pull llama3.2:1b` → optional `ollama pull qwen2.5vl:3b` → set `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_HF_INFERENCE=false` in `.env`.
+**Ollama (free local LLMs):** install Ollama, then:
+
+```bash
+# Dual Ollama (scripted by make run / ensure_ollama_dual.sh)
+# :11434 = Ollama 0.24 — llama3.2-vision + llava
+# :11435 = Ollama 0.32 — qwen2.5vl
+ollama pull llama3.2:1b
+ollama pull qwen2.5vl:3b
+ollama pull llama3.2-vision:11b
+ollama pull llava:7b           # stand-in only — Aya-Vision-8B is not on Ollama
+```
+
+Set in `.env`: `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_HF_INFERENCE=false`,  
+`VLM_MODELS=qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b`,  
+`OLLAMA_BASE_URL=http://127.0.0.1:11434`, `OLLAMA_QWEN_BASE_URL=http://127.0.0.1:11435`.
+
+Prefer **`make run`** or **`./scripts/run_local.sh` from Terminal.app** so API/UI stay alive (Cursor-started processes may exit).
 """
 )
 

@@ -20,8 +20,10 @@ UI_LOG="${UML_UI_LOG:-/tmp/uml-ui.log}"
 PID_DIR="${UML_PID_DIR:-$ROOT/data/run}"
 mkdir -p "$PID_DIR"
 
-# Ensure Ollama
-if ! curl -sf http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
+# Dual Ollama for paper VLMs (0.24 mllama + 0.32 qwen)
+if [ -x "$ROOT/scripts/ensure_ollama_dual.sh" ]; then
+  bash "$ROOT/scripts/ensure_ollama_dual.sh" || true
+elif ! curl -sf http://127.0.0.1:11434/api/tags >/dev/null 2>&1; then
   if command -v ollama >/dev/null 2>&1; then
     nohup ollama serve > /tmp/ollama-serve.log 2>&1 &
     sleep 2
@@ -55,15 +57,44 @@ if [ ! -x "$UVICORN" ]; then
   exit 1
 fi
 
-nohup "$UVICORN" app.main:app --host 127.0.0.1 --port 8000 >"$API_LOG" 2>&1 &
-echo $! >"$PID_DIR/api.pid"
+# Detach into a new session so IDE/Cursor shells cannot kill servers when
+# their terminal ends (plain `nohup … &` still shares the process group).
+: >"$API_LOG"
+: >"$UI_LOG"
+"$PY" - "$PID_DIR/api.pid" "$API_LOG" "$UVICORN" app.main:app --host 127.0.0.1 --port 8000 <<'PY'
+import os, subprocess, sys
+pid_file, log_path, *cmd = sys.argv[1:]
+with open(log_path, "a") as log:
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        cwd=os.environ.get("PWD") or os.getcwd(),
+        env=os.environ.copy(),
+    )
+open(pid_file, "w").write(str(proc.pid))
+print(proc.pid)
+PY
 
-nohup "$STREAMLIT" run ui/streamlit_app.py \
-  --server.port 8501 \
-  --server.address 127.0.0.1 \
-  --server.headless true \
-  >"$UI_LOG" 2>&1 &
-echo $! >"$PID_DIR/ui.pid"
+"$PY" - "$PID_DIR/ui.pid" "$UI_LOG" "$STREAMLIT" run ui/streamlit_app.py \
+  --server.port 8501 --server.address 127.0.0.1 --server.headless true <<'PY'
+import os, subprocess, sys
+pid_file, log_path, *cmd = sys.argv[1:]
+with open(log_path, "a") as log:
+    proc = subprocess.Popen(
+        cmd,
+        stdin=subprocess.DEVNULL,
+        stdout=log,
+        stderr=subprocess.STDOUT,
+        start_new_session=True,
+        cwd=os.environ.get("PWD") or os.getcwd(),
+        env=os.environ.copy(),
+    )
+open(pid_file, "w").write(str(proc.pid))
+print(proc.pid)
+PY
 
 # Wait until healthy
 ok=0

@@ -79,3 +79,6 @@ class FinetunedMLXProvider:
 
     def vision_score(self, image_path: Path, prompt: str) -> int:
         raise NotImplementedError("Fine-tuned provider is text-only (PlantUML code model)")
+
+    def vision_assess(self, image_path: Path, prompt: str):
+        raise NotImplementedError("Fine-tuned provider is text-only (PlantUML code model)")

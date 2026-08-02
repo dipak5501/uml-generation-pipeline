@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from typing import Protocol, runtime_checkable
 
+from uml_pipeline.llm_client import VisionAssessment
+
 
 @runtime_checkable
 class ModelProvider(Protocol):
@@ -14,4 +16,7 @@ class ModelProvider(Protocol):
         ...
 
     def vision_score(self, image_path: Path, prompt: str) -> int:
+        ...
+
+    def vision_assess(self, image_path: Path, prompt: str) -> VisionAssessment:
         ...

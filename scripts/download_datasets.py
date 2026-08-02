@@ -34,6 +34,14 @@ def main() -> None:
         action="store_true",
         help="Continue if a dataset is gated or unavailable",
     )
+    parser.add_argument(
+        "--include-gated",
+        action="store_true",
+        help=(
+            "Also download gated class-scored HF dataset "
+            "(requires HF_TOKEN + accepted dataset license)"
+        ),
+    )
     args = parser.parse_args()
 
     cfg = load_config()
@@ -43,6 +51,7 @@ def main() -> None:
         limit_per_type=args.limit,
         only_types=args.only,
         skip_errors=args.skip_errors,
+        include_gated=args.include_gated,
     )
 
 

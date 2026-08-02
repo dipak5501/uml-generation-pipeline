@@ -151,6 +151,7 @@ class AnalyticsSummary(BaseModel):
     repair_attempts: int
     repair_successes: int
     package_failure_count: int
+    package_failure_taxonomy: dict[str, int] = Field(default_factory=dict)
     human_review_count: int
     human_vs_ai_correlation: Optional[float] = None
     majority_accepted_count: int = 0

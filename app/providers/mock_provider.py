@@ -353,13 +353,28 @@ class MockProvider:
         return self._spec(user)
 
     def vision_score(self, image_path: Path, prompt: str) -> int:
+        return self.vision_assess(image_path, prompt).score
+
+    def vision_assess(self, image_path: Path, prompt: str):
+        from uml_pipeline.llm_client import VisionAssessment
+
         data = image_path.read_bytes() if image_path.is_file() else b"0"
         focus = _content_focus(prompt)
         h = int(hashlib.sha256(data + focus.encode()).hexdigest(), 16)
-        return 3 + (h % 3)
+        score = 3 + (h % 3)
+        explanation = (
+            f"Mock VLM: semantic alignment looks moderate-to-strong (score {score}/6); "
+            "structure covers main entities from the specification; notation appears valid; "
+            "layout is coherent for evaluation purposes."
+        )
+        raw = f"SCORE: {score}\nEXPLANATION: {explanation}"
+        return VisionAssessment(score=score, explanation=explanation, raw_output=raw)
 
     def _spec(self, user: str) -> str:
+        import json
+
         from app.services.code_analysis import looks_like_source_code, structure_to_spec
+        from app.services.spec_json import ensure_valid_spec, heuristic_spec_from_text
 
         focus = _content_focus(user)
         dtype = "class"
@@ -367,42 +382,45 @@ class MockProvider:
         if m:
             dtype = m.group(1).lower()
         if "source code:" in user.lower() or looks_like_source_code(focus):
-            return structure_to_spec(focus, dtype)
+            prose = structure_to_spec(focus, dtype)
+            data, _, _ = ensure_valid_spec(prose, dtype)
+            return json.dumps(data, indent=2)
 
         entities = _entities_from_text(user, n=5)
         a, b, c, d, e = entities
-        if dtype == "flowchart":
-            return (
-                f"## Technical Specification\n"
-                f"### Source intent\n{focus[:500]}\n\n"
-                f"### Process steps\n"
-                f"1. Start: receive request related to {a}\n"
-                f"2. Validate {b}\n"
-                f"3. Decision: is {c} acceptable?\n"
-                f"4. On success: process {d}\n"
-                f"5. On failure: reject and notify about {b}\n"
-                f"6. Complete: notify stakeholder regarding {a} / {e}\n"
-                f"### Actors\n- User / requester\n- System orchestrating {a}\n"
-            )
-        return (
-            f"## Technical Specification\n"
-            f"### Source intent\n{focus[:500]}\n\n"
-            f"### Entities\n"
-            + "\n".join(
-                f"- {ent}: "
-                + ", ".join(x.split(":")[0] for x in _attrs_for(ent, focus))
-                for ent in entities
-            )
-            + "\n### Relationships\n"
-            f"- {a} associates with {b}\n"
-            f"- {a} composition of {c}\n"
-            f"- {d} depends on {b}\n"
-            f"- {e} associates with {a}\n"
-            "### Modules\n"
-            f"- domain: {a}, {b}, {c}\n"
-            f"- application: {d}\n"
-            f"- infrastructure: {e}\n"
+        data = heuristic_spec_from_text(
+            f"- {a}: core\n- {b}: related\n- {c}: related\n"
+            f"- {a} associates with {b}\n- {a} composition of {c}\n"
+            f"- {d} depends on {b}\n- {e} associates with {a}\n"
+            f"1. Start {a}\n2. Validate {b}\n3. Process {d}\n4. Finish\n"
+            f"{focus[:400]}",
+            dtype,
         )
+        data["summary"] = f"Mock Stage-1 spec for {dtype} involving {a}, {b}, {c}"
+        data["entities"] = [
+            {
+                "name": ent,
+                "kind": "class",
+                "attributes": _attrs_for(ent, focus)[:4],
+                "methods": ["process()"],
+            }
+            for ent in entities
+        ]
+        data["relationships"] = [
+            {"source": a, "target": b, "type": "association", "label": "uses"},
+            {"source": a, "target": c, "type": "composition", "label": ""},
+            {"source": d, "target": b, "type": "dependency", "label": ""},
+            {"source": e, "target": a, "type": "association", "label": ""},
+        ]
+        if dtype == "flowchart":
+            data["process_steps"] = [
+                f"Receive request for {a}",
+                f"Validate {b}",
+                f"Decide on {c}",
+                f"Process {d}",
+                f"Notify about {a}",
+            ]
+        return json.dumps(data, indent=2)
 
     def _plantuml(self, user: str, diagram_type: str) -> str:
         focus = _content_focus(user)

@@ -33,6 +33,16 @@ dataset:
 training-corpus:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000
 
+scenario-corpus:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_scenario_code_corpus.py --scenarios 1000 --codes 1000
+	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_training_supplement_merged.parquet --prefer-accepted
+
+eval-batch:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/eval_scenario_code_batch.py --all --out data/eval/batch_report.json
+
+eval-smoke:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/eval_scenario_code_batch.py --limit 100 --out data/eval/batch_report_smoke100.json
+
 finetune-prepare:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py
 

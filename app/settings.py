@@ -31,6 +31,9 @@ class Settings(BaseSettings):
     openai_api_key: str = ""
     openai_base_url: str = "https://api.openai.com/v1"
     ollama_base_url: str = "http://localhost:11434"
+    # Qwen2.5-VL needs a newer Ollama (0.32+) than llama3.2-vision (0.24 mllama).
+    # Dual-serve: primary :11434 = 0.24 for LLaMA-Vision; :11435 = 0.32 for Qwen-VL.
+    ollama_qwen_base_url: str = "http://127.0.0.1:11435"
     use_ollama: bool = False
 
     # Hugging Face Inference Providers (OpenAI-compatible router)

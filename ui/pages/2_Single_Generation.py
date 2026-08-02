@@ -237,7 +237,15 @@ with c2:
         st.error("Render failed — paper rule: composite score = 0. PlantUML still available.")
 
 st.subheader("Per-model VLM scores")
-st.table(artifact.get("model_scores") or [])
+model_scores = artifact.get("model_scores") or []
+if model_scores:
+    st.dataframe(model_scores, use_container_width=True, hide_index=True)
+    for row in model_scores:
+        label = f"{row.get('model_name') or row.get('model_key')} · score {row.get('score')}"
+        with st.expander(label, expanded=bool(row.get("explanation")) and row.get("available", True)):
+            st.write(row.get("explanation") or "(no explanation returned)")
+else:
+    st.info("No per-model scores yet.")
 
 if artifact.get("repair_attempts"):
     st.subheader("Repair attempts")

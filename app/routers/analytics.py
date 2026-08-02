@@ -9,6 +9,7 @@ from sqlmodel import Session
 from app.db import get_session
 from app.schemas import AnalyticsSummary, HealthResponse
 from app.services.analytics import analytics_summary, export_dataset, score_distributions
+from app.services.package_failures import package_failure_report
 from app.settings import get_settings
 
 router = APIRouter(prefix="/api", tags=["analytics"])
@@ -23,6 +24,11 @@ def summary(session: Session = Depends(get_session)):
 @router.get("/analytics/distributions")
 def distributions(session: Session = Depends(get_session)):
     return score_distributions(session)
+
+
+@router.get("/analytics/package-failures")
+def package_failures(session: Session = Depends(get_session)):
+    return package_failure_report(session)
 
 
 @router.get("/export/dataset")

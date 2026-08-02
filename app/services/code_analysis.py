@@ -65,14 +65,51 @@ def detect_language(code: str) -> str:
     ]
     if sum(1 for p in python_script if re.search(p, code, re.M)) >= 2:
         return "python"
+    if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code) and ":" in code and "=>" in code:
+        return "typescript"
     if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code):
         return "javascript"
     if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
         return "java"
     if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
         return "java"
-    if "fn " in code and "impl " in code:
+    if "fn " in code and ("impl " in code or "struct " in code):
         return "rust"
+    if re.search(r"^\s*package\s+\w+|func\s+\(\w+\s+\*", code, re.M) or (
+        "func " in code and "struct {" in code.replace(" ", "")
+    ):
+        if "func " in code and "package " in code:
+            return "go"
+    if "namespace " in code and re.search(r"\bpublic\s+class\b", code):
+        return "csharp"
+    if re.search(r"\b(fun |open class |val |var )\b", code) and "class " in code:
+        return "kotlin"
+    if re.search(r"\b(func |var |let |class )\b", code) and "->" in code:
+        return "swift"
+    if re.search(r"\bclass\s+\w+\s*(:|\{)|#include\b", code) and ("public:" in code or "std::" in code or "};" in code):
+        if "public:" in code or re.search(r"class\s+\w+\s*:\s*public", code):
+            return "cpp"
+    if re.search(r"\b(attr_accessor|def\s+\w+|end\b)", code) and "class " in code:
+        return "ruby"
+    if "<?php" in code or re.search(r"\bfunction\s+\w+\s*\(.*\)\s*\{", code) and "class " in code:
+        if "<?php" in code or "$" in code:
+            return "php"
+    if re.search(r"\b(def |extends |val )\b", code) and "class " in code and ":" in code:
+        return "scala"
+    if "class " in code and "=>" in code and ";" in code:
+        return "dart"
+    if "defmodule " in code or "do:" in code:
+        return "elixir"
+    if re.search(r"\bdata\s+\w+\s*=", code) or "::" in code and "->" in code:
+        return "haskell"
+    if "setRefClass" in code or "<-" in code and "function(" in code:
+        return "r"
+    if "classdef " in code:
+        return "matlab"
+    if "package " in code and "bless" in code:
+        return "perl"
+    if "function " in code and "end" in code and "setmetatable" in code:
+        return "lua"
     return "unknown"
 
 

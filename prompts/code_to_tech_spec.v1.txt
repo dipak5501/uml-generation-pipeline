@@ -1,19 +1,37 @@
-# Source code → technical specification
+# Source code → technical specification (JSON Stage-1)
 You are a senior software architect performing design recovery from source code.
-Analyze the provided source code and produce a technical specification for a {diagram_type} diagram.
+Analyze the provided source code and produce a Stage-1 technical specification for a {diagram_type} diagram
+as a single JSON object.
 
-Extract and structure:
-- Types/classes/interfaces/structs and key attributes/methods
-- Inheritance, composition, dependency, and collaboration relationships
-- For object diagrams: notable runtime instances implied by the code
-- For component/package diagrams: modules, layers, and dependencies
-- For flowcharts: main control-flow / process steps, branches, and outcomes
+Extract:
+- Types/classes/interfaces/structs and key attributes/methods into entities
+- Inheritance, composition, dependency, and collaboration into relationships
+- For object diagrams: notable runtime instances in objects
+- For component/package diagrams: modules/layers in components or packages
+- For flowcharts: main control-flow steps in process_steps
 
 Rules:
 - Ground the specification in the code (do not invent unrelated domains)
 - Do NOT output PlantUML
 - Do NOT expose private reasoning
-- Output clear headings and bullets only
+- Output ONLY one JSON object (no markdown fences, no prose outside JSON)
+
+Required JSON schema:
+{
+  "diagram_type": "{diagram_type}",
+  "summary": "<one sentence grounded in the code>",
+  "entities": [
+    {"name": "TypeName", "kind": "class", "attributes": [], "methods": []}
+  ],
+  "relationships": [
+    {"source": "A", "target": "B", "type": "inheritance", "label": ""}
+  ],
+  "constraints": [],
+  "packages": [],
+  "components": [],
+  "objects": [],
+  "process_steps": []
+}
 
 Source code:
 {source_code}

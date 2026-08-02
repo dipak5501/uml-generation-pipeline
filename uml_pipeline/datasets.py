@@ -37,6 +37,7 @@ def download_all(
     limit_per_type: int | None = None,
     only_types: list[str] | None = None,
     skip_errors: bool = False,
+    include_gated: bool = False,
 ) -> Path:
     """Download optional Hugging Face benchmark datasets and merge to unified parquet."""
     data_dir = Path(cfg["data_dir"])
@@ -49,9 +50,12 @@ def download_all(
 
     for key, meta in cfg["datasets"].items():
         diagram_type = meta["diagram_type"]
-        # Skip explicitly gated optional entries unless requested by type filter
-        if key.endswith("_gated") and not only_types:
-            print(f"Skipping gated dataset key '{key}' (pass --only {diagram_type} after accepting license)")
+        # Skip gated optional entries unless --include-gated or --only class
+        if key.endswith("_gated") and not include_gated and not only_types:
+            print(
+                f"Skipping gated dataset key '{key}' "
+                f"(pass --include-gated or --only {diagram_type} after accepting license + HF_TOKEN)"
+            )
             continue
         if only_types and diagram_type not in only_types:
             continue

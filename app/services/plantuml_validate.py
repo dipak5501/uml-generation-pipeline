@@ -78,6 +78,11 @@ def validate_basic_syntax(code: str) -> ValidationResult:
     # Unbalanced braces
     if code.count("{") != code.count("}"):
         msgs.append("Unbalanced curly braces")
+    # Empty @startuml/@enduml still "renders" as a blank PNG — treat as invalid
+    body = re.sub(r"(?is)@startuml|@enduml|^\s*title\b.*$|^\s*skinparam\b.*$", "", code, flags=re.M)
+    body = re.sub(r"(?m)^\s*(left to right direction|hide\b.*|!theme\b.*)$", "", body)
+    if len(body.strip()) < 8:
+        msgs.append("Diagram body is empty or incomplete")
     return ValidationResult(ok=not msgs, messages=msgs)
 
 

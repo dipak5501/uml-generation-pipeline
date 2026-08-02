@@ -61,7 +61,15 @@ if detail["render_status"] == "success":
         st.error(exc)
 
 st.write("**Model scores**")
-st.table(detail.get("model_scores") or [])
+model_scores = detail.get("model_scores") or []
+if model_scores:
+    st.dataframe(model_scores, use_container_width=True, hide_index=True)
+    for row in model_scores:
+        label = f"{row.get('model_name') or row.get('model_key')} · score {row.get('score')}"
+        with st.expander(label, expanded=False):
+            st.write(row.get("explanation") or "(no explanation returned)")
+else:
+    st.caption("No per-model scores.")
 if detail.get("repair_attempts"):
     st.write("**Repairs**")
     st.table(detail["repair_attempts"])

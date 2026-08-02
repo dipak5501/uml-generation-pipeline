@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from uml_pipeline.llm_client import LLMClient
+from uml_pipeline.llm_client import LLMClient, VisionAssessment
 
 from app.providers.mock_provider import MockProvider
 from app.settings import Settings, get_settings
@@ -23,8 +23,14 @@ _HF_VLM_MAP = {
     "qwen2.5-vl:3b": "Qwen/Qwen2.5-VL-3B-Instruct",
     "llama3.2-vision:11b": "meta-llama/Llama-3.2-11B-Vision-Instruct",
     "llama3.2-vision": "meta-llama/Llama-3.2-11B-Vision-Instruct",
-    "aya-vision:8b": "CohereForAI/aya-vision-8b",
-    "aya-vision": "CohereForAI/aya-vision-8b",
+    "aya-vision:8b": "CohereLabs/aya-vision-8b",
+    "aya-vision": "CohereLabs/aya-vision-8b",
+}
+
+# Paper Aya-Vision is not published on Ollama; map to a local vision stand-in.
+_OLLAMA_VLM_FALLBACKS = {
+    "aya-vision:8b": "llava:7b",
+    "aya-vision": "llava:7b",
 }
 
 
@@ -58,6 +64,9 @@ class OpenAIProvider:
     def vision_score(self, image_path: Path, prompt: str) -> int:
         return self._client.vision_score(image_path, prompt)
 
+    def vision_assess(self, image_path: Path, prompt: str) -> VisionAssessment:
+        return self._client.vision_assess(image_path, prompt)
+
 
 class HuggingFaceProvider:
     """OpenAI-compatible Hugging Face Inference Providers router."""
@@ -85,13 +94,17 @@ class HuggingFaceProvider:
     def vision_score(self, image_path: Path, prompt: str) -> int:
         return self._client.vision_score(image_path, prompt)
 
+    def vision_assess(self, image_path: Path, prompt: str) -> VisionAssessment:
+        return self._client.vision_assess(image_path, prompt)
+
 
 class OllamaProvider:
     name = "ollama"
 
-    def __init__(self, model: str):
-        self.model = _ollama_model_id(model)
-        self._client = LLMClient(model=self.model, provider="ollama")
+    def __init__(self, model: str, *, ollama_url: str | None = None, label: str | None = None):
+        run_tag = _ollama_model_id(model)
+        self.model = label or run_tag
+        self._client = LLMClient(model=run_tag, provider="ollama", ollama_url=ollama_url)
 
     def chat(self, system: str, user: str, temperature: float = 0.7) -> str:
         return self._client.chat(system, user, temperature)
@@ -99,12 +112,37 @@ class OllamaProvider:
     def vision_score(self, image_path: Path, prompt: str) -> int:
         return self._client.vision_score(image_path, prompt)
 
+    def vision_assess(self, image_path: Path, prompt: str) -> VisionAssessment:
+        return self._client.vision_assess(image_path, prompt)
+
+
+def _ollama_url_for_model(settings: Settings, model: str) -> str:
+    """Route Qwen2.5-VL to the newer Ollama host; everything else to primary."""
+    tag = _ollama_model_id(model).lower()
+    if tag.startswith("qwen2.5vl") or tag.startswith("qwen2.5-vl"):
+        return (settings.ollama_qwen_base_url or settings.ollama_base_url).rstrip("/")
+    return settings.ollama_base_url.rstrip("/")
+
+
+def _resolve_ollama_vlm_tag(model: str) -> tuple[str, str]:
+    """Return (run_tag, display_name). Aya falls back to llava locally."""
+    raw = model.strip()
+    mapped = _OLLAMA_VLM_FALLBACKS.get(raw) or _OLLAMA_VLM_FALLBACKS.get(raw.lower())
+    if mapped:
+        return mapped, f"{mapped} [{raw} stand-in]"
+    return raw, raw
+
 
 def _live_chat_provider(settings: Settings, model: str):
     """Non-mock chat provider for a given model id."""
     model = _resolve_model_for_provider(settings, model)
     if settings.use_ollama:
-        return OllamaProvider(model)
+        run_tag, label = _resolve_ollama_vlm_tag(model)
+        return OllamaProvider(
+            run_tag,
+            ollama_url=_ollama_url_for_model(settings, run_tag),
+            label=label,
+        )
     if settings.use_hf_inference:
         token = settings.hf_token or settings.openai_api_key
         if not token:
@@ -173,10 +211,11 @@ def build_vlm_providers(settings: Settings | None = None) -> dict[str, object]:
         model = models[i] if i < len(models) else models[-1] if models else "mock-vlm"
         if settings.mock_providers:
             providers[key] = MockProvider()
+            try:
+                providers[key].model = model  # type: ignore[attr-defined]
+            except Exception:
+                pass
         else:
+            # Provider sets .model to the resolved runtime label (incl. Aya→llava stand-in).
             providers[key] = _live_chat_provider(settings, model)
-        try:
-            providers[key].model = model  # type: ignore[attr-defined]
-        except Exception:
-            pass
     return providers

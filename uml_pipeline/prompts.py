@@ -44,16 +44,26 @@ Technical specification:
 {specification}
 """
 
-VLM_SCORING_PROMPT = """You are evaluating a UML diagram image against a technical specification.
+VLM_SCORING_PROMPT = """You are evaluating a UML/flowchart diagram image against a technical specification.
+The specification may come from natural-language requirements OR reverse-engineered source code.
 
 Specification:
 {specification}
 
-Score the diagram from 0 to 6:
-- 0: diagram missing, unreadable, or shows none of the requirements
-- 1-2: major elements missing or wrong diagram type
-- 3-4: partial alignment with notable gaps
-- 5: strong alignment with minor issues
-- 6: complete alignment (entities, relationships, constraints)
+Score the diagram from 0 to 6 using these paper criteria jointly:
+1. Semantic correctness — entities/relationships/constraints match the specification (penalize hallucination/omission)
+2. Structural completeness — all major mandated components are present
+3. Syntactic accuracy — correct UML/PlantUML notation for the diagram type
+4. Overall coherence — clear, usable, consistent layout and naming
 
-Reply with a single integer score only."""
+Scale:
+- 0: missing, unreadable, non-renderable, or no alignment
+- 1-2: major gaps or wrong diagram type
+- 3-4: partial alignment with notable issues
+- 5: strong alignment with minor issues
+- 6: complete alignment
+
+Respond in exactly this format (no other prose before SCORE):
+SCORE: <integer 0-6>
+EXPLANATION: <2-4 sentences covering semantic, structural, syntactic, and coherence findings>
+"""

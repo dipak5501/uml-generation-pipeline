@@ -22,5 +22,5 @@ def test_hf_maps_ollama_vlm_tags():
     )
     assert (
         _resolve_model_for_provider(settings, "aya-vision:8b")
-        == "CohereForAI/aya-vision-8b"
+        == "CohereLabs/aya-vision-8b"
     )

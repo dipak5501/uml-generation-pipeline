@@ -57,6 +57,12 @@ def test_empty_package_fails():
     assert not result.ok
 
 
+def test_empty_class_diagram_fails():
+    result = validate_diagram("@startuml\n@enduml\n", "class")
+    assert not result.ok
+    assert any("empty" in m.lower() for m in result.messages)
+
+
 def test_flowchart_rejects_class_diagram():
     code = """
 @startuml

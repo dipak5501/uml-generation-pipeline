@@ -17,4 +17,6 @@ Scale:
 - 5: strong alignment with minor issues
 - 6: complete alignment
 
-Reply with a single integer score only.
+Respond in exactly this format (no other prose before SCORE):
+SCORE: <integer 0-6>
+EXPLANATION: <2-4 sentences covering semantic, structural, syntactic, and coherence findings>

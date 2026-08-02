@@ -11,6 +11,7 @@ import pandas as pd
 from sqlmodel import Session, select
 
 from app.models import HumanReview, RepairAttempt, Reviewer, UMLArtifact
+from app.services.package_failures import package_failure_report
 
 
 def analytics_summary(session: Session) -> dict[str, Any]:
@@ -62,6 +63,7 @@ def analytics_summary(session: Session) -> dict[str, Any]:
     maj_count = sum(1 for a in artifacts if a.majority_accepted)
     ds_count = sum(1 for a in artifacts if a.dataset_accepted)
     n = len(artifacts)
+    pkg_report = package_failure_report(session)
     return {
         "total_artifacts": n,
         "by_diagram_type": by_type,
@@ -70,6 +72,7 @@ def analytics_summary(session: Session) -> dict[str, Any]:
         "repair_attempts": len(repairs),
         "repair_successes": repair_successes,
         "package_failure_count": package_failures,
+        "package_failure_taxonomy": pkg_report.get("by_category") or {},
         "human_review_count": len(reviews),
         "human_vs_ai_correlation": correlation,
         "majority_accepted_count": maj_count,

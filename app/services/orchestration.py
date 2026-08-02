@@ -39,6 +39,7 @@ from app.services.cot import COT_SYSTEM, finalize_plantuml_output, has_cot_block
 from app.services.plantuml_validate import ensure_plantuml_bounds, sanitize_plantuml_output, validate_diagram
 from app.services.repair import repair_plantuml
 from app.services.scoring import VerificationResult, paper_composite, verify_scores
+from app.services.spec_json import ensure_valid_spec, validity_metrics
 from app.settings import Settings, get_settings
 from uml_pipeline.render import render_plantuml
 
@@ -123,29 +124,42 @@ def generate_technical_spec(
     diagram_type: str,
     settings: Settings | None = None,
     input_mode: str = "requirement",
-) -> tuple[str, str, str, str]:
-    """Returns (spec_text, prompt_name, prompt_version, model_name)."""
+) -> tuple[str, dict, str, str, str, list[str]]:
+    """Returns (spec_prose, spec_json, prompt_name, prompt_version, model_name, validity_msgs)."""
     settings = settings or get_settings()
     mode = input_mode
     if mode == "requirement" and looks_like_source_code(requirement):
         mode = "source_code"
 
     provider = build_chat_provider(settings, model=settings.spec_model)
+    json_system = (
+        "You are a senior system architect. Output ONLY one valid JSON object for the "
+        "Stage-1 technical specification. No markdown fences or prose outside JSON."
+    )
     if mode == "source_code":
         # Deterministic structural recover for mock/offline; LLM path uses prompt
         if settings.mock_providers:
             text = structure_to_spec(requirement, diagram_type)
-            return text.strip(), "code_to_tech_spec", "v1", "mock-code-analysis"
+            spec_json, prose, msgs = ensure_valid_spec(text, diagram_type)
+            return prose, spec_json, "code_to_tech_spec", "v1", "mock-code-analysis", msgs
         ref, prompt = render_prompt(
             "code_to_tech_spec",
             "v1",
             source_code=requirement,
             diagram_type=diagram_type,
         )
-        system = "You are a senior software architect. Output only the technical specification recovered from code."
-        text = provider.chat(system, prompt, temperature=0.2)
+        text = provider.chat(json_system, prompt, temperature=0.2)
         model_name = getattr(provider, "model", settings.spec_model)
-        return text.strip(), ref.name, ref.version, str(model_name)
+        spec_json, prose, msgs = ensure_valid_spec(text.strip(), diagram_type)
+        if msgs and "not valid JSON" in " ".join(msgs):
+            # One retry emphasizing JSON-only
+            retry = provider.chat(
+                json_system + " Retry: emit JSON only matching the required schema.",
+                prompt,
+                temperature=0.1,
+            )
+            spec_json, prose, msgs = ensure_valid_spec(retry.strip(), diagram_type)
+        return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
     ref, prompt = render_prompt(
         "requirement_to_tech_spec",
@@ -153,10 +167,17 @@ def generate_technical_spec(
         requirement=requirement,
         diagram_type=diagram_type,
     )
-    system = "You are a senior system architect. Output only the technical specification."
-    text = provider.chat(system, prompt, temperature=0.4)
+    text = provider.chat(json_system, prompt, temperature=0.4)
     model_name = getattr(provider, "model", settings.spec_model)
-    return text.strip(), ref.name, ref.version, str(model_name)
+    spec_json, prose, msgs = ensure_valid_spec(text.strip(), diagram_type)
+    if msgs and any("not valid JSON" in m or "Missing required" in m for m in msgs):
+        retry = provider.chat(
+            json_system + " Retry: emit JSON only matching the required schema.",
+            prompt,
+            temperature=0.1,
+        )
+        spec_json, prose, msgs = ensure_valid_spec(retry.strip(), diagram_type)
+    return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
 
 def generate_plantuml_code(
@@ -254,14 +275,22 @@ def score_image(
     for key, provider in providers.items():
         model_name = getattr(provider, "model", key)
         try:
-            s = int(provider.vision_score(image_path, scoring_prompt))
+            if hasattr(provider, "vision_assess"):
+                assessment = provider.vision_assess(image_path, scoring_prompt)
+                s = int(assessment.score)
+                explanation = assessment.explanation
+                raw_output = assessment.raw_output
+            else:
+                s = int(provider.vision_score(image_path, scoring_prompt))
+                explanation = None
+                raw_output = str(s)
             s = max(0, min(6, s))
             scores[key] = s
             meta[key] = {
                 "model_name": str(model_name),
                 "available": True,
-                "explanation": None,
-                "raw_output": str(s),
+                "explanation": explanation,
+                "raw_output": raw_output,
             }
         except Exception as exc:
             logger.warning("VLM %s unavailable: %s", key, exc)
@@ -354,14 +383,23 @@ def run_single_generation(
     session.commit()
     session.refresh(req)
 
-    spec_text, spec_prompt, spec_ver, spec_model = generate_technical_spec(
+    spec_text, spec_json, spec_prompt, spec_ver, spec_model, spec_msgs = generate_technical_spec(
         requirement, diagram_type, settings, input_mode=resolved_mode
     )
+    if spec_msgs:
+        logger.info("Stage-1 JSON validity notes: %s", "; ".join(spec_msgs[:4]))
     tech = TechnicalSpecification(
         requirement_id=req.id,
         raw_text=spec_text,
         structured_json=json.dumps(
-            {"diagram_type": diagram_type, "input_mode": resolved_mode}
+            {
+                "diagram_type": diagram_type,
+                "input_mode": resolved_mode,
+                "spec": spec_json,
+                "validity": validity_metrics(spec_json),
+                "validity_messages": spec_msgs,
+            },
+            ensure_ascii=False,
         ),
         prompt_name=spec_prompt,
         prompt_version=spec_ver,
