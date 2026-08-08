@@ -17,35 +17,50 @@ class CodeStructure:
     variables: list[str] = field(default_factory=list)
     steps: list[str] = field(default_factory=list)
 
+    @property
+    def has_type_declarations(self) -> bool:
+        """True only when real class/interface/enum declarations exist."""
+        return bool(self.classes)
+
     def entity_names(self, n: int = 6) -> list[str]:
-        names = list(self.classes)
-        if not names:
-            names = [
-                v[0].upper() + v[1:] if len(v) > 1 else v.upper()
-                for v in self.variables
-                if v and not v.startswith("_")
-            ]
-        if not names:
-            for step in self.steps:
-                words = re.findall(r"[A-Za-z]{3,}", step)
-                if words:
-                    title = words[0][0].upper() + words[0][1:]
-                    if title not in names:
-                        names.append(title)
-        if not names:
-            names = [f for f in self.functions if f[:1].isupper()]
-        if not names:
-            names = list(self.functions)
-        # Unique preserve order
+        """Return declared type names only — never promote variables to classes."""
         out: list[str] = []
-        for name in names:
+        for name in self.classes:
+            if not name or re.match(r"^Module\d+$", name, re.I):
+                continue
             if name not in out:
                 out.append(name)
             if len(out) >= n:
                 break
-        while len(out) < n:
-            out.append(f"Module{len(out)+1}")
         return out
+
+    def script_process_steps(self, source: str = "") -> list[str]:
+        """Human-readable steps for scripts that define no classes."""
+        blob = (source or "").lower()
+        steps = [s for s in self.steps if s and len(s) > 2][:10]
+        # Always inject structural script stages when detectable (more reliable than prints alone)
+        preamble: list[str] = []
+        if self.imports or "import " in blob:
+            preamble.append("Import dependencies")
+        if self.variables:
+            preamble.append("Configure paths / parameters")
+        if "py2puml" in blob:
+            preamble.append("Analyze package with py2puml")
+            preamble.append("Emit PlantUML lines")
+        if "open(" in blob and ("write" in blob or "f.write" in blob or ".puml" in blob):
+            preamble.append("Write .puml output file")
+        if any("success" in s.lower() for s in steps) or "success" in blob:
+            preamble.append("Report success")
+        elif preamble:
+            preamble.append("Finish")
+        merged = preamble + [s for s in steps if s not in preamble]
+        if not merged:
+            merged = ["Initialize", "Run script logic", "Finish"]
+        out: list[str] = []
+        for s in merged:
+            if s not in out:
+                out.append(s)
+        return out[:10]
 
 
 def detect_language(code: str) -> str:
@@ -165,9 +180,11 @@ def analyze_source_code(code: str) -> CodeStructure:
             step = stripped.lstrip("#").strip()
             if step:
                 struct.steps.append(step)
-        m = re.search(r'print\s*\(\s*["\']([^"\']+)["\']', stripped)
+        m = re.search(r'print\s*\(\s*f?["\']([^"\']+)["\']', stripped)
         if m:
             step = m.group(1).rstrip(":").strip()
+            # Drop f-string braces noise: Analyzing {domain_module}...
+            step = re.sub(r"\{[^}]*\}", "<value>", step).strip()
             if step:
                 struct.steps.append(step)
 
@@ -228,19 +245,13 @@ def structure_to_spec(code: str, diagram_type: str) -> str:
     if s.classes:
         for c in s.classes:
             methods = s.methods.get(c) or []
-            method_txt = ", ".join(methods[:8]) if methods else "id, name"
+            method_txt = ", ".join(methods[:8]) if methods else "(no methods extracted)"
             lines.append(f"- {c}: {method_txt}")
             if c in s.bases:
                 lines.append(f"  - inherits: {', '.join(s.bases[c])}")
     else:
-        for f in s.functions[:8]:
-            lines.append(f"- {f}: callable unit")
-        if s.variables:
-            for var in s.variables[:6]:
-                lines.append(f"- {var}: state variable")
-        if s.steps:
-            for step in s.steps[:6]:
-                lines.append(f"- {step}: process step")
+        lines.append("- (none — source is a script/driver with no class/interface declarations)")
+        lines.append("  Do NOT invent classes from variable names or string literals.")
     lines.append("### Relationships")
     if s.bases:
         for child, parents in s.bases.items():
@@ -248,23 +259,25 @@ def structure_to_spec(code: str, diagram_type: str) -> str:
                 lines.append(f"- {child} inherits {p}")
     elif len(s.classes) >= 2:
         lines.append(f"- {s.classes[0]} associates with {s.classes[1]}")
-    elif s.variables and len(s.variables) >= 2:
-        lines.append(f"- {s.variables[0]} flows into {s.variables[-1]}")
-    elif s.steps:
-        for i in range(min(len(s.steps) - 1, 5)):
-            lines.append(f"- {s.steps[i]} then {s.steps[i + 1]}")
+    elif not s.classes:
+        lines.append("- (none — no types to relate)")
     else:
-        lines.append("- modules collaborate through call dependencies")
-    if diagram_type == "flowchart" or (not s.classes and s.steps):
+        lines.append("- (single type; no inter-type relationships extracted)")
+    # Always expose process steps for scripts; required for flowchart recovery
+    if diagram_type == "flowchart" or not s.classes:
         lines.append("### Process steps")
-        steps = s.steps or s.functions[:6] or s.classes[:6] or ["Initialize", "Process", "Finalize"]
+        steps = s.script_process_steps() or ["Initialize", "Process", "Finalize"]
         for i, step in enumerate(steps, 1):
             lines.append(f"{i}. {step}")
     if s.imports:
         lines.append("### Imports / dependencies")
         for imp in s.imports[:8]:
             lines.append(f"- {imp.strip()}")
-    lines.append("### Modules")
-    lines.append("- domain: primary types from source")
-    lines.append("- application: orchestration / services")
+    if s.variables and not s.classes:
+        lines.append("### Script configuration (not UML classes)")
+        for var in s.variables[:8]:
+            lines.append(f"- {var}: configuration / local binding")
+    if s.classes:
+        lines.append("### Modules")
+        lines.append("- domain: primary types from source")
     return "\n".join(lines)

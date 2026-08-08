@@ -83,13 +83,28 @@ def _plantuml_encode(text: str) -> str:
     return "".join(out)
 
 
+def _validate_plantuml_server_url(base: str) -> str | None:
+    """Allow only http(s) PlantUML endpoints (blocks file:// and other schemes)."""
+    base = (base or "").strip().rstrip("/")
+    if not base.startswith(("https://", "http://")):
+        return None
+    # Reject obvious SSRF-ish userinfo tricks and local file schemes already blocked.
+    if "@" in base.split("://", 1)[-1].split("/", 1)[0]:
+        return None
+    return base
+
+
 def render_plantuml_remote(code: str, out_path: Path, fmt: str = "png") -> tuple[Path | None, str | None]:
     """Render via PlantUML HTTP server (used when local Java is unavailable)."""
     allow = os.getenv("PLANTUML_REMOTE", "true").lower() in ("1", "true", "yes")
     if not allow:
         return None, "Remote PlantUML disabled (set PLANTUML_REMOTE=true)"
 
-    base = os.getenv("PLANTUML_SERVER_URL", DEFAULT_PLANTUML_SERVER).rstrip("/")
+    base = _validate_plantuml_server_url(
+        os.getenv("PLANTUML_SERVER_URL", DEFAULT_PLANTUML_SERVER)
+    )
+    if base is None:
+        return None, "Invalid PLANTUML_SERVER_URL (must be http:// or https://)"
     if fmt not in ("png", "svg"):
         fmt = "png"
     url = f"{base}/{fmt}/{_plantuml_encode(code)}"

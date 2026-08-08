@@ -2,12 +2,13 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlmodel import Session
 
 from app.db import get_session
 from app.jobs.runner import enqueue_batch
 from app.schemas import BatchGenerateRequest, GenerateRequest, JobResponse
+from app.security import MAX_SAMPLES_LIMIT, require_api_access, safe_internal_error
 from app.services.artifacts import artifact_detail
 from app.services.orchestration import (
     create_job,
@@ -51,7 +52,11 @@ def _load_sample_requirements(limit: int) -> list[str]:
 
 
 @router.post("/generate")
-def generate(req: GenerateRequest, session: Session = Depends(get_session)):
+def generate(
+    req: GenerateRequest,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_api_access),
+):
     """Turn requirements or source code into PlantUML + paper-style multimodal validation."""
     settings = get_settings()
     project = get_or_create_default_project(session)
@@ -72,12 +77,16 @@ def generate(req: GenerateRequest, session: Session = Depends(get_session)):
         detail = artifact_detail(session, artifact.id)
         return {"job_id": job.id, "artifact": detail}
     except Exception as exc:
-        update_job(session, job, status="failed", error=str(exc))
-        raise HTTPException(status_code=500, detail=str(exc)) from exc
+        update_job(session, job, status="failed", error=str(exc)[:500])
+        raise safe_internal_error(exc, context="generate") from exc
 
 
 @router.post("/generate/batch", response_model=JobResponse)
-def generate_batch(req: BatchGenerateRequest, session: Session = Depends(get_session)):
+def generate_batch(
+    req: BatchGenerateRequest,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_api_access),
+):
     project = get_or_create_default_project(session)
     project_id = req.project_id or project.id
 
@@ -112,6 +121,6 @@ def generate_batch(req: BatchGenerateRequest, session: Session = Depends(get_ses
 
 
 @router.get("/samples")
-def list_samples(limit: int = 50):
+def list_samples(limit: int = Query(default=50, ge=1, le=MAX_SAMPLES_LIMIT)):
     """Preview built-in sample requirement sentences."""
     return {"count": limit, "requirements": _load_sample_requirements(limit)}

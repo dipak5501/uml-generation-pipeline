@@ -64,6 +64,11 @@ class Settings(BaseSettings):
 
     api_base_url: str = "http://127.0.0.1:8000"
 
+    # Optional shared secret for public deploys. Empty = open (local demo).
+    api_access_token: str = ""
+    # Comma-separated origins, or "*" for open demos (credentials disabled when "*").
+    cors_origins: str = "*"
+
     @property
     def vlm_weight_map(self) -> dict[str, float]:
         return {

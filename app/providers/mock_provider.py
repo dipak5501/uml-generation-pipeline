@@ -423,114 +423,19 @@ class MockProvider:
         return json.dumps(data, indent=2)
 
     def _plantuml(self, user: str, diagram_type: str) -> str:
+        from app.services.plantuml_from_spec import plantuml_from_spec
+        from app.services.spec_json import ensure_valid_spec
+
         focus = _content_focus(user)
-        entities = _entities_from_text(user, n=5)
-        a, b, c, d, e = entities
-        variant = int(hashlib.sha256(focus.encode()).hexdigest(), 16) % 3
-
-        if diagram_type == "object":
-            return (
-                "@startuml\n"
-                f"title {a} / {b} runtime objects\n"
-                f"object {a.lower()}1:{a} {{\n  name = \"{a.lower()}-1\"\n  status = \"active\"\n}}\n"
-                f"object {b.lower()}1:{b} {{\n  ref = \"{b.lower()}-ref\"\n}}\n"
-                f"object {c.lower()}1:{c} {{\n  flag = true\n}}\n"
-                f"{a.lower()}1 --> {b.lower()}1 : uses\n"
-                f"{a.lower()}1 --> {c.lower()}1 : tracks\n"
-                "@enduml"
-            )
-
-        if diagram_type == "flowchart":
-            return (
-                "@startuml\n"
-                f"title Flow: {a} process\n"
-                "start\n"
-                f":Receive request for {a};\n"
-                f":Validate {b};\n"
-                f"if ({c} OK?) then (yes)\n"
-                f"  :Process {d};\n"
-                f"  :Confirm {a};\n"
-                "else (no)\n"
-                f"  :Reject / show error for {b};\n"
-                "endif\n"
-                f":Notify stakeholder about {a};\n"
-                "stop\n"
-                "@enduml"
-            )
-
-        if diagram_type == "component":
-            return (
-                "@startuml\n"
-                f"title {a} components\n"
-                f"[{a}Service] as {a}Svc\n"
-                f"[{b}Api] as {b}Api\n"
-                f"[{c}Store] as {c}Store\n"
-                f"() \"I{a}\" as I{a}\n"
-                f"() \"I{b}\" as I{b}\n"
-                f"{a}Svc --> I{a}\n"
-                f"{b}Api ..> I{a} : use\n"
-                f"{b}Api --> I{b}\n"
-                f"{c}Store ..> I{b} : persist\n"
-                "@enduml"
-            )
-
-        if diagram_type == "package":
-            return (
-                "@startuml\n"
-                f"title {a} packages\n"
-                "package domain {\n"
-                f"  class {a}\n"
-                f"  class {b}\n"
-                f"  class {c}\n"
-                "}\n"
-                "package application {\n"
-                f"  class {d}Service\n"
-                "}\n"
-                "package infrastructure {\n"
-                f"  class {e}Repository\n"
-                "}\n"
-                "application ..> domain : uses\n"
-                "infrastructure ..> domain : persists\n"
-                "@enduml"
-            )
-
-        attrs_a = "\n  ".join(f"+{x}" for x in _attrs_for(a, focus))
-        attrs_b = "\n  ".join(f"+{x}" for x in _attrs_for(b, focus))
-        attrs_c = "\n  ".join(f"+{x}" for x in _attrs_for(c, focus))
-        attrs_d = "\n  ".join(f"+{x}" for x in _attrs_for(d, focus))
-
-        if variant == 0:
-            rels = (
-                f"{a} \"1\" --> \"*\" {b} : has\n"
-                f"{a} *-- {c}\n"
-                f"{d} ..> {b} : uses\n"
-            )
-        elif variant == 1:
-            rels = (
-                f"{a} \"1\" --> \"1..*\" {b} : owns\n"
-                f"{c} --> {a} : belongsTo\n"
-                f"{d} --> {c} : manages\n"
-            )
-        else:
-            rels = (
-                f"{a} o-- {b} : aggregates\n"
-                f"{a} --> {c} : references\n"
-                f"{e} ..> {a} : notifies\n"
-                f"{d} --> {e} : uses\n"
-            )
-
-        extra = f"class {e} {{\n  +id: int\n}}\n" if variant == 2 else ""
-        return (
-            "@startuml\n"
-            f"title Domain model for {a}\n"
-            f"class {a} {{\n  {attrs_a}\n}}\n"
-            f"class {b} {{\n  {attrs_b}\n}}\n"
-            f"class {c} {{\n  {attrs_c}\n}}\n"
-            f"class {d} {{\n  {attrs_d}\n}}\n"
-            f"{extra}"
-            f"{rels}"
-            "@enduml"
-        )
+        # Ground mock diagrams in Stage-1 JSON so names match the requirement/code
+        mode = "source_code" if "source code:" in user.lower() else "requirement"
+        spec, _, _ = ensure_valid_spec(focus, diagram_type, source_text=focus, input_mode=mode)
+        # Enrich class attrs when missing so diagrams look complete in demos
+        if diagram_type == "class":
+            for ent in spec.get("entities") or []:
+                if isinstance(ent, dict) and not ent.get("attributes"):
+                    ent["attributes"] = _attrs_for(str(ent.get("name") or "Entity"), focus)
+        return plantuml_from_spec(spec, diagram_type)
 
     def _repair(self, system: str, user: str) -> str:
         dtype = _detect_diagram_type(system, user)

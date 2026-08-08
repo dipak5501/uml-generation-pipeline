@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import os
 from pathlib import Path
 
 from fastapi import APIRouter, Depends, Query
@@ -8,6 +9,7 @@ from sqlmodel import Session
 
 from app.db import get_session
 from app.schemas import AnalyticsSummary, HealthResponse
+from app.security import access_token_configured, require_api_access
 from app.services.analytics import analytics_summary, export_dataset, score_distributions
 from app.services.package_failures import package_failure_report
 from app.settings import get_settings
@@ -32,7 +34,11 @@ def package_failures(session: Session = Depends(get_session)):
 
 
 @router.get("/export/dataset")
-def export(fmt: str = Query(default="jsonl"), session: Session = Depends(get_session)):
+def export(
+    fmt: str = Query(default="jsonl"),
+    session: Session = Depends(get_session),
+    _: None = Depends(require_api_access),
+):
     if fmt not in {"jsonl", "csv", "parquet"}:
         fmt = "jsonl"
     body, media, filename = export_dataset(session, fmt=fmt)
@@ -87,6 +93,19 @@ def health(session: Session = Depends(get_session)):
                 f"USE_FINETUNED_CODE=true but adapter missing at {settings.finetuned_adapter_path} "
                 "(run: python scripts/finetune_plantuml.py)"
             )
+
+    if not access_token_configured():
+        messages.append(
+            "API_ACCESS_TOKEN unset — generate/export/repair endpoints are open; "
+            "set a token before public internet exposure"
+        )
+    else:
+        messages.append("API_ACCESS_TOKEN configured — protected endpoints require Bearer/X-API-Key")
+
+    if os.getenv("PLANTUML_REMOTE", "true").lower() in ("1", "true", "yes"):
+        messages.append(
+            "PLANTUML_REMOTE=true — diagram text is sent to the configured PlantUML HTTP server"
+        )
 
     status = "ok" if database_ok else "degraded"
 

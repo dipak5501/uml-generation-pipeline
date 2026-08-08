@@ -6,13 +6,18 @@ from sqlmodel import Session
 from app.db import get_session
 from app.models import HumanReview, UMLArtifact
 from app.schemas import HumanReviewCreate, HumanReviewOut
+from app.security import require_api_access
 from app.services.analytics import get_or_create_reviewer
 
 router = APIRouter(prefix="/api", tags=["human-review"])
 
 
 @router.post("/human-review", response_model=HumanReviewOut)
-def create_human_review(payload: HumanReviewCreate, session: Session = Depends(get_session)):
+def create_human_review(
+    payload: HumanReviewCreate,
+    session: Session = Depends(get_session),
+    _: None = Depends(require_api_access),
+):
     artifact = session.get(UMLArtifact, payload.artifact_id)
     if not artifact:
         raise HTTPException(404, "Artifact not found")

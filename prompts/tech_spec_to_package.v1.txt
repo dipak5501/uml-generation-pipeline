@@ -1,16 +1,13 @@
-You are a UML expert. Convert the technical specification into syntactically valid PlantUML for a PACKAGE diagram.
+You are a senior UML modeler. Convert the technical specification into syntactically valid PlantUML for a PACKAGE diagram.
 
-Chain-of-Thought (required):
-1. Inside <think>...</think>, plan nesting vs dependency, forbid self-deps, and avoid dotted-name peer confusion.
-2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
-
-Critical package rules:
-1. Use nested package {{ }} blocks for containment.
-2. Do NOT invent a separate top-level package for every dotted name.
-3. Dependencies use ..> and must not be self-referential.
-4. Distinguish containment (nesting) from dependency (..>).
-5. Keep hierarchy shallow and readable.
-6. No markdown fences or commentary outside the diagram.
+Hard requirements (professional review):
+1. Create a package block for EACH named package/module in the specification (e.g. Accounts, Transactions, Reporting).
+2. Prefer those domain package names over generic layers (domain/application/infrastructure) unless the specification explicitly asks for layers.
+3. NEVER invent Module1/Module2/Module3 class placeholders.
+4. Use nested package { } blocks; dependencies use ..> and must not be self-referential.
+5. Distinguish containment (nesting) from dependency (..>).
+6. Inside <think>...</think> plan packages and deps; after </think>, output ONLY PlantUML between @startuml and @enduml.
+7. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

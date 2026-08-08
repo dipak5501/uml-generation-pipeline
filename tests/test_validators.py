@@ -2,6 +2,8 @@
 
 from app.services.plantuml_validate import (
     ensure_plantuml_bounds,
+    normalize_plantuml_relations,
+    sanitize_plantuml_output,
     validate_diagram,
     validate_package_semantics,
 )
@@ -61,6 +63,36 @@ def test_empty_class_diagram_fails():
     result = validate_diagram("@startuml\n@enduml\n", "class")
     assert not result.ok
     assert any("empty" in m.lower() for m in result.messages)
+
+
+def test_bare_package_line_fails():
+    result = validate_diagram("@startuml\npackage Banking;\n@enduml\n", "package")
+    assert not result.ok
+    assert any("package Name" in m or "bare" in m.lower() for m in result.messages)
+
+
+def test_worded_inheritance_arrow_normalized():
+    broken = """@startuml
+class Model;
+class DomainObject {
+  id: int32;
+  name: string;
+  save(): void;
+}
+Model --inheritance--> DomainObject;
+@enduml
+"""
+    fixed = sanitize_plantuml_output(broken)
+    assert "--inheritance-->" not in fixed
+    assert "Model --|> DomainObject" in fixed
+    assert "class Model;" not in fixed
+    assert "id: int32;" not in fixed
+    assert validate_diagram(fixed, "class").ok
+
+
+def test_normalize_relations_helper():
+    line = normalize_plantuml_relations("A --composition--> B;")
+    assert "A *-- B" in line
 
 
 def test_flowchart_rejects_class_diagram():

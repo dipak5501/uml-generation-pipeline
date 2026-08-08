@@ -269,39 +269,377 @@ def heuristic_spec_from_text(text: str, diagram_type: str) -> dict[str, Any]:
     return data
 
 
-def ensure_valid_spec(raw_text: str, diagram_type: str) -> tuple[dict[str, Any], str, list[str]]:
+_STOP_ENTITY = {
+    "the", "and", "for", "with", "from", "that", "this", "your", "system", "software",
+    "class", "classes", "object", "component", "package", "diagram", "uml", "json",
+    "service", "services", "module", "modules", "using", "through", "into", "via",
+    "must", "should", "shall", "will", "have", "has", "been", "being", "also",
+    "build", "create", "manage", "management", "application", "platform", "model",
+}
+
+
+def extract_named_concepts(text: str) -> list[str]:
+    """Pull likely domain entity names from NL or mixed text (professional grounding)."""
+    names: list[str] = []
+    reject = _STOP_ENTITY | {
+        "svc", "api", "store", "repo", "alice", "bob", "carol", "dave", "main",
+        "ecommerce", "banking", "hospital", "library", "checkout", "online",
+    }
+
+    def _add(raw: str) -> None:
+        name = re.sub(r"[^A-Za-z0-9_]", "", raw or "")
+        if len(name) < 3 or name.lower() in reject:
+            return
+        if name.lower() in {"service", "services", "component", "components", "package", "packages"}:
+            return
+        if name[0].islower():
+            name = name[0].upper() + name[1:]
+        if name not in names:
+            names.append(name)
+
+    # "patient Alice (Patient)" / "doctor Bob (Doctor)" — keep type in parentheses
+    for m in re.finditer(r"\(([A-Z][A-Za-z0-9_]*)\)", text):
+        _add(m.group(1))
+
+    # Explicit lists: "classes Book, Member, and Librarian" / "components: A, B, C"
+    for m in re.finditer(
+        r"(?i)\b(?:classes?|entities|components?|packages?|modules?|types?)\b"
+        r"[:\s]+([^\n.;]+)",
+        text,
+    ):
+        chunk = m.group(1)
+        # Cut trailing sentence after the list (e.g. ". A Member borrows...")
+        chunk = re.split(r"[.]", chunk)[0]
+        for part in re.split(r"\s*,\s*|\s*&\s*", chunk):
+            part = re.sub(r"(?i)^\s*and\s+", "", part.strip().strip("."))
+            if not part or part.lower() in {"and", "or", "with"}:
+                continue
+            _add(part)
+
+    # "with Book, Member, Loan"
+    for m in re.finditer(
+        r"(?i)\b(?:with|including|involving)\s+([A-Z][A-Za-z0-9_]*(?:\s*,\s*[A-Z][A-Za-z0-9_]*)+"
+        r"(?:\s*,?\s*(?:and|&)\s*[A-Z][A-Za-z0-9_]*)?)",
+        text,
+    ):
+        for part in re.split(r"\s*,\s*|\s+and\s+|\s*&\s*", m.group(1)):
+            _add(part.strip())
+
+    # CamelCase / PascalCase service-style tokens (CartService) — prefer these
+    for tok in re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-zA-Z0-9]+)+)\b", text):
+        _add(tok)
+
+    # Single Pascal tokens only if we still have few names
+    if len(names) < 3:
+        for tok in re.findall(r"\b([A-Z][a-zA-Z]{2,})\b", text):
+            if tok.lower() not in reject:
+                _add(tok)
+
+    # Quoted names
+    for tok in re.findall(r"['\"]([A-Za-z][\w]+)['\"]", text):
+        _add(tok)
+
+    return names[:16]
+
+
+def _singularize_token(name: str) -> str:
+    if len(name) > 3 and name.endswith("s") and not name.endswith("ss"):
+        return name[:-1]
+    return name
+
+
+def extract_nl_relationships(text: str) -> list[dict[str, Any]]:
+    """Lightweight NL relation mining for Stage-1 grounding."""
+    rels: list[dict[str, Any]] = []
+    patterns = [
+        (r"(?i)\b([A-Z][\w]*)\s+borrows?\s+(?:a\s+)?([A-Z][\w]*)\s+through\s+(?:a\s+)?([A-Z][\w]*)",
+         lambda m: [
+             {"source": m.group(1), "target": m.group(3), "type": "association", "label": "creates"},
+             {"source": m.group(3), "target": m.group(2), "type": "association", "label": "for"},
+         ]),
+        (r"(?i)\b([A-Z][\w]*)\s+manages?\s+([A-Z][\w]*)",
+         lambda m: [{"source": m.group(1), "target": _singularize_token(m.group(2)), "type": "association", "label": "manages"}]),
+        (r"(?i)\b([A-Z][\w]*)\s+depends\s+on\s+([A-Z][\w]*)",
+         lambda m: [{"source": m.group(1), "target": m.group(2), "type": "dependency", "label": "depends"}]),
+        (r"(?i)\b([A-Z][\w]*)\s+(?:uses|links\s+to|associated\s+with)\s+([A-Z][\w]*)",
+         lambda m: [{"source": m.group(1), "target": m.group(2), "type": "association", "label": "uses"}]),
+    ]
+    for pat, builder in patterns:
+        for m in re.finditer(pat, text):
+            rels.extend(builder(m))
+    return rels
+
+
+def structure_to_spec_json(code: str, diagram_type: str) -> dict[str, Any]:
+    """Authoritative Stage-1 JSON recovered from source code structure."""
+    from app.services.code_analysis import analyze_source_code
+
+    s = analyze_source_code(code)
+    entities = []
+    for c in s.classes:
+        entities.append(
+            {
+                "name": c,
+                "kind": "class",
+                "attributes": [],
+                "methods": list(s.methods.get(c) or [])[:12],
+            }
+        )
+    # Never invent classes from variables / string literals when none are declared
+    relationships: list[dict[str, Any]] = []
+    for child, parents in s.bases.items():
+        for p in parents:
+            relationships.append({"source": child, "target": p, "type": "inheritance", "label": ""})
+    if s.classes:
+        for m in re.finditer(
+            r"(?i)(\w+)\s*\([^)]*\b([A-Z][A-Za-z0-9_]*)\b[^)]*\)",
+            code,
+        ):
+            src_ctx, typ = m.group(1), m.group(2)
+            owner = next((c for c in s.classes if c in code[max(0, m.start() - 80) : m.start()]), None)
+            if owner and typ in s.classes and owner != typ:
+                relationships.append({"source": owner, "target": typ, "type": "association", "label": src_ctx})
+        for m in re.finditer(
+            r"(?i)(private|protected|public)\s+([A-Z][A-Za-z0-9_]*)\s+(\w+)\s*;",
+            code,
+        ):
+            typ, _field = m.group(2), m.group(3)
+            before = code[: m.start()]
+            cls = re.findall(r"(?i)class\s+(\w+)", before)
+            if cls and typ in s.classes and cls[-1] != typ:
+                relationships.append({"source": cls[-1], "target": typ, "type": "association", "label": _field})
+        for m in re.finditer(
+            r"(?i)(?:public|private|protected)?\s*(?:[\w<>\[\]]+\s+)?(\w+)\s*\(\s*([A-Z][A-Za-z0-9_]*)\s+\w+",
+            code,
+        ):
+            typ = m.group(2)
+            before = code[: m.start()]
+            cls = re.findall(r"(?i)class\s+(\w+)", before)
+            if cls and typ in s.classes and cls[-1] != typ:
+                relationships.append({"source": cls[-1], "target": typ, "type": "association", "label": m.group(1)})
+        if not relationships and len(entities) >= 2:
+            relationships.append(
+                {"source": entities[0]["name"], "target": entities[1]["name"], "type": "association", "label": ""}
+            )
+
+    seen = set()
+    uniq = []
+    for r in relationships:
+        key = (r["source"], r["target"], r["type"])
+        if key not in seen:
+            seen.add(key)
+            uniq.append(r)
+
+    script_without_types = not s.has_type_declarations
+    effective_type = diagram_type
+    # Class/object of a no-class script is misleading — recover as flowchart process
+    if script_without_types and diagram_type in {"class", "object"}:
+        effective_type = "flowchart"
+
+    data: dict[str, Any] = {
+        "diagram_type": effective_type,
+        "summary": (
+            f"Script/driver with no class declarations ({s.language})"
+            if script_without_types
+            else f"Design recovered from {s.language} source ({len(entities)} types)"
+        ),
+        "entities": entities[:12],
+        "relationships": uniq[:20],
+        "constraints": (
+            [
+                "Source has no class/interface declarations",
+                "Do not treat variables or string paths as UML classes",
+            ]
+            if script_without_types
+            else []
+        ),
+        "script_without_types": script_without_types,
+        "requested_diagram_type": diagram_type,
+    }
+    steps = s.script_process_steps(code)
+    if effective_type == "flowchart" or script_without_types:
+        data["process_steps"] = steps or [
+            "Import dependencies",
+            "Configure parameters",
+            "Run main logic",
+            "Write outputs",
+        ]
+        data["diagram_type"] = "flowchart"
+    if diagram_type == "object" and entities:
+        data["objects"] = [
+            {"name": e["name"][:1].lower() + e["name"][1:] + "1", "type": e["name"]} for e in entities[:5]
+        ]
+        data["diagram_type"] = "object"
+    if diagram_type == "component" and not script_without_types:
+        data["components"] = [{"name": e["name"], "interfaces": ["I" + e["name"]]} for e in entities[:6]]
+    if diagram_type == "package" and not script_without_types:
+        data["packages"] = [{"name": e["name"], "contains": [e["name"]]} for e in entities[:6]]
+    if diagram_type == "component" and script_without_types:
+        # Honest component view: this script + imported libraries
+        comps = ["DriverScript"]
+        for imp in s.imports[:4]:
+            m = re.search(r"(?:import|from)\s+([\w.]+)", imp)
+            if m:
+                comps.append(m.group(1).split(".")[0])
+        data["components"] = [{"name": c, "interfaces": []} for c in list(dict.fromkeys(comps))[:6]]
+        data["relationships"] = [
+            {"source": "DriverScript", "target": c, "type": "dependency", "label": "uses"}
+            for c in comps[1:4]
+        ]
+        data["diagram_type"] = "component"
+        data["process_steps"] = steps
+    return data
+
+
+def merge_spec_entities(base: dict[str, Any], extra_names: list[str], diagram_type: str) -> dict[str, Any]:
+    """Ensure required concept names appear in the Stage-1 JSON."""
+    data = dict(base)
+    entities = [e for e in (data.get("entities") or []) if isinstance(e, dict)]
+    # Drop placeholder entities once real domain names are known
+    if extra_names:
+        entities = [
+            e
+            for e in entities
+            if not re.match(r"^(Entity[A-Z]?\d*|Module\d+|Class\d+)$", str(e.get("name") or ""), re.I)
+        ]
+    have = {str(e.get("name") or "").lower() for e in entities}
+    for name in extra_names:
+        if name.lower() in have:
+            continue
+        entities.append({"name": name, "kind": "class", "attributes": [], "methods": []})
+        have.add(name.lower())
+    data["entities"] = entities
+    if diagram_type == "component":
+        comps = list(data.get("components") or [])
+        have_c = {
+            (c.get("name") if isinstance(c, dict) else str(c)).lower()
+            for c in comps
+        }
+        for name in extra_names:
+            if name.lower() in have_c:
+                continue
+            comps.append({"name": name, "interfaces": ["I" + re.sub(r"(Service|Api)$", "", name)]})
+            have_c.add(name.lower())
+        data["components"] = comps
+    if diagram_type == "package":
+        generic_layers = {"domain", "application", "infrastructure", "core", "api"}
+        named = [n for n in extra_names if n.lower() not in generic_layers]
+        if named:
+            # Prefer explicit domain package names from the requirement
+            data["packages"] = [{"name": n, "contains": [n]} for n in named[:8]]
+        else:
+            pkgs = [p for p in (data.get("packages") or []) if isinstance(p, dict)]
+            have_p = {str(p.get("name") or "").lower() for p in pkgs}
+            for name in extra_names:
+                if name.lower() in have_p:
+                    continue
+                pkgs.append({"name": name, "contains": [name]})
+                have_p.add(name.lower())
+            data["packages"] = pkgs
+    if diagram_type == "object":
+        objs = list(data.get("objects") or [])
+        have_t = {
+            str(o.get("type") if isinstance(o, dict) else "").lower() for o in objs
+        }
+        for name in extra_names:
+            if name.lower() in have_t:
+                continue
+            objs.append({"name": name[:1].lower() + name[1:] + "1", "type": name})
+            have_t.add(name.lower())
+        data["objects"] = objs
+    # relationships among consecutive required names if sparse
+    rels = [r for r in (data.get("relationships") or []) if isinstance(r, dict)]
+    if len(rels) < max(1, len(extra_names) - 1) and len(extra_names) >= 2:
+        for a, b in zip(extra_names, extra_names[1:]):
+            rels.append({"source": a, "target": b, "type": "association", "label": ""})
+    data["relationships"] = rels[:20]
+    data["diagram_type"] = diagram_type
+    return data
+
+
+def ensure_valid_spec(
+    raw_text: str,
+    diagram_type: str,
+    *,
+    source_text: str | None = None,
+    input_mode: str = "requirement",
+) -> tuple[dict[str, Any], str, list[str]]:
     """
     Parse/validate Stage-1 JSON; fall back to heuristic conversion.
+    Merges named concepts from the original requirement/code for fidelity.
     Returns (json_dict, prose_text, validity_messages).
     """
     messages: list[str] = []
+    grounding = source_text or raw_text
+
+    if input_mode == "source_code":
+        data = structure_to_spec_json(grounding, diagram_type)
+        parsed = extract_json_object(raw_text)
+        # Only enrich attributes/methods on *declared* classes — never add LLM-invented types
+        if (
+            parsed
+            and isinstance(parsed.get("entities"), list)
+            and not data.get("script_without_types")
+        ):
+            by_name = {e["name"].lower(): e for e in data["entities"] if e.get("name")}
+            declared = set(by_name)
+            for ent in parsed["entities"]:
+                if not isinstance(ent, dict) or not ent.get("name"):
+                    continue
+                key = str(ent["name"]).lower()
+                if key in by_name:
+                    if ent.get("methods") and not by_name[key].get("methods"):
+                        by_name[key]["methods"] = ent.get("methods")
+                    if ent.get("attributes") and not by_name[key].get("attributes"):
+                        by_name[key]["attributes"] = ent.get("attributes")
+                elif key in declared:
+                    continue
+                # Ignore undeclared names (variables / string tokens / hallucinations)
+        if data.get("script_without_types"):
+            messages.append(
+                "Source has no class/interface declarations — not inventing UML classes "
+                "from variables; using process/flowchart recovery"
+            )
+        else:
+            messages.append("Stage-1 grounded in source-code structure analysis")
+        prose = spec_to_prose(data)
+        return data, prose, messages
+
     parsed = extract_json_object(raw_text)
     if parsed is not None:
         result = validate_spec_json(parsed, diagram_type)
         if result.ok:
-            prose = spec_to_prose(result.data)
-            return result.data, prose, result.messages
-        messages.extend(result.messages)
-        messages.append("Falling back to heuristic JSON from model text")
-        base_text = raw_text
+            data = result.data
+            messages.extend(result.messages)
+        else:
+            messages.extend(result.messages)
+            messages.append("Falling back to heuristic JSON from model text")
+            data = heuristic_spec_from_text(raw_text, diagram_type)
+            if isinstance(parsed.get("entities"), list):
+                data = merge_spec_entities(
+                    data,
+                    [str(e.get("name")) for e in parsed["entities"] if isinstance(e, dict) and e.get("name")],
+                    diagram_type,
+                )
     else:
         messages.append("Model output was not valid JSON; building heuristic Stage-1 JSON")
-        base_text = raw_text
+        data = heuristic_spec_from_text(raw_text, diagram_type)
 
-    data = heuristic_spec_from_text(base_text, diagram_type)
-    # If model emitted partial JSON, merge entity names
-    if parsed and isinstance(parsed.get("entities"), list):
-        for ent in parsed["entities"]:
-            if isinstance(ent, dict) and ent.get("name"):
-                if not any(e["name"] == ent["name"] for e in data["entities"]):
-                    data["entities"].append(
-                        {
-                            "name": ent["name"],
-                            "kind": ent.get("kind") or "class",
-                            "attributes": ent.get("attributes") or [],
-                            "methods": ent.get("methods") or [],
-                        }
-                    )
+    concepts = extract_named_concepts(grounding)
+    if concepts:
+        data = merge_spec_entities(data, concepts, diagram_type)
+        messages.append(f"Merged grounded concepts: {', '.join(concepts[:8])}")
+    nl_rels = extract_nl_relationships(grounding)
+    if nl_rels:
+        rels = [r for r in (data.get("relationships") or []) if isinstance(r, dict)]
+        seen = {(r.get("source"), r.get("target"), r.get("type")) for r in rels}
+        for r in nl_rels:
+            key = (r.get("source"), r.get("target"), r.get("type"))
+            if key not in seen:
+                rels.append(r)
+                seen.add(key)
+        data["relationships"] = rels[:20]
+
     result = validate_spec_json(data, diagram_type)
     prose = spec_to_prose(result.data if result.ok else data)
     if not result.ok:

@@ -10,6 +10,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
 from app.routers import analytics, artifacts, generate, human_review
+from app.security import cors_allow_origins
 from app.settings import get_settings
 
 logging.basicConfig(level=logging.INFO)
@@ -21,6 +22,10 @@ async def lifespan(_: FastAPI):
     settings = get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
     init_db()
+    if not (settings.api_access_token or "").strip():
+        logger.warning(
+            "API_ACCESS_TOKEN is unset — API is open. Set a token before public deploy."
+        )
     logger.info("UML app ready (provider=%s)", settings.provider_name)
     yield
 
@@ -30,10 +35,13 @@ app = FastAPI(
     version="1.0.0",
     lifespan=lifespan,
 )
+_origins = cors_allow_origins()
+# Browsers reject Access-Control-Allow-Origin: * together with credentials.
+_allow_credentials = _origins != ["*"]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=_origins,
+    allow_credentials=_allow_credentials,
     allow_methods=["*"],
     allow_headers=["*"],
 )

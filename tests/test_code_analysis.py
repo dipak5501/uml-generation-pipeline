@@ -70,7 +70,10 @@ def test_analyze_procedural_python_variables_and_steps():
 def test_structure_to_spec_for_procedural_script():
     spec = structure_to_spec(PROCEDURAL, "class")
     assert "python" in spec.lower()
-    assert "num1" in spec or "Input two numbers" in spec
+    assert "no class" in spec.lower() or "script" in spec.lower()
+    assert "Input two numbers" in spec or "num1" in spec
+    # Variables may appear under configuration, but not as invented UML classes list alone
+    assert "Do NOT invent classes from variable names" in spec
 
 
 def test_detect_source_language():
@@ -78,12 +81,13 @@ def test_detect_source_language():
     assert detect_source_language("Build a bookstore.", "requirement") is None
 
 
-def test_mock_entities_from_source_spec_not_detected_header():
-    from app.providers.mock_provider import _entities_from_text
-    from app.services.code_analysis import structure_to_spec
+def test_procedural_script_has_no_type_entities():
+    from app.services.code_analysis import analyze_source_code
+    from app.services.spec_json import structure_to_spec_json
 
-    spec = structure_to_spec(PROCEDURAL, "class")
-    ents = _entities_from_text(f"Technical specification:\n{spec}")
-    assert "Detected" not in ents
-    assert "Language" not in ents
-    assert any(e.lower() in {"num1", "num2", "sum"} for e in ents)
+    s = analyze_source_code(PROCEDURAL)
+    assert s.classes == []
+    assert s.entity_names() == []
+    data = structure_to_spec_json(PROCEDURAL, "class")
+    assert data.get("script_without_types")
+    assert data.get("diagram_type") == "flowchart"

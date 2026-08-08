@@ -29,9 +29,96 @@ def ensure_plantuml_bounds(code: str) -> str:
     return m.group(0) if m else text
 
 
+_REL_WORD_MAP = {
+    "inheritance": "--|>",
+    "inherits": "--|>",
+    "extends": "--|>",
+    "generalization": "--|>",
+    "association": "-->",
+    "associates": "-->",
+    "link": "-->",
+    "composition": "*--",
+    "composes": "*--",
+    "aggregation": "o--",
+    "aggregates": "o--",
+    "dependency": "..>",
+    "depends": "..>",
+    "uses": "..>",
+    "realization": "..|>",
+    "realizes": "..|>",
+    "containment": "+--",
+    "contains": "+--",
+}
+
+
+def normalize_plantuml_relations(code: str) -> str:
+    """Rewrite invalid LoRA/LLM connectors like ``A --inheritance--> B;`` into PlantUML."""
+
+    def _rewrite_line(line: str) -> str:
+        raw = line.rstrip()
+        # class Foo;  → class Foo
+        m = re.match(r"^(\s*(?:class|interface|enum|abstract\s+class)\s+\S+)\s*;\s*$", raw, flags=re.I)
+        if m:
+            return m.group(1)
+        # A --word--> B;  or A -- word --> B
+        m = re.match(
+            r"^(\s*)([A-Za-z_][\w.]*)\s+--\s*([A-Za-z_]+)\s*-->\s*([A-Za-z_][\w.]*)\s*;?\s*$",
+            raw,
+        )
+        if m:
+            indent, src, word, tgt = m.groups()
+            arrow = _REL_WORD_MAP.get(word.lower(), "-->")
+            return f"{indent}{src} {arrow} {tgt}"
+        # A --|> B; trailing semicolon on normal arrows
+        m = re.match(
+            r"^(\s*)([A-Za-z_][\w.]*)\s+"
+            r"((?:<\|\-\-|\-\-\|>|\*\-\-|o\-\-|\.\.\|>|\.\.>|\-\->|\+\-\-))\s*"
+            r"([A-Za-z_][\w.]*)\s*;\s*$",
+            raw,
+        )
+        if m:
+            indent, src, arrow, tgt = m.groups()
+            return f"{indent}{src} {arrow} {tgt}"
+        # Attribute / method lines inside class blocks ending with ;
+        # Do NOT strip activity-diagram steps (`:Step;`) or control lines.
+        stripped = raw.rstrip()
+        lead = stripped.lstrip()
+        if lead.startswith((":", "if ", "else", "endif", "stop", "start", "fork", "again")):
+            return raw
+        if stripped.endswith(";") and "--" not in stripped and ".." not in stripped and not lead.startswith("@"):
+            if re.search(r"^\s*[+\-#~]?[\w].*[:\(]", stripped):
+                return stripped[:-1].rstrip()
+        return raw
+
+    return "\n".join(_rewrite_line(ln) for ln in code.splitlines())
+
+
+# PlantUML preprocessor / include directives that must never appear in untrusted diagrams.
+_UNSAFE_DIRECTIVE = re.compile(
+    r"^\s*!(?:include|includeurl|import|pragma|define|undef|definelong|enddefinelong|"
+    r"startsub|endsub|function|endfunction|procedure|endprocedure|return|exit|"
+    r"theme|includesub)\b",
+    re.I,
+)
+
+
+def strip_unsafe_plantuml_directives(code: str) -> str:
+    """Drop preprocessor / include lines that enable local file read or SSRF."""
+    kept: list[str] = []
+    for line in code.splitlines():
+        if _UNSAFE_DIRECTIVE.match(line):
+            continue
+        if re.search(r"(?i)!(?:include|includeurl|import)\b", line):
+            line = re.sub(r"(?i)!(?:include|includeurl|import)\b[^\n]*", "", line)
+        kept.append(line)
+    return "\n".join(kept)
+
+
 def sanitize_plantuml_output(code: str, *, max_lines: int = 120) -> str:
     """Clean common LLM failures: duplicate tags, repeated lines, runaway output."""
     text = ensure_plantuml_bounds(code)
+    text = normalize_plantuml_relations(text)
+    text = strip_unsafe_plantuml_directives(text)
     lines = text.splitlines()
     cleaned: list[str] = []
     seen: set[str] = set()
@@ -83,6 +170,9 @@ def validate_basic_syntax(code: str) -> ValidationResult:
     body = re.sub(r"(?m)^\s*(left to right direction|hide\b.*|!theme\b.*)$", "", body)
     if len(body.strip()) < 8:
         msgs.append("Diagram body is empty or incomplete")
+    # Worded arrows are not PlantUML (e.g. A --inheritance--> B)
+    if re.search(r"--\s*[A-Za-z_]{3,}\s*-->", code):
+        msgs.append("Invalid worded relationship arrow (use --|>, -->, *--, o--, ..>)")
     return ValidationResult(ok=not msgs, messages=msgs)
 
 
@@ -96,6 +186,18 @@ def validate_package_semantics(code: str) -> ValidationResult:
 
     if not re.search(r"(?im)^\s*package\s+", code):
         msgs.append("Package diagram has no package { } declarations")
+    # Reject bare "package Name;" / "package Name" without a block body
+    if not re.search(r"(?im)^\s*package\s+\S[^\n{]*\{", code):
+        msgs.append("Package diagram needs package Name { ... } blocks, not bare package lines")
+    # Require some containment or dependency content inside packages
+    if re.search(r"(?im)^\s*package\s+\S[^\n{]*\{", code):
+        inner = re.sub(r"(?is)@startuml|@enduml", "", code)
+        has_inner_type = bool(
+            re.search(r"(?im)^\s*(class|interface|component|package)\s+\w+", inner)
+        )
+        has_dep = bool(re.search(r"\.\.>|->|-->|\+--", inner))
+        if not has_inner_type and not has_dep:
+            msgs.append("Package blocks are empty (no nested types or dependencies)")
 
     # Self-referential dependencies
     for line in lines:

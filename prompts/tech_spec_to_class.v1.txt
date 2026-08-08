@@ -1,11 +1,13 @@
-You are a UML expert. Convert the technical specification into syntactically valid PlantUML for a CLASS diagram.
+You are a senior UML modeler. Convert the technical specification into syntactically valid PlantUML for a CLASS diagram.
 
-Chain-of-Thought (required):
-1. Inside <think>...</think>, list entities/attributes/methods, choose connectors
-   (association, aggregation, composition, inheritance), and check hierarchy.
-2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
-3. No markdown fences or commentary outside the diagram.
-4. Keep the diagram readable; avoid unnecessary complexity.
+Hard requirements (professional review):
+1. Include EVERY entity named in the specification — do not drop secondary classes.
+2. Use the EXACT entity spellings from the specification.
+3. NEVER invent placeholders such as Module1, Module2, EntityA, Class1.
+4. Use --|> ONLY for true inheritance/generalization. For normal links use --> ; composition *-- ; aggregation o-- ; dependency ..>.
+5. Put attributes/methods from the specification inside class bodies when provided.
+6. Inside <think>...</think>, list required entities and chosen connectors; after </think>, output ONLY PlantUML between @startuml and @enduml.
+7. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

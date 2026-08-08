@@ -48,6 +48,17 @@ That UI URL is what you share. No Cursor required afterward.
 
 Render can auto-redeploy if you enable auto-deploy on the services (default for Blueprints).
 
+### Harden a public deploy (required for anything beyond a private demo)
+
+In both Render services, set the **same** secret:
+
+| Env var | Purpose |
+|---------|---------|
+| `API_ACCESS_TOKEN` | Shared secret; API rejects generate/export/repair/review without `Authorization: Bearer …` or `X-API-Key` |
+| `CORS_ORIGINS` | Optional comma-separated UI origins (default `*` for demos) |
+
+`render.yaml` already declares `API_ACCESS_TOKEN` as a sync:false secret — set it in the Render dashboard. Without it, health reports that the API is open.
+
 ### Free-tier note
 
 Idle free services **sleep** after ~15 minutes. The first visit after sleep can take 30–60 seconds to wake.

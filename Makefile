@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus finetune finetune-quick finetune-prepare
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus finetune finetune-quick finetune-prepare train-real
 
 install:
 	python3 -m venv .venv
@@ -44,7 +44,8 @@ eval-smoke:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/eval_scenario_code_batch.py --limit 100 --out data/eval/batch_report_smoke100.json
 
 finetune-prepare:
-	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py
+	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py \
+		--input data/training/uml_training_supplement_merged.parquet --prefer-accepted
 
 finetune:
 	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 2000 --resume
@@ -52,6 +53,15 @@ finetune:
 finetune-quick:
 	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --quick
 
+# Full real-data train path: HF corpus → JSONL → LoRA (Apple Silicon)
+train-real:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	@test -f data/training/uml_training_8000.parquet || (echo "Building 8k HF corpus..." && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000 --include-flowchart)
+	@test -f data/training/uml_training_supplement_merged.parquet || (echo "Building supplement..." && $(MAKE) scenario-corpus)
+	$(MAKE) finetune-prepare
+	. .venv/bin/activate && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 3000 --resume --skip-prepare
+	@echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"
+	@echo "Then restart: ./scripts/run_local.sh"
 test:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true USE_FINETUNED_CODE=false pytest -q
 

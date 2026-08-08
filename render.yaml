@@ -28,6 +28,11 @@ services:
         value: "false"
       - key: DATABASE_URL
         value: "sqlite:///./data/uml_app.db"
+      # Set a strong secret in the Render dashboard for public deploys:
+      - key: API_ACCESS_TOKEN
+        sync: false
+      - key: CORS_ORIGINS
+        value: "*"
 
   - type: web
     name: uml-pipeline-ui
@@ -50,3 +55,5 @@ services:
           name: uml-pipeline-api
           type: web
           property: hosturl
+      - key: API_ACCESS_TOKEN
+        sync: false

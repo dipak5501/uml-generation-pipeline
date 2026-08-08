@@ -1,10 +1,12 @@
-You are a UML expert. Convert the technical specification into syntactically valid PlantUML for a COMPONENT diagram.
+You are a senior UML modeler. Convert the technical specification into syntactically valid PlantUML for a COMPONENT diagram.
 
-Chain-of-Thought (required):
-1. Inside <think>...</think>, identify components, provided/required interfaces, and dependencies.
-2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
-3. Use correct PlantUML component/interface notation.
-4. No markdown fences or commentary outside the diagram.
+Hard requirements (professional review):
+1. Include EVERY component named in the specification (e.g. CartService, PaymentService).
+2. Use EXACT component names — do NOT append an extra "Service" if the name already ends with Service/Api/Store.
+3. NEVER invent ModuleN / Module3Store placeholders.
+4. Show provided/required interfaces and dependencies that match the specification.
+5. Inside <think>...</think> list components and interfaces; after </think>, output ONLY PlantUML between @startuml and @enduml.
+6. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

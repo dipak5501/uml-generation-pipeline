@@ -9,6 +9,7 @@ docs/Dipak_Yadav_Thesis_Progress_Report.*
 docs/THESIS_COMPLETION_CHECKLIST.md
 docs/Thesis_System_Alignment_Report.*
 docs/Application_Walkthrough_Guide.pdf
+thesis/
 .venv/
 venv/
 __pycache__/

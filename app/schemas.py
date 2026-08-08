@@ -5,7 +5,9 @@ from __future__ import annotations
 from datetime import datetime
 from typing import Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator, model_validator
+
+from app.security import MAX_BATCH_ITEMS, MAX_REQUIREMENT_CHARS
 
 InputMode = Literal["requirement", "source_code"]
 
@@ -25,6 +27,7 @@ class GenerateRequest(BaseModel):
 
     requirement: str = Field(
         min_length=3,
+        max_length=MAX_REQUIREMENT_CHARS,
         description="Plain-English requirement OR source code (depending on input_mode)",
     )
     diagram_type: DiagramType = "class"
@@ -34,14 +37,48 @@ class GenerateRequest(BaseModel):
 
 
 class BatchGenerateRequest(BaseModel):
-    requirement: Optional[str] = None
+    requirement: Optional[str] = Field(default=None, max_length=MAX_REQUIREMENT_CHARS)
     requirements: Optional[list[str]] = None
     diagram_types: list[DiagramType] = Field(
         default_factory=lambda: list(ALL_DIAGRAM_TYPES)
     )
-    n_samples: int = Field(default=50, ge=1, le=500)
+    n_samples: int = Field(default=50, ge=1, le=200)
     use_sample_file: bool = True
     project_id: Optional[int] = None
+
+    @field_validator("requirements")
+    @classmethod
+    def _cap_requirement_strings(cls, value: Optional[list[str]]) -> Optional[list[str]]:
+        if value is None:
+            return value
+        if len(value) > MAX_BATCH_ITEMS:
+            raise ValueError(f"At most {MAX_BATCH_ITEMS} requirements allowed")
+        cleaned: list[str] = []
+        for item in value:
+            if item is None:
+                continue
+            text = str(item)
+            if len(text) > MAX_REQUIREMENT_CHARS:
+                raise ValueError(
+                    f"Each requirement must be ≤ {MAX_REQUIREMENT_CHARS} characters"
+                )
+            cleaned.append(text)
+        return cleaned
+
+    @model_validator(mode="after")
+    def _cap_cartesian_product(self) -> "BatchGenerateRequest":
+        n_req = (
+            len(self.requirements)
+            if self.requirements
+            else (self.n_samples if self.requirement or self.use_sample_file else 0)
+        )
+        n_types = max(len(self.diagram_types), 1)
+        if n_req * n_types > MAX_BATCH_ITEMS:
+            raise ValueError(
+                f"Batch would create {n_req * n_types} artifacts; "
+                f"limit is {MAX_BATCH_ITEMS} (reduce n_samples or diagram_types)"
+            )
+        return self
 
 
 class JobResponse(BaseModel):
@@ -87,7 +124,7 @@ class HumanReviewCreate(BaseModel):
     structural_completeness: int = Field(ge=1, le=5)
     syntactic_accuracy: int = Field(ge=1, le=5)
     overall_coherence: int = Field(ge=1, le=5)
-    comments: str = ""
+    comments: str = Field(default="", max_length=4000)
 
 
 class HumanReviewOut(BaseModel):

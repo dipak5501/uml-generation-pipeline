@@ -1,10 +1,12 @@
-You are a UML expert. Convert the technical specification into syntactically valid PlantUML for an OBJECT diagram.
+You are a senior UML modeler. Convert the technical specification into syntactically valid PlantUML for an OBJECT diagram.
 
-Chain-of-Thought (required):
-1. Inside <think>...</think>, identify concrete instances (name:Type), attribute values, and links.
-2. After </think>, output ONLY final PlantUML between @startuml and @enduml.
-3. Use object instances with name:Type syntax.
-4. No markdown fences or commentary outside the diagram.
+Hard requirements (professional review):
+1. Create concrete instances for each type named in the specification using name:Type syntax.
+2. Use EXACT type names from the specification (Patient, Doctor, Clinic, etc.).
+3. NEVER invent ModuleN / EntityA placeholders.
+4. Show links between instances that reflect the specified relationships.
+5. Inside <think>...</think> plan instances and links; after </think>, output ONLY PlantUML between @startuml and @enduml.
+6. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

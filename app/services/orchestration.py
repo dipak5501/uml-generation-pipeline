@@ -39,6 +39,7 @@ from app.services.cot import COT_SYSTEM, finalize_plantuml_output, has_cot_block
 from app.services.plantuml_validate import ensure_plantuml_bounds, sanitize_plantuml_output, validate_diagram
 from app.services.repair import repair_plantuml
 from app.services.scoring import VerificationResult, paper_composite, verify_scores
+from app.services.plantuml_from_spec import ensure_faithful_plantuml, plantuml_from_spec
 from app.services.spec_json import ensure_valid_spec, validity_metrics
 from app.settings import Settings, get_settings
 from uml_pipeline.render import render_plantuml
@@ -59,20 +60,24 @@ _GENERIC_CLASS_NAMES = {
     "module2",
 }
 
-# LoRA corpus is mostly class-style UML; these types need the base/mock generators.
-_LORA_SKIP_TYPES = frozenset({"package", "flowchart"})
+# Prefer LoRA for these when USE_FINETUNED_CODE=true (trained on real HF UMLCode data).
+# Package/flowchart historically weaker — still try LoRA first, then fall back to builder.
+_LORA_PRIMARY_TYPES = frozenset({"class", "object", "component", "package", "flowchart"})
 
 
-def _safe_template_plantuml(specification: str, diagram_type: str) -> str:
-    """Deterministic last-resort diagram when models produce wrong/broken PlantUML."""
-    from app.providers.mock_provider import MockProvider
+def _safe_template_plantuml(
+    specification: str,
+    diagram_type: str,
+    spec_json: dict | None = None,
+) -> str:
+    """Deterministic last-resort diagram grounded in Stage-1 JSON when available."""
+    from app.services.plantuml_from_spec import plantuml_from_spec
+    from app.services.spec_json import ensure_valid_spec
 
-    return sanitize_plantuml_output(
-        MockProvider()._plantuml(  # noqa: SLF001 — intentional template reuse
-            f"Technical specification:\n{specification}",
-            diagram_type,
-        )
-    )
+    if spec_json:
+        return plantuml_from_spec(spec_json, diagram_type)
+    data, _, _ = ensure_valid_spec(specification, diagram_type)
+    return plantuml_from_spec(data, diagram_type)
 
 
 def _finetuned_output_needs_fallback(
@@ -81,9 +86,7 @@ def _finetuned_output_needs_fallback(
     validation_ok: bool,
     diagram_type: str = "class",
 ) -> bool:
-    """Retry with mock/base provider when LoRA output is invalid or ignores the spec."""
-    if diagram_type in _LORA_SKIP_TYPES:
-        return True
+    """Retry with base provider / builder when LoRA output is invalid or ignores the spec."""
     if not validation_ok:
         return True
     classes = re.findall(r"(?m)^\s*class\s+(\w+)", code, flags=re.I)
@@ -140,7 +143,9 @@ def generate_technical_spec(
         # Deterministic structural recover for mock/offline; LLM path uses prompt
         if settings.mock_providers:
             text = structure_to_spec(requirement, diagram_type)
-            spec_json, prose, msgs = ensure_valid_spec(text, diagram_type)
+            spec_json, prose, msgs = ensure_valid_spec(
+                text, diagram_type, source_text=requirement, input_mode="source_code"
+            )
             return prose, spec_json, "code_to_tech_spec", "v1", "mock-code-analysis", msgs
         ref, prompt = render_prompt(
             "code_to_tech_spec",
@@ -150,15 +155,9 @@ def generate_technical_spec(
         )
         text = provider.chat(json_system, prompt, temperature=0.2)
         model_name = getattr(provider, "model", settings.spec_model)
-        spec_json, prose, msgs = ensure_valid_spec(text.strip(), diagram_type)
-        if msgs and "not valid JSON" in " ".join(msgs):
-            # One retry emphasizing JSON-only
-            retry = provider.chat(
-                json_system + " Retry: emit JSON only matching the required schema.",
-                prompt,
-                temperature=0.1,
-            )
-            spec_json, prose, msgs = ensure_valid_spec(retry.strip(), diagram_type)
+        spec_json, prose, msgs = ensure_valid_spec(
+            text.strip(), diagram_type, source_text=requirement, input_mode="source_code"
+        )
         return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
     ref, prompt = render_prompt(
@@ -169,14 +168,18 @@ def generate_technical_spec(
     )
     text = provider.chat(json_system, prompt, temperature=0.4)
     model_name = getattr(provider, "model", settings.spec_model)
-    spec_json, prose, msgs = ensure_valid_spec(text.strip(), diagram_type)
+    spec_json, prose, msgs = ensure_valid_spec(
+        text.strip(), diagram_type, source_text=requirement, input_mode="requirement"
+    )
     if msgs and any("not valid JSON" in m or "Missing required" in m for m in msgs):
         retry = provider.chat(
             json_system + " Retry: emit JSON only matching the required schema.",
             prompt,
             temperature=0.1,
         )
-        spec_json, prose, msgs = ensure_valid_spec(retry.strip(), diagram_type)
+        spec_json, prose, msgs = ensure_valid_spec(
+            retry.strip(), diagram_type, source_text=requirement, input_mode="requirement"
+        )
     return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
 
@@ -186,17 +189,30 @@ def generate_plantuml_code(
     settings: Settings | None = None,
     *,
     input_mode: str = "requirement",
+    spec_json: dict | None = None,
 ) -> tuple[str, str, str, str, bool]:
-    """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot)."""
+    """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot).
+
+    When ``USE_FINETUNED_CODE=true``, prefer the LoRA model trained on the real
+    Hugging Face UMLCode corpus; fall back to base LLM / grounded spec-builder
+    if validation or fidelity checks fail.
+    """
     settings = settings or get_settings()
-    # LoRA was trained mainly on class UML; package/flowchart + source-code use base provider.
-    if input_mode == "source_code" or diagram_type in _LORA_SKIP_TYPES:
-        provider = build_base_code_provider(settings)
-    else:
-        provider = build_code_provider(settings)
     name = diagram_prompt_name(diagram_type)
     ref, prompt = render_prompt(name, "v1", specification=specification)
-    system = COT_SYSTEM if settings.enable_cot else "You output only valid PlantUML code between @startuml and @enduml."
+
+    # Scripts with no class types: never invent classes via LoRA.
+    if spec_json and spec_json.get("script_without_types"):
+        dtype = "flowchart" if diagram_type in {"class", "object"} else diagram_type
+        code = plantuml_from_spec(spec_json, dtype)
+        if validate_diagram(code, dtype).ok:
+            return code, f"tech_spec_to_{diagram_type}", "v1", "spec-builder", False
+
+    system = (
+        COT_SYSTEM
+        if settings.enable_cot
+        else "You output only valid PlantUML code between @startuml and @enduml."
+    )
     if diagram_type == "flowchart":
         system = (
             "You output only valid PlantUML ACTIVITY/FLOWCHART syntax using "
@@ -205,58 +221,134 @@ def generate_plantuml_code(
     elif diagram_type == "package":
         system = (
             "You output only valid PlantUML PACKAGE diagrams with nested "
-            "package { } blocks and ..> dependencies. No self-dependencies."
+            "package { } blocks and ..> dependencies. No self-dependencies. "
+            "Use the exact package/entity names from the specification. "
+            "Never invent Module1/Module2 placeholders."
         )
-    try:
-        raw = provider.chat(system, prompt, temperature=0.2)
-    except Exception as exc:
-        logger.warning("Code provider failed (%s); using base fallback", exc)
-        provider = build_base_code_provider(settings)
+    elif diagram_type == "component":
+        system = (
+            "You output only valid PlantUML COMPONENT diagrams. "
+            "Use the exact component names from the specification. "
+            "Do not append extra Service suffixes. Never invent ModuleN names."
+        )
+    else:
+        system = (
+            system
+            + " Use exact entity names from the specification. "
+            "Never invent ModuleN/EntityA placeholders. "
+            "Use --|> only for true inheritance; otherwise use --> *-- o-- or ..>."
+        )
+
+    use_lora = settings.use_finetuned_code and diagram_type in _LORA_PRIMARY_TYPES
+    code = ""
+    used_cot = False
+    model_name = "spec-builder"
+    validation = validate_diagram("@startuml\n@enduml\n", diagram_type)
+
+    if use_lora:
+        provider = build_code_provider(settings)
+        raw = ""
         try:
             raw = provider.chat(system, prompt, temperature=0.2)
-        except Exception as exc2:
-            logger.warning("Base code provider failed (%s); using template", exc2)
-            code = _safe_template_plantuml(specification, diagram_type)
-            return code, ref.name, ref.version, "template-fallback", False
-    used_cot = has_cot_block(raw) or settings.enable_cot
-    code = sanitize_plantuml_output(finalize_plantuml_output(raw))
-    validation = validate_diagram(code, diagram_type)
-    if settings.use_finetuned_code and getattr(provider, "name", "") == "finetuned-mlx" and _finetuned_output_needs_fallback(
-        code, specification, validation.ok, diagram_type
-    ):
-        reason = "invalid syntax" if not validation.ok else "generic or spec-mismatched output"
-        logger.warning(
-            "Fine-tuned code model produced weak %s PlantUML (%s); retrying with base provider: %s",
-            diagram_type,
-            reason,
-            ", ".join(validation.messages) if validation.messages else "n/a",
-        )
-        fallback = build_base_code_provider(settings)
-        try:
-            raw_fb = fallback.chat(system, prompt, temperature=0.2)
         except Exception as exc:
-            logger.warning("Base code fallback also failed: %s", exc)
-            raw_fb = raw
-        code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb))
-        validation_fb = validate_diagram(code_fb, diagram_type)
-        if validation_fb.ok or (not validation.ok and len(code_fb) >= 20):
-            code = code_fb
-            used_cot = has_cot_block(raw_fb) or used_cot
-            provider = fallback
-            validation = validation_fb
+            logger.warning("Fine-tuned code provider failed (%s); falling back", exc)
+        if raw:
+            used_cot = has_cot_block(raw) or settings.enable_cot
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            validation = validate_diagram(code, diagram_type)
+            model_name = str(getattr(provider, "model", "finetuned-mlx"))
+            if not _finetuned_output_needs_fallback(
+                code, specification, validation.ok, diagram_type
+            ):
+                if spec_json:
+                    code, fidelity = ensure_faithful_plantuml(code, spec_json, diagram_type)
+                    if fidelity.get("replaced"):
+                        model_name = "spec-builder"
+                        used_cot = False
+                return code, ref.name, ref.version, model_name, used_cot
+            logger.warning(
+                "LoRA PlantUML weak for %s; trying base provider / spec-builder",
+                diagram_type,
+            )
+            fallback = build_base_code_provider(settings)
+            try:
+                raw_fb = fallback.chat(system, prompt, temperature=0.2)
+                code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb))
+                validation_fb = validate_diagram(code_fb, diagram_type)
+                if validation_fb.ok and not _finetuned_output_needs_fallback(
+                    code_fb, specification, True, diagram_type
+                ):
+                    code, validation, used_cot = (
+                        code_fb,
+                        validation_fb,
+                        has_cot_block(raw_fb) or used_cot,
+                    )
+                    model_name = str(getattr(fallback, "model", settings.code_model))
+                elif validation_fb.ok or (not validation.ok and len(code_fb) >= 20):
+                    code, validation, used_cot = (
+                        code_fb,
+                        validation_fb,
+                        has_cot_block(raw_fb) or used_cot,
+                    )
+                    model_name = str(getattr(fallback, "model", settings.code_model))
+            except Exception as exc:
+                logger.warning("Base code fallback failed: %s", exc)
 
-    # Last resort: deterministic typed template (fixes LoRA/Ollama class-as-flowchart failures)
+    elif settings.mock_providers:
+        provider = build_code_provider(settings)
+        try:
+            raw = provider.chat(system, prompt, temperature=0.2)
+            used_cot = has_cot_block(raw) or settings.enable_cot
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            validation = validate_diagram(code, diagram_type)
+            model_name = str(getattr(provider, "model", "mock"))
+        except Exception as exc:
+            logger.warning("Mock code provider failed: %s", exc)
+    else:
+        provider = build_chat_provider(settings, model=settings.code_model)
+        try:
+            raw = provider.chat(system, prompt, temperature=0.2)
+            used_cot = has_cot_block(raw) or settings.enable_cot
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            validation = validate_diagram(code, diagram_type)
+            model_name = str(getattr(provider, "model", settings.code_model))
+        except Exception as exc:
+            logger.warning("Code provider failed (%s); using template", exc)
+            code = _safe_template_plantuml(specification, diagram_type, spec_json)
+            return code, ref.name, ref.version, "template-fallback", False
+
+    # Grounded builder when model path failed or was skipped
+    if (not code or not validation.ok) and spec_json:
+        built = plantuml_from_spec(spec_json, diagram_type)
+        if validate_diagram(built, diagram_type).ok:
+            code, model_name, used_cot = built, "spec-builder", False
+            validation = validate_diagram(code, diagram_type)
+
     if not validation.ok:
         logger.warning(
             "PlantUML for %s still invalid after model attempts (%s); using safe template",
             diagram_type,
             "; ".join(validation.messages[:3]),
         )
-        code = _safe_template_plantuml(specification, diagram_type)
-        return code, ref.name, ref.version, "template-fallback", used_cot
+        code = _safe_template_plantuml(specification, diagram_type, spec_json)
+        model_name = "template-fallback"
+        used_cot = False
 
-    model_name = getattr(provider, "model", settings.code_model)
+    # Professional fidelity gate: diagram must cover Stage-1 entities
+    if spec_json:
+        code, fidelity = ensure_faithful_plantuml(code, spec_json, diagram_type)
+        if fidelity.get("replaced"):
+            logger.warning(
+                "Replaced model PlantUML with spec-builder (recall=%.2f missing=%s generics=%s)",
+                float(fidelity.get("prior", {}).get("recall") or 0),
+                fidelity.get("prior", {}).get("missing"),
+                fidelity.get("prior", {}).get("generic_placeholders"),
+            )
+            model_name = "spec-builder"
+            used_cot = False
+
     return code, ref.name, ref.version, str(model_name), used_cot
+
 
 
 def score_image(
@@ -410,18 +502,44 @@ def run_single_generation(
     session.commit()
     session.refresh(tech)
 
+    # Source scripts with no class declarations must not become fake class diagrams
+    effective_dtype = diagram_type
+    if isinstance(spec_json, dict) and spec_json.get("script_without_types"):
+        effective_dtype = str(spec_json.get("diagram_type") or "flowchart")
+        if diagram_type in {"class", "object"} and effective_dtype == "flowchart":
+            logger.info(
+                "Source has no type declarations; generating flowchart instead of %s",
+                diagram_type,
+            )
+            validation_note = (
+                "Adjusted: source has no class declarations; "
+                "generated a flowchart of the script instead of a fake class diagram."
+            )
+        else:
+            validation_note = (
+                "Source has no class declarations; avoided inventing classes from variables."
+            )
+    else:
+        validation_note = ""
+
     plantuml, p_name, p_ver, code_model, used_cot = generate_plantuml_code(
-        spec_text, diagram_type, settings, input_mode=resolved_mode
+        spec_text,
+        effective_dtype,
+        settings,
+        input_mode=resolved_mode,
+        spec_json=spec_json,
     )
-    validation = validate_diagram(plantuml, diagram_type)
+    validation = validate_diagram(plantuml, effective_dtype)
     validation_msgs = list(validation.messages)
+    if validation_note:
+        validation_msgs.insert(0, validation_note)
 
     artifact = UMLArtifact(
         job_id=job_id,
         requirement_id=req.id,
         specification_id=tech.id,
         project_id=project_id,
-        diagram_type=diagram_type,
+        diagram_type=effective_dtype,
         input_mode=resolved_mode,
         source_language=source_language,
         source_requirement=requirement,
@@ -452,12 +570,12 @@ def run_single_generation(
 
     while attempt <= settings.max_repair_attempts:
         # Static validation; force repair if package guards fail
-        v = validate_diagram(artifact.plantuml_code, diagram_type)
+        v = validate_diagram(artifact.plantuml_code, effective_dtype)
         if not v.ok and attempt < settings.max_repair_attempts:
             repair = repair_plantuml(
                 artifact.plantuml_code,
                 spec_text,
-                diagram_type,
+                effective_dtype,
                 v.messages,
                 repair_notes=repair_notes,
                 settings=settings,
@@ -516,7 +634,7 @@ def run_single_generation(
         repair = repair_plantuml(
             artifact.plantuml_code,
             spec_text,
-            diagram_type,
+            effective_dtype,
             [err or "render failed"],
             repair_notes=repair_notes,
             settings=settings,
@@ -535,6 +653,33 @@ def run_single_generation(
         session.add(artifact)
         session.commit()
         attempt += 1
+
+    # Last resort: deterministic template if model/repair PlantUML still will not render
+    if image_path is None:
+        safe = _safe_template_plantuml(spec_text, effective_dtype, spec_json)
+        if safe.strip() and safe.strip() != (artifact.plantuml_code or "").strip():
+            img, err = render_plantuml(safe, out_dir, jar, fmt=settings.image_format)
+            session.add(
+                RepairAttempt(
+                    artifact_id=artifact.id,
+                    attempt_number=attempt + 1,
+                    before_code=artifact.plantuml_code,
+                    after_code=safe,
+                    reason=f"safe template fallback after render failure: {last_err or err or 'n/a'}",
+                    success=img is not None,
+                )
+            )
+            artifact.plantuml_code = safe
+            if img is not None:
+                stable = out_dir / f"diagram.{settings.image_format}"
+                if Path(img) != stable:
+                    shutil.copy2(img, stable)
+                image_path = stable
+                last_err = None
+            else:
+                last_err = err or last_err
+            session.add(artifact)
+            session.commit()
 
     artifact.validation_messages = "\n".join(validation_msgs) if validation_msgs else artifact.validation_messages
     artifact.updated_at = _utcnow()
