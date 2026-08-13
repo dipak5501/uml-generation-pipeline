@@ -1,0 +1,52 @@
+[
+  {
+    "id": "GOLDEN-01",
+    "requirement": "Library management system with classes Book, Member, Loan, and Librarian. A Member borrows a Book through a Loan.",
+    "diagram_type": "class",
+    "expected": {
+      "classes": ["Book", "Member", "Loan", "Librarian"],
+      "relationships": ["Member-Loan", "Loan-Book"]
+    }
+  },
+  {
+    "id": "GOLDEN-02",
+    "requirement": "Design a hospital appointment system for patients, doctors, and clinic schedules.",
+    "diagram_type": "class",
+    "expected": {
+      "classes": ["Patient", "Doctor", "Schedule"]
+    }
+  },
+  {
+    "id": "GOLDEN-03",
+    "requirement": "Student inherits from Person. Course contains Enrollment records.",
+    "diagram_type": "class",
+    "expected": {
+      "classes": ["Student", "Person", "Course", "Enrollment"],
+      "inheritance": ["Student --|> Person"]
+    }
+  },
+  {
+    "id": "GOLDEN-04",
+    "requirement": "Banking platform with packages Accounts, Transactions, and Reporting. Transactions depends on Accounts.",
+    "diagram_type": "package",
+    "expected": {
+      "packages": ["Accounts", "Transactions", "Reporting"]
+    }
+  },
+  {
+    "id": "GOLDEN-05",
+    "requirement": "E-commerce components CartService, OrderService, and InventoryService. OrderService uses InventoryService.",
+    "diagram_type": "component",
+    "expected": {
+      "components": ["CartService", "OrderService", "InventoryService"]
+    }
+  },
+  {
+    "id": "GOLDEN-06",
+    "requirement": "Build an online bookstore with inventory management, shopping carts, and order checkout.",
+    "diagram_type": "object",
+    "expected": {
+      "types": ["Bookstore", "Inventory", "Cart", "Order"]
+    }
+  }
+]

@@ -148,6 +148,13 @@ def test_list_and_get_artifact(client):
     aid = gen.json()["artifact"]["id"]
     listed = client.get("/api/artifacts")
     assert any(a["id"] == aid for a in listed.json())
+    row = next(a for a in listed.json() if a["id"] == aid)
+    assert "has_image" in row
+    lib = client.get("/api/artifacts/library", params={"q": "LMS", "limit": 12})
+    assert lib.status_code == 200, lib.text
+    body = lib.json()
+    assert body["total"] >= 1
+    assert any(a["id"] == aid for a in body["items"])
     detail = client.get(f"/api/artifacts/{aid}")
     assert detail.status_code == 200
     puml = client.get(f"/api/artifacts/{aid}/plantuml")
@@ -171,12 +178,12 @@ def test_async_generate_returns_job_and_completes(client):
     assert body.get("async") is True
     assert body.get("artifact") is None
     job_id = body["job_id"]
-    # Wait for background worker (mock providers are fast)
-    for _ in range(60):
+    # Wait for background worker (compile + render + acceptance gates)
+    for _ in range(120):
         job = client.get(f"/api/jobs/{job_id}").json()
         if job["status"] in ("completed", "failed"):
             break
-        time.sleep(0.1)
+        time.sleep(0.25)
     assert job["status"] == "completed", job
     assert job["completed"] == 2
     arts = client.get(f"/api/jobs/{job_id}/artifacts").json()

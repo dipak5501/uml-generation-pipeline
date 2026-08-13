@@ -199,6 +199,10 @@ def heuristic_spec_from_text(text: str, diagram_type: str) -> dict[str, Any]:
         if not any(e["name"] == name for e in entities):
             entities.append({"name": name, "kind": "class", "attributes": [], "methods": []})
 
+    for name in extract_named_concepts(text):
+        if not any(e["name"].lower() == name.lower() for e in entities):
+            entities.append({"name": name, "kind": "class", "attributes": [], "methods": []})
+
     # PascalCase tokens in free text
     if len(entities) < 2:
         for tok in re.findall(r"\b([A-Z][a-zA-Z0-9]{2,})\b", text):
@@ -217,11 +221,12 @@ def heuristic_spec_from_text(text: str, diagram_type: str) -> dict[str, Any]:
 
     relationships: list[dict[str, Any]] = []
     for m in re.finditer(
-        r"(?i)([A-Za-z_]\w*)\s+(inherits|extends|associates with|depends on|uses|contains)\s+([A-Za-z_]\w*)",
+        r"(?i)([A-Za-z_]\w*)\s+(inherits(?:\s+from)?|extends|associates with|depends on|uses|contains)\s+([A-Za-z_]\w*)",
         text,
     ):
         mapping = {
             "inherits": "inheritance",
+            "inherits from": "inheritance",
             "extends": "inheritance",
             "associates with": "association",
             "depends on": "dependency",
@@ -275,6 +280,14 @@ _STOP_ENTITY = {
     "service", "services", "module", "modules", "using", "through", "into", "via",
     "must", "should", "shall", "will", "have", "has", "been", "being", "also",
     "build", "create", "manage", "management", "application", "platform", "model",
+    "design", "implement", "develop", "provide", "online", "mobile", "smart",
+    "simple", "multiple", "across", "based", "like", "just", "make", "made",
+    "tool", "hub", "board", "site", "app", "portal", "dashboard", "network",
+    "catalog", "tracker", "workflow", "workflows", "flow", "phase",
+}
+
+_PHRASE_STOP = _STOP_ENTITY | {
+    "an", "a", "the", "of", "in", "on", "to", "or", "as", "by", "its", "their",
 }
 
 
@@ -316,14 +329,42 @@ def extract_named_concepts(text: str) -> list[str]:
                 continue
             _add(part)
 
-    # "with Book, Member, Loan"
+    # "with Book, Member, Loan" (Pascal) and "with patients, doctors, and schedules"
     for m in re.finditer(
-        r"(?i)\b(?:with|including|involving)\s+([A-Z][A-Za-z0-9_]*(?:\s*,\s*[A-Z][A-Za-z0-9_]*)+"
-        r"(?:\s*,?\s*(?:and|&)\s*[A-Z][A-Za-z0-9_]*)?)",
+        r"(?i)\b(?:with|including|involving|tracking|managing)\s+([^\n.;]+)",
         text,
     ):
-        for part in re.split(r"\s*,\s*|\s+and\s+|\s*&\s*", m.group(1)):
-            _add(part.strip())
+        chunk = m.group(1)
+        chunk = re.split(r"\b(?:that|which|where|using|via)\b", chunk, maxsplit=1)[0]
+        for part in re.split(r"\s*,\s*|\s+and\s+|\s*&\s*", chunk):
+            part = part.strip().strip(".")
+            if not part:
+                continue
+            tokens = [
+                t for t in re.findall(r"[A-Za-z][A-Za-z0-9_]*", part)
+                if t.lower() not in _PHRASE_STOP and len(t) >= 3
+            ]
+            if not tokens:
+                continue
+            for tok in tokens[-2:]:
+                _add(_singularize_token(tok))
+
+    # Head noun immediately before "with": "bookstore with ..."
+    for m in re.finditer(r"(?i)\b([A-Za-z][A-Za-z0-9_]{3,})\s+with\b", text):
+        _add(_singularize_token(m.group(1)))
+
+    # "for patients, doctors, and clinic schedules"
+    for m in re.finditer(r"(?i)\bfor\s+([a-z][^\n.;]+)", text):
+        chunk = m.group(1)
+        if "," not in chunk and not re.search(r"\band\b", chunk):
+            continue
+        for part in re.split(r"\s*,\s*|\s+and\s+|\s*&\s*", chunk):
+            tokens = [
+                t for t in re.findall(r"[A-Za-z][A-Za-z0-9_]*", part)
+                if t.lower() not in _PHRASE_STOP and len(t) >= 3
+            ]
+            for tok in tokens[-2:]:
+                _add(_singularize_token(tok))
 
     # CamelCase / PascalCase service-style tokens (CartService) — prefer these
     for tok in re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-zA-Z0-9]+)+)\b", text):
@@ -361,6 +402,8 @@ def extract_nl_relationships(text: str) -> list[dict[str, Any]]:
          lambda m: [{"source": m.group(1), "target": _singularize_token(m.group(2)), "type": "association", "label": "manages"}]),
         (r"(?i)\b([A-Z][\w]*)\s+depends\s+on\s+([A-Z][\w]*)",
          lambda m: [{"source": m.group(1), "target": m.group(2), "type": "dependency", "label": "depends"}]),
+        (r"(?i)\b([A-Z][\w]*)\s+inherits(?:\s+from)?\s+([A-Z][\w]*)",
+         lambda m: [{"source": m.group(1), "target": m.group(2), "type": "inheritance", "label": "inherits"}]),
         (r"(?i)\b([A-Z][\w]*)\s+(?:uses|links\s+to|associated\s+with)\s+([A-Z][\w]*)",
          lambda m: [{"source": m.group(1), "target": m.group(2), "type": "association", "label": "uses"}]),
     ]
@@ -545,9 +588,18 @@ def merge_spec_entities(base: dict[str, Any], extra_names: list[str], diagram_ty
         data["objects"] = objs
     # relationships among consecutive required names if sparse
     rels = [r for r in (data.get("relationships") or []) if isinstance(r, dict)]
+    seen_pairs = {
+        (str(r.get("source") or "").lower(), str(r.get("target") or "").lower())
+        for r in rels
+    }
     if len(rels) < max(1, len(extra_names) - 1) and len(extra_names) >= 2:
         for a, b in zip(extra_names, extra_names[1:]):
+            pair = (a.lower(), b.lower())
+            rev = (b.lower(), a.lower())
+            if pair in seen_pairs or rev in seen_pairs:
+                continue
             rels.append({"source": a, "target": b, "type": "association", "label": ""})
+            seen_pairs.add(pair)
     data["relationships"] = rels[:20]
     data["diagram_type"] = diagram_type
     return data

@@ -1,16 +1,18 @@
 from __future__ import annotations
 
+import re
 import shutil
 from pathlib import Path
 from typing import List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException
 from fastapi.responses import FileResponse, PlainTextResponse
+from sqlalchemy import func
 from sqlmodel import Session, select
 
 from app.db import get_session
 from app.models import GenerationJob, RepairAttempt, RenderAttempt, UMLArtifact
-from app.schemas import ArtifactDetail, ArtifactSummary, JobResponse
+from app.schemas import ArtifactDetail, ArtifactLibrary, ArtifactSummary, JobResponse
 from app.security import require_api_access, resolve_artifact_image, safe_internal_error
 from app.services.artifacts import artifact_detail, artifact_summary
 from app.services.orchestration import apply_verification, score_image
@@ -50,6 +52,73 @@ def list_job_artifacts(job_id: int, session: Session = Depends(get_session)):
     return [artifact_detail(session, a.id) for a in arts if a.id is not None]
 
 
+def _filtered_artifacts(
+    *,
+    diagram_type: Optional[str] = None,
+    min_score: Optional[float] = None,
+    render_status: Optional[str] = None,
+    dataset_accepted: Optional[bool] = None,
+    job_id: Optional[int] = None,
+    q: Optional[str] = None,
+    majority_accepted: Optional[bool] = None,
+):
+    stmt = select(UMLArtifact)
+    if diagram_type:
+        stmt = stmt.where(UMLArtifact.diagram_type == diagram_type)
+    if render_status:
+        stmt = stmt.where(UMLArtifact.render_status == render_status)
+    if dataset_accepted is not None:
+        stmt = stmt.where(UMLArtifact.dataset_accepted == dataset_accepted)
+    if majority_accepted is not None:
+        stmt = stmt.where(UMLArtifact.majority_accepted == majority_accepted)
+    if job_id is not None:
+        stmt = stmt.where(UMLArtifact.job_id == job_id)
+    if min_score is not None:
+        stmt = stmt.where(UMLArtifact.composite_score >= min_score)
+    needle = re.sub(r"[%_]", " ", (q or "")).strip()[:120]
+    if needle:
+        stmt = stmt.where(UMLArtifact.source_requirement.ilike(f"%{needle}%"))
+    return stmt
+
+
+@router.get("/artifacts/library", response_model=ArtifactLibrary)
+def artifact_library(
+    diagram_type: Optional[str] = None,
+    min_score: Optional[float] = None,
+    render_status: Optional[str] = None,
+    dataset_accepted: Optional[bool] = None,
+    job_id: Optional[int] = None,
+    q: Optional[str] = None,
+    majority_accepted: Optional[bool] = None,
+    limit: int = 24,
+    offset: int = 0,
+    session: Session = Depends(get_session),
+):
+    """Paginated history of every generated diagram (for the gallery UI)."""
+    filtered = _filtered_artifacts(
+        diagram_type=diagram_type,
+        min_score=min_score,
+        render_status=render_status,
+        dataset_accepted=dataset_accepted,
+        majority_accepted=majority_accepted,
+        job_id=job_id,
+        q=q,
+    )
+    total = session.exec(select(func.count()).select_from(filtered.subquery())).one()
+    page = (
+        filtered.order_by(UMLArtifact.id.desc())
+        .offset(max(0, offset))
+        .limit(max(1, min(limit, 100)))
+    )
+    arts = session.exec(page).all()
+    return ArtifactLibrary(
+        total=int(total or 0),
+        offset=max(0, offset),
+        limit=max(1, min(limit, 100)),
+        items=[artifact_summary(a) for a in arts],
+    )
+
+
 @router.get("/artifacts", response_model=List[ArtifactSummary])
 def list_artifacts(
     diagram_type: Optional[str] = None,
@@ -57,22 +126,23 @@ def list_artifacts(
     render_status: Optional[str] = None,
     dataset_accepted: Optional[bool] = None,
     job_id: Optional[int] = None,
+    q: Optional[str] = None,
+    majority_accepted: Optional[bool] = None,
     limit: int = 200,
+    offset: int = 0,
     session: Session = Depends(get_session),
 ):
-    q = select(UMLArtifact)
-    if diagram_type:
-        q = q.where(UMLArtifact.diagram_type == diagram_type)
-    if render_status:
-        q = q.where(UMLArtifact.render_status == render_status)
-    if dataset_accepted is not None:
-        q = q.where(UMLArtifact.dataset_accepted == dataset_accepted)
-    if job_id is not None:
-        q = q.where(UMLArtifact.job_id == job_id)
-    if min_score is not None:
-        q = q.where(UMLArtifact.composite_score >= min_score)
-    q = q.order_by(UMLArtifact.id.desc()).limit(max(1, min(limit, 500)))
-    arts = session.exec(q).all()
+    stmt = _filtered_artifacts(
+        diagram_type=diagram_type,
+        min_score=min_score,
+        render_status=render_status,
+        dataset_accepted=dataset_accepted,
+        majority_accepted=majority_accepted,
+        job_id=job_id,
+        q=q,
+    )
+    stmt = stmt.order_by(UMLArtifact.id.desc()).offset(max(0, offset)).limit(max(1, min(limit, 1000)))
+    arts = session.exec(stmt).all()
     return [artifact_summary(a) for a in arts]
 
 

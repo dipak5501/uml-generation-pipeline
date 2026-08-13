@@ -36,13 +36,22 @@ from app.providers.factory import (
     build_vlm_providers,
 )
 from app.services.cot import COT_SYSTEM, finalize_plantuml_output, has_cot_block
+from app.services.acceptance import (
+    FAILURE_COMPILE,
+    FAILURE_PACKAGE,
+    FAILURE_RENDER,
+    FAILURE_STRUCTURE,
+    FAILURE_SYNTAX,
+    evaluate_acceptance,
+    write_acceptance_sidecar,
+)
 from app.services.plantuml_validate import ensure_plantuml_bounds, sanitize_plantuml_output, validate_diagram
 from app.services.repair import repair_plantuml
 from app.services.scoring import VerificationResult, paper_composite, verify_scores
 from app.services.plantuml_from_spec import ensure_faithful_plantuml, plantuml_from_spec
 from app.services.spec_json import ensure_valid_spec, validity_metrics
 from app.settings import Settings, get_settings
-from uml_pipeline.render import render_plantuml
+from uml_pipeline.render import check_plantuml_syntax, render_plantuml
 
 logger = logging.getLogger(__name__)
 
@@ -618,7 +627,7 @@ def run_single_generation(
     session.commit()
     session.refresh(artifact)
 
-    # Validate → repair loop before/during render
+    # Multi-layer gates: syntax → compile → render → UML rules → semantics
     jar = settings.plantuml_jar
     out_dir = settings.artifact_dir / str(artifact.id)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -627,20 +636,23 @@ def run_single_generation(
     image_path: Path | None = None
     last_err: str | None = None
     repair_notes = ""
+    last_category = FAILURE_SYNTAX
 
-    while attempt <= settings.max_repair_attempts:
-        # Static validation; force repair if package guards fail
-        v = validate_diagram(artifact.plantuml_code, diagram_type)
-        if not v.ok and attempt < settings.max_repair_attempts:
-            repair = repair_plantuml(
-                artifact.plantuml_code,
-                spec_text,
-                diagram_type,
-                v.messages,
-                repair_notes=repair_notes,
-                settings=settings,
-            )
-            ra = RepairAttempt(
+    def _apply_repair(errors: list[str], category: str) -> None:
+        nonlocal attempt, repair_notes, last_category
+        last_category = category
+        repair = repair_plantuml(
+            artifact.plantuml_code,
+            spec_text,
+            diagram_type,
+            errors,
+            repair_notes=repair_notes,
+            settings=settings,
+            category=category,
+            spec_json=spec_json,
+        )
+        session.add(
+            RepairAttempt(
                 artifact_id=artifact.id,
                 attempt_number=attempt + 1,
                 before_code=artifact.plantuml_code,
@@ -648,13 +660,32 @@ def run_single_generation(
                 reason=repair.reason,
                 success=repair.success_validation,
             )
-            session.add(ra)
-            artifact.plantuml_code = repair.code
-            repair_notes += f"\n{repair.reason}"
-            validation_msgs.extend(repair.messages)
-            session.add(artifact)
-            session.commit()
-            attempt += 1
+        )
+        artifact.plantuml_code = repair.code
+        repair_notes += f"\n[{category}] {repair.reason}"
+        validation_msgs.extend(repair.messages)
+        session.add(artifact)
+        session.commit()
+        attempt += 1
+
+    while attempt <= settings.max_repair_attempts:
+        v = validate_diagram(artifact.plantuml_code, diagram_type)
+        if not v.ok and attempt < settings.max_repair_attempts:
+            joined = " ".join(v.messages).lower()
+            if "package" in joined or "nested" in joined or "containment" in joined:
+                cat = FAILURE_PACKAGE
+            elif any(k in joined for k in ("class", "component", "object", "relationship", "duplicate")):
+                cat = FAILURE_STRUCTURE
+            else:
+                cat = FAILURE_SYNTAX
+            _apply_repair(v.messages, cat)
+            continue
+
+        compile_ok, compile_err = check_plantuml_syntax(
+            artifact.plantuml_code, jar, work_dir=out_dir / "syntax"
+        )
+        if not compile_ok and attempt < settings.max_repair_attempts:
+            _apply_repair([compile_err or "PlantUML compile failed"], FAILURE_COMPILE)
             continue
 
         img, err = render_plantuml(
@@ -664,57 +695,52 @@ def run_single_generation(
             fmt=settings.image_format,
         )
         last_err = err
-        render_row = RenderAttempt(
-            artifact_id=artifact.id,
-            attempt_number=attempt + 1,
-            success=img is not None,
-            error_output=err,
-            image_path=str(img) if img else None,
-            fmt=settings.image_format,
+        session.add(
+            RenderAttempt(
+                artifact_id=artifact.id,
+                attempt_number=attempt + 1,
+                success=img is not None,
+                error_output=err,
+                image_path=str(img) if img else None,
+                fmt=settings.image_format,
+            )
         )
-        session.add(render_row)
         session.commit()
 
-        if img is not None:
-            # Copy to stable name
-            stable = out_dir / f"diagram.{settings.image_format}"
-            if Path(img) != stable:
-                shutil.copy2(img, stable)
-            image_path = stable
-            break
+        if img is None:
+            env_fail = (err or "").lower()
+            if "java" in env_fail or "runtime" in env_fail or "jdk" in env_fail:
+                break
+            if attempt >= settings.max_repair_attempts:
+                break
+            _apply_repair([err or "render failed"], FAILURE_RENDER)
+            continue
 
-        # Environmental failures cannot be fixed by rewriting PlantUML
-        env_fail = (err or "").lower()
-        if "java" in env_fail or "runtime" in env_fail or "jdk" in env_fail:
-            break
+        stable = out_dir / f"diagram.{settings.image_format}"
+        if Path(img) != stable:
+            shutil.copy2(img, stable)
+        image_path = stable
 
+        report = evaluate_acceptance(
+            requirement=requirement,
+            plantuml=artifact.plantuml_code,
+            diagram_type=diagram_type,
+            spec=spec_json,
+            render_ok=True,
+            repair_iterations=attempt,
+        )
+        if report.accepted:
+            break
         if attempt >= settings.max_repair_attempts:
             break
+        msgs = []
+        for g in report.gates:
+            if not g.ok:
+                msgs.extend(g.messages or [g.name])
+        _apply_repair(msgs or [report.failure_category or "semantic"], report.failure_category or FAILURE_SYNTAX)
+        image_path = None
 
-        repair = repair_plantuml(
-            artifact.plantuml_code,
-            spec_text,
-            diagram_type,
-            [err or "render failed"],
-            repair_notes=repair_notes,
-            settings=settings,
-        )
-        ra = RepairAttempt(
-            artifact_id=artifact.id,
-            attempt_number=attempt + 1,
-            before_code=artifact.plantuml_code,
-            after_code=repair.code,
-            reason=repair.reason,
-            success=False,
-        )
-        session.add(ra)
-        artifact.plantuml_code = repair.code
-        repair_notes += f"\n{repair.reason}"
-        session.add(artifact)
-        session.commit()
-        attempt += 1
-
-    # Last resort: deterministic template if model/repair PlantUML still will not render
+    # Last resort: deterministic template if still not renderable
     if image_path is None:
         safe = _safe_template_plantuml(spec_text, diagram_type, spec_json)
         if safe.strip() and safe.strip() != (artifact.plantuml_code or "").strip():
@@ -741,6 +767,16 @@ def run_single_generation(
             session.add(artifact)
             session.commit()
 
+    final_report = evaluate_acceptance(
+        requirement=requirement,
+        plantuml=artifact.plantuml_code,
+        diagram_type=diagram_type,
+        spec=spec_json,
+        render_ok=image_path is not None,
+        repair_iterations=attempt,
+    )
+    write_acceptance_sidecar(out_dir, final_report)
+    validation_msgs.extend(final_report.summary_lines())
     artifact.validation_messages = "\n".join(validation_msgs) if validation_msgs else artifact.validation_messages
     artifact.updated_at = _utcnow()
 
@@ -778,6 +814,8 @@ def run_single_generation(
         )
 
     apply_verification(artifact, scores, meta, verification, session)
+    if not final_report.accepted:
+        artifact.dataset_accepted = False
     session.add(artifact)
     session.commit()
     session.refresh(artifact)

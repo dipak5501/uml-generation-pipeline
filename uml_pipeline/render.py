@@ -245,6 +245,67 @@ def _local_plantuml_env(dot: str | None = None) -> dict[str, str]:
     return env
 
 
+def check_plantuml_syntax(
+    uml_code: str,
+    jar_path: Path,
+    *,
+    work_dir: Path | None = None,
+) -> tuple[bool, str | None]:
+    """Compile-only PlantUML syntax gate (no image).
+
+    Returns (ok, error). If Java/jar is unavailable, returns (False, reason)
+    so callers do not treat a missing compiler as success.
+    """
+    java_exe = find_java_executable()
+    if not java_exe:
+        return False, "No usable Java Runtime for PlantUML -checkonly"
+    try:
+        ensure_plantuml_jar(jar_path)
+    except Exception as exc:
+        return False, f"PlantUML jar unavailable: {exc}"
+
+    dot = find_dot_executable()
+    code = _ensure_renderable_layout(extract_plantuml_block(uml_code), has_dot=bool(dot))
+    base = work_dir or (REPO_ROOT / "data" / "tmp_syntax")
+    base.mkdir(parents=True, exist_ok=True)
+    digest = hashlib.sha256(code.encode()).hexdigest()[:16]
+    puml_file = base / f"{digest}_check.puml"
+    puml_file.write_text(code, encoding="utf-8")
+    cmd = [java_exe, "-jar", str(jar_path), "-checkonly", str(puml_file)]
+    if dot:
+        cmd[3:3] = ["-graphvizdot", dot]
+    try:
+        result = subprocess.run(
+            cmd,
+            capture_output=True,
+            text=True,
+            timeout=60,
+            env=_local_plantuml_env(dot),
+        )
+    except subprocess.TimeoutExpired:
+        return False, "PlantUML syntax check timeout"
+    except FileNotFoundError:
+        return False, "Java not found for PlantUML syntax check"
+
+    combined = f"{result.stdout or ''}\n{result.stderr or ''}"
+    low = combined.lower()
+    hard_fail = (
+        "syntax error",
+        "error line",
+        "some diagram description contains errors",
+        "syntax error in diagram",
+    )
+    if any(m in low for m in hard_fail) or result.returncode != 0:
+        # Graphviz probe noise is not a syntax failure if no "error line"
+        if "dot executable" in low or "cannot find graphviz" in low:
+            if not any(m in low for m in ("syntax error", "error line")):
+                return True, None
+        snippet = combined.strip().splitlines()
+        err = " | ".join(snippet[-6:])[:500] or f"PlantUML -checkonly exit {result.returncode}"
+        return False, err
+    return True, None
+
+
 def render_plantuml(
     uml_code: str,
     out_dir: Path,

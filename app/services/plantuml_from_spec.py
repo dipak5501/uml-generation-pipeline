@@ -133,6 +133,18 @@ def build_class_plantuml(spec: dict[str, Any]) -> str:
         # Prefer child --|> parent for inheritance wording
         if arrow == "--|>":
             line = f"{_safe_id(str(src))} --|> {_safe_id(str(tgt))}"
+        elif arrow in {"-->", "..>", "*--", "o--", "+--"}:
+            # Do not also draw a generic association when inheritance/containment exists
+            already = any(
+                isinstance(r2, dict)
+                and str(r2.get("source")) == src
+                and str(r2.get("target")) == tgt
+                and _rel_arrow(str(r2.get("type") or "")) == "--|>"
+                for r2 in (spec.get("relationships") or [])
+            )
+            if already:
+                continue
+            line = f"{_safe_id(str(src))} {arrow} {_safe_id(str(tgt))}"
         else:
             line = f"{_safe_id(str(src))} {arrow} {_safe_id(str(tgt))}"
         if label:
@@ -157,14 +169,15 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
         alias = _safe_id(raw_name)
         aliases.append(alias)
         vals = obj.get("values") or obj.get("attributes") or []
-        display = _safe_label(raw_name, max_len=40)
+        display = _safe_label(f"{raw_name} : {typ}", max_len=48)
         if vals:
-            lines.append(f"object {alias}:{typ} {{")
+            lines.append(f"object {alias} {{")
+            lines.append(f"  type = {typ}")
             for v in vals[:6]:
                 lines.append(f"  {_safe_label(v, max_len=40)}")
             lines.append("}")
         else:
-            lines.append(f'object "{display}" as {alias}:{typ}')
+            lines.append(f'object "{display}" as {alias}')
     for rel in spec.get("relationships") or []:
         if not isinstance(rel, dict):
             continue

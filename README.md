@@ -185,7 +185,7 @@ Composite score follows the thesis formula: MMMU-weighted average of all three V
 1. Dashboard  
 2. Single Generation (full artifact trace)  
 3. Batch Generation  
-4. Artifact Review  
+4. Generated Diagrams (full history gallery)  
 5. Human Evaluation (rubric)  
 6. Analytics + export links  
 7. Settings / health  

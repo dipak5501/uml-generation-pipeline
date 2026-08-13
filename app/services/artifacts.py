@@ -34,6 +34,8 @@ def artifact_summary(a: UMLArtifact) -> ArtifactSummary:
         source_language=a.source_language,
         source_requirement=a.source_requirement,
         created_at=a.created_at,
+        has_image=bool(a.image_path) and a.render_status == "success",
+        job_id=a.job_id,
     )
 
 

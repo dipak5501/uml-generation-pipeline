@@ -61,7 +61,7 @@ with n1:
 with n2:
     panel("Batch", "Run multi-type generation jobs and build evaluation sets.")
 with n3:
-    panel("Review & analytics", "Inspect artifacts, human rubrics, scores, and exports.")
+    panel("Generated diagrams", "Browse every previously generated UML image, PlantUML file, and score.")
 with n4:
     panel("System design", "Architecture: pipeline stages, providers, verification, and storage.")
 

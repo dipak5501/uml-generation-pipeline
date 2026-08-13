@@ -166,7 +166,7 @@ def validate_basic_syntax(code: str) -> ValidationResult:
     if code.count("{") != code.count("}"):
         msgs.append("Unbalanced curly braces")
     # Empty @startuml/@enduml still "renders" as a blank PNG — treat as invalid
-    body = re.sub(r"(?is)@startuml|@enduml|^\s*title\b.*$|^\s*skinparam\b.*$", "", code, flags=re.M)
+    body = re.sub(r"(?im)@startuml|@enduml|^\s*title\b[^\n]*$|^\s*skinparam\b[^\n]*$", "", code)
     body = re.sub(r"(?m)^\s*(left to right direction|hide\b.*|!theme\b.*)$", "", body)
     if len(body.strip()) < 8:
         msgs.append("Diagram body is empty or incomplete")
@@ -180,7 +180,7 @@ def validate_package_semantics(code: str) -> ValidationResult:
     """Guards for the hardest failure mode: package diagrams."""
     msgs: list[str] = []
     lines = code.splitlines()
-    body = re.sub(r"(?is)@startuml|@enduml|^\s*title\b.*$", "", code).strip()
+    body = re.sub(r"(?im)@startuml|@enduml|^\s*title\b[^\n]*$", "", code).strip()
     if len(body) < 12:
         msgs.append("Package diagram appears empty or incomplete")
 
@@ -275,6 +275,8 @@ def validate_flowchart_syntax(code: str) -> ValidationResult:
 
 
 def validate_diagram(code: str, diagram_type: str) -> ValidationResult:
+    from app.services.uml_structure import validate_uml_structure
+
     code = ensure_plantuml_bounds(code)
     result = validate_basic_syntax(code)
     if diagram_type == "package":
@@ -285,4 +287,7 @@ def validate_diagram(code: str, diagram_type: str) -> ValidationResult:
         result = result.merge(validate_component_syntax(code))
     elif diagram_type == "flowchart":
         result = result.merge(validate_flowchart_syntax(code))
+    # Type-specific UML structure (class members, components, packages, …)
+    if diagram_type in {"class", "object", "component", "package", "sequence"}:
+        result = result.merge(validate_uml_structure(code, diagram_type))
     return result

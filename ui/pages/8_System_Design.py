@@ -91,7 +91,7 @@ with g3:
 
 st.info(
     "An artifact is dataset-accepted when `render_ok` ∧ `majority_accepted` ∧ "
-    "`composite_score ≥ min_composite`. These flags appear on Generate and Artifact Review."
+    "`composite_score ≥ min_composite`. These flags appear on Generate and Generated Diagrams."
 )
 
 st.subheader("4 · Provider routing")
@@ -191,7 +191,7 @@ st.markdown(
 1. Open **System Design** for this architecture overview.  
 2. Use **Single Generation** with a short requirement and a diagram type.  
 3. Inspect the validation summary: specification, PlantUML syntax, render status, composite **S**, majority **A**, and dataset acceptance.  
-4. Open **Artifact Review** for stored PlantUML, PNG, and per-model scores.  
+4. Open **Generated Diagrams** for the full history of stored PlantUML, PNG, and per-model scores.  
 5. Use **Analytics** and **Settings** for aggregate metrics and runtime health (provider summary).
 """
 )

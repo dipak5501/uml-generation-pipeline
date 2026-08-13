@@ -87,7 +87,7 @@ def render_active_job_banner(*, auto_refresh: bool = True) -> dict[str, Any] | N
             st.rerun()
         return job
 
-    st.success(msg + " · finished. Open **Generate** or **Artifact Review** to inspect results.")
+    st.success(msg + " · finished. Open **Generate** or **Generated Diagrams** to inspect results.")
     return job
 
 

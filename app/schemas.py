@@ -156,6 +156,15 @@ class ArtifactSummary(BaseModel):
     source_language: Optional[str] = None
     source_requirement: str
     created_at: datetime
+    has_image: bool = False
+    job_id: Optional[int] = None
+
+
+class ArtifactLibrary(BaseModel):
+    total: int
+    offset: int
+    limit: int
+    items: list[ArtifactSummary]
 
 
 class ArtifactDetail(BaseModel):
