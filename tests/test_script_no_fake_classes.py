@@ -31,18 +31,18 @@ def test_analyzer_finds_no_classes():
 def test_structure_json_does_not_invent_variable_classes():
     data = structure_to_spec_json(PY2PUML_SCRIPT, "class")
     assert data.get("script_without_types") is True
-    assert data.get("diagram_type") == "flowchart"
+    assert data.get("diagram_type") == "class"
     names = {e["name"].lower() for e in data.get("entities") or []}
     for banned in ("source_folder", "domain_module", "output_puml_file", "model", "domainobject"):
         assert banned not in names
     assert data.get("process_steps")
 
 
-def test_plantuml_is_flowchart_not_fake_classes():
+def test_plantuml_is_honest_empty_class_not_fake_classes():
     data = structure_to_spec_json(PY2PUML_SCRIPT, "class")
     code = plantuml_from_spec(data, data["diagram_type"])
     low = code.lower()
     assert "source_folder" not in low
     assert "domainobject" not in low
-    assert "start" in low or "note" in low
+    assert "note" in low or "no class" in low
     assert "class source_folder" not in low

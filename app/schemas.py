@@ -11,14 +11,13 @@ from app.security import MAX_BATCH_ITEMS, MAX_REQUIREMENT_CHARS
 
 InputMode = Literal["requirement", "source_code"]
 
-DiagramType = Literal["class", "object", "component", "package", "flowchart"]
+DiagramType = Literal["class", "object", "component", "package"]
 
 ALL_DIAGRAM_TYPES: list[DiagramType] = [
     "class",
     "object",
     "component",
     "package",
-    "flowchart",
 ]
 
 
@@ -31,9 +30,14 @@ class GenerateRequest(BaseModel):
         description="Plain-English requirement OR source code (depending on input_mode)",
     )
     diagram_type: DiagramType = "class"
+    diagram_types: Optional[list[DiagramType]] = Field(
+        default=None,
+        description="When set (async), generate all listed types in one background job",
+    )
     input_mode: InputMode = "requirement"
     project_id: Optional[int] = None
-    async_mode: bool = False
+    # Default true so UI navigation does not cancel in-flight HTTP generate calls.
+    async_mode: bool = True
 
 
 class BatchGenerateRequest(BaseModel):

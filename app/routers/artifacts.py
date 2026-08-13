@@ -39,12 +39,24 @@ def get_job(job_id: int, session: Session = Depends(get_session)):
     )
 
 
+@router.get("/jobs/{job_id}/artifacts", response_model=List[ArtifactDetail])
+def list_job_artifacts(job_id: int, session: Session = Depends(get_session)):
+    job = session.get(GenerationJob, job_id)
+    if not job:
+        raise HTTPException(404, "Job not found")
+    arts = session.exec(
+        select(UMLArtifact).where(UMLArtifact.job_id == job_id).order_by(UMLArtifact.id.asc())
+    ).all()
+    return [artifact_detail(session, a.id) for a in arts if a.id is not None]
+
+
 @router.get("/artifacts", response_model=List[ArtifactSummary])
 def list_artifacts(
     diagram_type: Optional[str] = None,
     min_score: Optional[float] = None,
     render_status: Optional[str] = None,
     dataset_accepted: Optional[bool] = None,
+    job_id: Optional[int] = None,
     limit: int = 200,
     session: Session = Depends(get_session),
 ):
@@ -55,6 +67,8 @@ def list_artifacts(
         q = q.where(UMLArtifact.render_status == render_status)
     if dataset_accepted is not None:
         q = q.where(UMLArtifact.dataset_accepted == dataset_accepted)
+    if job_id is not None:
+        q = q.where(UMLArtifact.job_id == job_id)
     if min_score is not None:
         q = q.where(UMLArtifact.composite_score >= min_score)
     q = q.order_by(UMLArtifact.id.desc()).limit(max(1, min(limit, 500)))

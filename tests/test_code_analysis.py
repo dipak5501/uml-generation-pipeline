@@ -90,4 +90,4 @@ def test_procedural_script_has_no_type_entities():
     assert s.entity_names() == []
     data = structure_to_spec_json(PROCEDURAL, "class")
     assert data.get("script_without_types")
-    assert data.get("diagram_type") == "flowchart"
+    assert data.get("diagram_type") == "class"

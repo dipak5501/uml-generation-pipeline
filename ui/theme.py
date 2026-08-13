@@ -64,7 +64,7 @@ div[data-testid="stTextArea"] textarea {
 """
 
 
-def apply_theme(*, live: bool | None = None) -> None:
+def apply_theme(*, live: bool | None = None, show_job_banner: bool = True) -> None:
     st.markdown(f"<style>{CSS}</style>", unsafe_allow_html=True)
     left, right = st.columns([3, 1])
     with left:
@@ -75,6 +75,15 @@ def apply_theme(*, live: bool | None = None) -> None:
             st.success("System online")
         elif live is False:
             st.warning("System offline")
+    if show_job_banner:
+        try:
+            from ui.jobs import render_active_job_banner
+
+            # On most pages, show status but do not force auto-refresh loops that
+            # fight with interactive widgets; Generate page polls more aggressively.
+            render_active_job_banner(auto_refresh=False)
+        except Exception:
+            pass
 
 
 def hero(

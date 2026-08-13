@@ -1,6 +1,15 @@
 """Provider factory helpers."""
 
-from app.providers.factory import _ollama_model_id, _resolve_model_for_provider
+import pytest
+
+from app.providers.factory import (
+    OpenAIProvider,
+    OllamaProvider,
+    _build_aya_provider,
+    _ollama_model_id,
+    _resolve_model_for_provider,
+    build_vlm_providers,
+)
 from app.settings import Settings
 
 
@@ -24,3 +33,70 @@ def test_hf_maps_ollama_vlm_tags():
         _resolve_model_for_provider(settings, "aya-vision:8b")
         == "CohereLabs/aya-vision-8b"
     )
+
+
+def test_aya_openai_compat_backend():
+    settings = Settings(
+        mock_providers=False,
+        use_ollama=True,
+        vlm_aya_backend="openai_compat",
+        aya_vlm_model="CohereLabs/aya-vision-8b",
+        aya_vlm_base_url="http://127.0.0.1:9000/v1",
+        hf_token="x",
+    )
+    p = _build_aya_provider(settings, "aya-vision:8b")
+    assert isinstance(p, OpenAIProvider)
+    assert p.model == "CohereLabs/aya-vision-8b"
+
+
+def test_aya_standin_is_ollama_llava():
+    settings = Settings(
+        mock_providers=False,
+        use_ollama=True,
+        vlm_aya_backend="ollama_standin",
+        ollama_base_url="http://127.0.0.1:11434",
+    )
+    p = _build_aya_provider(settings, "aya-vision:8b")
+    assert isinstance(p, OllamaProvider)
+    assert "llava" in str(p.model).lower()
+
+
+def test_aya_local_backend():
+    from app.providers.aya_local_provider import LocalAyaVisionProvider
+
+    settings = Settings(
+        mock_providers=False,
+        use_ollama=True,
+        vlm_aya_backend="local",
+        aya_vlm_model="CohereLabs/aya-vision-8b",
+        hf_token="x",
+    )
+    p = _build_aya_provider(settings, "aya-vision:8b")
+    assert isinstance(p, LocalAyaVisionProvider)
+    assert p.model == "CohereLabs/aya-vision-8b"
+
+
+def test_build_vlm_providers_hybrid_keys():
+    settings = Settings(
+        mock_providers=False,
+        use_ollama=True,
+        use_hf_inference=False,
+        vlm_models="qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b",
+        vlm_aya_backend="openai_compat",
+        aya_vlm_base_url="http://127.0.0.1:9000/v1",
+        aya_vlm_model="CohereLabs/aya-vision-8b",
+        hf_token="x",
+    )
+    providers = build_vlm_providers(settings)
+    assert set(providers) == {"qwen25vl3b", "llama32vl11b", "aya_vision_8b"}
+    assert isinstance(providers["aya_vision_8b"], OpenAIProvider)
+
+
+def test_aya_openai_compat_requires_base_url():
+    settings = Settings(
+        mock_providers=False,
+        vlm_aya_backend="openai_compat",
+        aya_vlm_base_url="",
+    )
+    with pytest.raises(RuntimeError, match="AYA_VLM_BASE_URL"):
+        _build_aya_provider(settings, "aya-vision:8b")

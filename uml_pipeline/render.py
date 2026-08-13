@@ -118,45 +118,130 @@ def render_plantuml_remote(code: str, out_path: Path, fmt: str = "png") -> tuple
         return None, f"PlantUML server error: {exc}"
 
     if not data or (fmt == "png" and data[:8] != b"\x89PNG\r\n\x1a\n"):
-        # PlantUML returns an error image sometimes; still accept non-empty PNG
         if not data:
             return None, "PlantUML server returned empty body"
+        return None, "PlantUML server returned a non-PNG body"
     out_path.parent.mkdir(parents=True, exist_ok=True)
     out_path.write_bytes(data)
+    if fmt == "png" and _looks_like_graphviz_error_png(out_path):
+        return None, "PlantUML server returned a Graphviz/dot error image"
     return out_path, None
+
+
+def find_dot_executable() -> str | None:
+    """Locate Graphviz ``dot`` if installed."""
+    candidates: list[Path] = []
+    for key in ("GRAPHVIZ_DOT", "DOT_PATH", "PLANTUML_DOT_PATH"):
+        raw = os.getenv(key)
+        if raw:
+            candidates.append(Path(raw))
+    for path in (
+        Path("/opt/homebrew/bin/dot"),
+        Path("/usr/local/bin/dot"),
+        Path("/opt/local/bin/dot"),
+        Path(REPO_ROOT / "tools" / "graphviz" / "bin" / "dot"),
+    ):
+        candidates.append(path)
+    which = subprocess.run(["/usr/bin/which", "dot"], capture_output=True, text=True)
+    if which.returncode == 0 and which.stdout.strip():
+        candidates.append(Path(which.stdout.strip()))
+
+    for candidate in candidates:
+        if candidate.is_file() and os.access(candidate, os.X_OK):
+            return str(candidate)
+    return None
+
+
+def _looks_like_graphviz_error_png(img_path: Path) -> bool:
+    """Detect PlantUML's neon-green Graphviz error page (text is drawn, not embedded)."""
+    try:
+        data = img_path.read_bytes()
+    except OSError:
+        return True
+    if len(data) < 256 or data[:8] != b"\x89PNG\r\n\x1a\n":
+        return True
+    text = data.decode("latin1", errors="ignore").lower()
+    if "cannot find graphviz" in text or "dot executable does not exist" in text:
+        return True
+    # Sample neon-green pixels typical of PlantUML's Graphviz error image
+    try:
+        from PIL import Image
+
+        with Image.open(img_path) as im:
+            rgb = im.convert("RGB")
+            w, h = rgb.size
+            if w * h == 0:
+                return True
+            step = max(1, (w * h) // 4000)
+            pixels = list(rgb.getdata())
+            green = sum(
+                1
+                for i in range(0, len(pixels), step)
+                if pixels[i][1] > 200 and pixels[i][0] < 90 and pixels[i][2] < 90
+            )
+            samples = max(1, (len(pixels) + step - 1) // step)
+            if green / samples >= 0.02:
+                return True
+    except Exception:
+        pass
+    return False
+
+
+def _ensure_renderable_layout(code: str, *, has_dot: bool) -> str:
+    """When Graphviz is missing, force PlantUML's built-in Smetana layout."""
+    if has_dot:
+        return code
+    low = code.lower()
+    if "pragma layout" in low:
+        return code
+    marker = "@startuml"
+    idx = low.find(marker)
+    if idx < 0:
+        return f"@startuml\n!pragma layout smetana\n{code}\n@enduml"
+    insert_at = idx + len(marker)
+    # Keep any @startuml args on the same first line
+    nl = code.find("\n", insert_at)
+    if nl < 0:
+        return code + "\n!pragma layout smetana\n"
+    return code[: nl + 1] + "!pragma layout smetana\n" + code[nl + 1 :]
 
 
 def _plantuml_render_succeeded(result: subprocess.CompletedProcess[str], img_path: Path) -> bool:
     """True when PlantUML wrote a real diagram, not a Graphviz/dot error image."""
-    if result.returncode != 0 or not img_path.is_file():
+    if not img_path.is_file():
         return False
     combined = f"{result.stderr or ''}\n{result.stdout or ''}".lower()
     error_markers = (
         "cannot find graphviz",
         "dot executable does not exist",
+        "cannot run program",
+        "no such file or directory",
         "error line",
         "syntax error",
         "some diagram description contains errors",
     )
     if any(marker in combined for marker in error_markers):
+        # Still allow success when Smetana/ELK rendered a real image despite dot probe noise
+        if _looks_like_graphviz_error_png(img_path):
+            return False
+    if _looks_like_graphviz_error_png(img_path):
         return False
     try:
         data = img_path.read_bytes()
     except OSError:
         return False
-    if len(data) < 256:
-        return False
-    text = data.decode("latin1", errors="ignore").lower()
-    return "cannot find graphviz" not in text and "dot executable does not exist" not in text
+    return len(data) >= 256
 
 
-def _local_plantuml_env() -> dict[str, str]:
+def _local_plantuml_env(dot: str | None = None) -> dict[str, str]:
     """Drop broken Graphviz paths that make PlantUML embed error text in PNGs."""
     env = dict(os.environ)
     for key in ("GRAPHVIZ_DOT", "DOT_PATH", "PLANTUML_DOT_PATH"):
         path = env.get(key)
         if path and not Path(path).is_file():
             env.pop(key, None)
+    if dot:
+        env["GRAPHVIZ_DOT"] = dot
     return env
 
 
@@ -166,8 +251,13 @@ def render_plantuml(
     jar_path: Path,
     fmt: str = "png",
 ) -> tuple[Path | None, str | None]:
-    """Render PlantUML to image. Remote server first when enabled, else local Java."""
-    code = extract_plantuml_block(uml_code)
+    """Render PlantUML to image.
+
+    Prefer local Java when available (more reliable than the public PlantUML
+    HTTP server). Fall back to remote when enabled and local fails/missing.
+    """
+    dot = find_dot_executable()
+    code = _ensure_renderable_layout(extract_plantuml_block(uml_code), has_dot=bool(dot))
     digest = hashlib.sha256(code.encode()).hexdigest()[:16]
     out_dir.mkdir(parents=True, exist_ok=True)
     puml_file = out_dir / f"{digest}.puml"
@@ -175,37 +265,64 @@ def render_plantuml(
     img_path = puml_file.with_suffix(f".{fmt}")
 
     use_remote = os.getenv("PLANTUML_REMOTE", "true").lower() in ("1", "true", "yes")
-    remote_err: str | None = None
-    if use_remote:
-        remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
-        if remote_img is not None:
-            return remote_img, None
+    prefer_local = os.getenv("PLANTUML_PREFER_LOCAL", "true").lower() in ("1", "true", "yes")
 
     local_err: str | None = None
     java_exe = find_java_executable()
-    if java_exe:
+
+    def _try_local() -> Path | None:
+        nonlocal local_err
+        if not java_exe:
+            local_err = "No usable Java Runtime (PlantUML jar needs a JDK/JRE)"
+            return None
         ensure_plantuml_jar(jar_path)
-        cmd = [java_exe, "-jar", str(jar_path), f"-t{fmt}", str(puml_file)]
+        cmd = [java_exe, "-jar", str(jar_path), f"-t{fmt}"]
+        if dot:
+            cmd.extend(["-graphvizdot", dot])
+        cmd.append(str(puml_file))
         try:
             result = subprocess.run(
                 cmd,
                 capture_output=True,
                 text=True,
                 timeout=120,
-                env=_local_plantuml_env(),
+                env=_local_plantuml_env(dot),
             )
         except subprocess.TimeoutExpired:
             local_err = "PlantUML render timeout"
+            return None
         except FileNotFoundError:
             local_err = "Java not found; install JDK to render diagrams"
-        else:
-            if _plantuml_render_succeeded(result, img_path):
-                return img_path, None
-            local_err = (result.stderr or result.stdout or "PlantUML produced an error image").strip()[:500]
-    else:
-        local_err = "No usable Java Runtime (PlantUML jar needs a JDK/JRE)"
+            return None
+        if _plantuml_render_succeeded(result, img_path):
+            return img_path
+        local_err = (result.stderr or result.stdout or "PlantUML produced an error image").strip()[:500]
+        return None
 
-    if not use_remote:
+    remote_err: str | None = None
+
+    # Local-first when Java exists (avoids intermittent public-server failures).
+    if prefer_local and java_exe:
+        local_img = _try_local()
+        if local_img is not None:
+            return local_img, None
+        if use_remote:
+            remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
+            if remote_img is not None:
+                return remote_img, None
+        return None, f"{local_err}; remote fallback: {remote_err}"
+
+    # Legacy order: remote then local
+    if use_remote:
+        remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
+        if remote_img is not None:
+            return remote_img, None
+
+    local_img = _try_local()
+    if local_img is not None:
+        return local_img, None
+
+    if use_remote and remote_err is None:
         remote_img, remote_err = render_plantuml_remote(code, img_path, fmt=fmt)
         if remote_img is not None:
             return remote_img, None

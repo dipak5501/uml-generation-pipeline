@@ -72,7 +72,7 @@ def test_batch_rejects_too_many_items(client):
         "/api/generate/batch",
         json={
             "n_samples": 201,
-            "diagram_types": ["class", "object", "component", "package", "flowchart"],
+            "diagram_types": ["class", "object", "component", "package"],
             "use_sample_file": True,
         },
     )

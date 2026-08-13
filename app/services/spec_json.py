@@ -432,9 +432,6 @@ def structure_to_spec_json(code: str, diagram_type: str) -> dict[str, Any]:
 
     script_without_types = not s.has_type_declarations
     effective_type = diagram_type
-    # Class/object of a no-class script is misleading — recover as flowchart process
-    if script_without_types and diagram_type in {"class", "object"}:
-        effective_type = "flowchart"
 
     data: dict[str, Any] = {
         "diagram_type": effective_type,
@@ -457,14 +454,13 @@ def structure_to_spec_json(code: str, diagram_type: str) -> dict[str, Any]:
         "requested_diagram_type": diagram_type,
     }
     steps = s.script_process_steps(code)
-    if effective_type == "flowchart" or script_without_types:
+    if script_without_types:
         data["process_steps"] = steps or [
             "Import dependencies",
             "Configure parameters",
             "Run main logic",
             "Write outputs",
         ]
-        data["diagram_type"] = "flowchart"
     if diagram_type == "object" and entities:
         data["objects"] = [
             {"name": e["name"][:1].lower() + e["name"][1:] + "1", "type": e["name"]} for e in entities[:5]
@@ -598,7 +594,7 @@ def ensure_valid_spec(
         if data.get("script_without_types"):
             messages.append(
                 "Source has no class/interface declarations — not inventing UML classes "
-                "from variables; using process/flowchart recovery"
+                "from variables"
             )
         else:
             messages.append("Stage-1 grounded in source-code structure analysis")

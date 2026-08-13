@@ -45,6 +45,14 @@ class Settings(BaseSettings):
     spec_model: str = "meta-llama/Llama-3.2-1B-Instruct"
     code_model: str = "deepseek-ai/DeepSeek-R1-Distill-Qwen-32B"
     vlm_models: str = "qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b"
+    # Aya-Vision-8B is NOT on Ollama. Backend for the 3rd VLM slot:
+    #   local          = paper-exact CohereLabs/aya-vision-8b via transformers (MPS/CPU)
+    #   ollama_standin = llava:7b (local demo only; not paper-exact)
+    #   hf             = Hugging Face router model in AYA_VLM_MODEL
+    #   openai_compat  = any OpenAI-compatible server (vLLM on GCP/local GPU)
+    vlm_aya_backend: str = "local"
+    aya_vlm_model: str = "CohereLabs/aya-vision-8b"
+    aya_vlm_base_url: str = ""  # e.g. http://YOUR_GCP_VM:8000/v1
 
     # VLM weights (MMMU) from the paper
     weight_qwen25vl3b: float = 53.1
@@ -60,7 +68,10 @@ class Settings(BaseSettings):
     use_finetuned_code: bool = False
     finetuned_base_model: str = "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
     finetuned_adapter_path: Path = ROOT / "models" / "uml-plantuml-lora"
-    finetuned_max_tokens: int = 512
+    # 512 truncates complex PlantUML; 1536 is safer for class/package diagrams.
+    finetuned_max_tokens: int = 1536
+    # When true, score with only the first available VLM (much faster demos).
+    vlm_fast_mode: bool = False
 
     api_base_url: str = "http://127.0.0.1:8000"
 

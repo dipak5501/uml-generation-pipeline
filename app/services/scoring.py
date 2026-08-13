@@ -96,9 +96,10 @@ def verify_scores(
     render_ok: bool,
     tau: float = DEFAULT_TAU,
     min_composite: float = DEFAULT_MIN_COMPOSITE_FOR_DATASET,
+    min_votes: int = 2,
 ) -> VerificationResult:
     composite = paper_composite(scores, weights, render_ok=render_ok)
-    maj_ok, votes, voters = majority_vote_accept(scores, tau=tau)
+    maj_ok, votes, voters = majority_vote_accept(scores, tau=tau, min_votes=min_votes)
     if not render_ok:
         maj_ok = False
         votes = 0

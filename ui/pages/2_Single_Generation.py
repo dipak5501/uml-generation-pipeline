@@ -1,10 +1,20 @@
+import time
+
 import streamlit as st
 
 from ui.api_client import api_get_bytes, api_post
+from ui.jobs import (
+    active_job_id,
+    clear_job,
+    fetch_job,
+    load_job_results_into_session,
+    render_active_job_banner,
+    track_job,
+)
 from ui.theme import apply_theme, hero, panel
 
 st.set_page_config(page_title="UML-Pipeline · Generate", layout="wide", page_icon="▦")
-apply_theme()
+apply_theme(show_job_banner=False)
 
 hero(
     "Generate from text or source code",
@@ -61,8 +71,8 @@ panel(
     "Input",
     "Choose Requirement text or Source code, then generate. Pipeline: CoT PlantUML → "
     "validation → render gate → 3 VLMs → weighted composite S + majority vote A (τ=4) → "
-    "dataset gate (A=1 and S≥3). Package/flowchart skip LoRA and use typed validators + "
-    "safe templates when models emit class UML. Flowchart is an extra type beyond the paper’s four UML types.",
+    "dataset gate (A=1 and S≥3). The four paper UML types: class, object, component, package. "
+    "Generation runs in the background — you can switch pages while it works.",
 )
 
 input_mode_label = st.radio(
@@ -102,52 +112,83 @@ requirement = st.text_area(
     label_visibility="collapsed",
     key="free_requirement_input",
 )
+st.caption(
+    "Tips for reliable runs: use 2–8 clear sentences (or a focused class file), pick one "
+    "diagram type that matches the content, and avoid pasting entire repos. Long inputs are "
+    "auto-clipped for the model but still grounded structurally. Full VLM scoring can take "
+    "1–4 minutes; set `VLM_FAST_MODE=true` in `.env` for quicker demos."
+)
 
 left, right = st.columns([1.2, 1])
 with left:
     diagram_type = st.selectbox(
         "Diagram type",
-        ["class", "object", "component", "package", "flowchart"],
+        ["class", "object", "component", "package"],
     )
 with right:
     gen_all = st.checkbox("Also generate the other diagram types", value=False)
 
 can_run = bool((requirement or "").strip())
+busy = active_job_id() is not None and (fetch_job(active_job_id() or 0) or {}).get("status") in (
+    "pending",
+    "running",
+    None,
+)
 run = st.button(
     "Generate + validate",
     type="primary",
-    disabled=not can_run,
+    disabled=not can_run or bool(busy),
     use_container_width=True,
 )
 if not can_run:
     st.caption("Enter a requirement or paste code to enable generation.")
+elif busy:
+    st.caption("A generation job is already running — wait for it to finish or open another page.")
 
-if run and can_run:
+if run and can_run and not busy:
     text = requirement.strip()
     types = (
-        ["class", "object", "component", "package", "flowchart"]
+        ["class", "object", "component", "package"]
         if gen_all
         else [diagram_type]
     )
-    results = []
-    with st.spinner(f"Generating + validating {len(types)} diagram(s)…"):
-        for dt in types:
-            try:
-                result = api_post(
-                    "/api/generate",
-                    {
-                        "requirement": text,
-                        "diagram_type": dt,
-                        "input_mode": input_mode,
-                    },
-                )
-                results.append(result["artifact"])
-            except Exception as exc:
-                st.error(f"{dt}: {exc}")
-    if results:
-        st.session_state["last_artifact"] = results[0]
-        st.session_state["last_artifacts"] = results
-        st.success(f"Created {len(results)} artifact(s). Latest #{results[0]['id']}")
+    try:
+        result = api_post(
+            "/api/generate",
+            {
+                "requirement": text,
+                "diagram_type": types[0],
+                "diagram_types": types,
+                "input_mode": input_mode,
+                "async_mode": True,
+            },
+        )
+        job_id = int(result["job_id"])
+        track_job(job_id, label="Generate")
+        st.success(
+            f"Started background job #{job_id} for {len(types)} diagram type(s). "
+            "You can switch to Dashboard / Settings — generation will continue."
+        )
+        st.rerun()
+    except Exception as exc:
+        st.error(str(exc))
+
+# Poll active job on this page (safe: API work is detached)
+job_id = active_job_id()
+if job_id is not None:
+    job = render_active_job_banner(auto_refresh=False)
+    if job and job.get("status") in ("pending", "running"):
+        st.progress(min(0.99, (job.get("completed") or 0) / max(job.get("total") or 1, 1)))
+        time.sleep(2.0)
+        st.rerun()
+    elif job and job.get("status") == "completed":
+        arts = load_job_results_into_session(job_id)
+        clear_job()
+        if arts:
+            st.success(f"Loaded {len(arts)} artifact(s) from job #{job_id}.")
+            st.rerun()
+    elif job and job.get("status") == "failed":
+        clear_job()
 
 artifact = st.session_state.get("last_artifact")
 if not artifact:
@@ -190,8 +231,7 @@ v5.metric("5. Majority A", f"{'Yes' if majority_ok else 'No'} ({votes}/3 ≥τ={
 
 st.caption(
     f"Dataset entry accepted: **{'Yes' if dataset_ok else 'No'}** "
-    f"(requires majority A=1 and composite S ≥ 3.0). "
-    "Flowchart is an extension beyond the paper’s four UML types."
+    f"(requires majority A=1 and composite S ≥ 3.0)."
 )
 
 if artifact.get("validation_messages"):

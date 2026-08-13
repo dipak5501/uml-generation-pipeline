@@ -61,8 +61,8 @@ _GENERIC_CLASS_NAMES = {
 }
 
 # Prefer LoRA for these when USE_FINETUNED_CODE=true (trained on real HF UMLCode data).
-# Package/flowchart historically weaker — still try LoRA first, then fall back to builder.
-_LORA_PRIMARY_TYPES = frozenset({"class", "object", "component", "package", "flowchart"})
+# Prefer LoRA for the four paper UML types; fall back to grounded builder if needed.
+_LORA_PRIMARY_TYPES = frozenset({"class", "object", "component", "package"})
 
 
 def _safe_template_plantuml(
@@ -129,6 +129,14 @@ def generate_technical_spec(
     input_mode: str = "requirement",
 ) -> tuple[str, dict, str, str, str, list[str]]:
     """Returns (spec_prose, spec_json, prompt_name, prompt_version, model_name, validity_msgs)."""
+    from app.services.input_prepare import (
+        LLM_REQUIREMENT_CHARS,
+        LLM_SOURCE_CODE_CHARS,
+        clip_for_llm,
+        is_long_input,
+    )
+    from app.services.spec_json import structure_to_spec_json
+
     settings = settings or get_settings()
     mode = input_mode
     if mode == "requirement" and looks_like_source_code(requirement):
@@ -140,17 +148,53 @@ def generate_technical_spec(
         "Stage-1 technical specification. No markdown fences or prose outside JSON."
     )
     if mode == "source_code":
-        # Deterministic structural recover for mock/offline; LLM path uses prompt
-        if settings.mock_providers:
-            text = structure_to_spec(requirement, diagram_type)
+        # Structural analysis is reliable for full files; tiny LLMs choke on long code.
+        grounded = structure_to_spec_json(requirement, diagram_type)
+        use_structure = (
+            settings.mock_providers
+            or is_long_input(requirement)
+            or grounded.get("script_without_types")
+            or bool(grounded.get("entities"))
+        )
+        if use_structure:
+            # ensure_valid_spec re-runs structure analysis from source_text
             spec_json, prose, msgs = ensure_valid_spec(
-                text, diagram_type, source_text=requirement, input_mode="source_code"
+                "{}",
+                diagram_type,
+                source_text=requirement,
+                input_mode="source_code",
             )
-            return prose, spec_json, "code_to_tech_spec", "v1", "mock-code-analysis", msgs
+            # Optional LLM enrich only for short snippets when structure is sparse
+            if (
+                not settings.mock_providers
+                and not grounded.get("script_without_types")
+                and len(requirement) < 2500
+                and len(spec_json.get("entities") or []) < 2
+            ):
+                ref, prompt = render_prompt(
+                    "code_to_tech_spec",
+                    "v1",
+                    source_code=clip_for_llm(requirement, LLM_SOURCE_CODE_CHARS),
+                    diagram_type=diagram_type,
+                )
+                try:
+                    text = provider.chat(json_system, prompt, temperature=0.2)
+                    spec_json, prose, msgs = ensure_valid_spec(
+                        text.strip(),
+                        diagram_type,
+                        source_text=requirement,
+                        input_mode="source_code",
+                    )
+                    model_name = getattr(provider, "model", settings.spec_model)
+                    return prose, spec_json, ref.name, ref.version, str(model_name), msgs
+                except Exception as exc:
+                    logger.warning("Stage-1 LLM enrich failed; keeping structure: %s", exc)
+            return prose, spec_json, "code_to_tech_spec", "v1", "code-structure", msgs
+
         ref, prompt = render_prompt(
             "code_to_tech_spec",
             "v1",
-            source_code=requirement,
+            source_code=clip_for_llm(requirement, LLM_SOURCE_CODE_CHARS),
             diagram_type=diagram_type,
         )
         text = provider.chat(json_system, prompt, temperature=0.2)
@@ -160,26 +204,41 @@ def generate_technical_spec(
         )
         return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
+    llm_req = clip_for_llm(requirement, LLM_REQUIREMENT_CHARS)
     ref, prompt = render_prompt(
         "requirement_to_tech_spec",
         "v1",
-        requirement=requirement,
+        requirement=llm_req,
         diagram_type=diagram_type,
     )
-    text = provider.chat(json_system, prompt, temperature=0.4)
+    try:
+        text = provider.chat(json_system, prompt, temperature=0.4)
+    except Exception as exc:
+        logger.warning("Stage-1 LLM failed (%s); recovering from text grounding", exc)
+        spec_json, prose, msgs = ensure_valid_spec(
+            "{}", diagram_type, source_text=requirement, input_mode="requirement"
+        )
+        return prose, spec_json, ref.name, ref.version, "grounded-fallback", msgs
     model_name = getattr(provider, "model", settings.spec_model)
     spec_json, prose, msgs = ensure_valid_spec(
         text.strip(), diagram_type, source_text=requirement, input_mode="requirement"
     )
     if msgs and any("not valid JSON" in m or "Missing required" in m for m in msgs):
-        retry = provider.chat(
-            json_system + " Retry: emit JSON only matching the required schema.",
-            prompt,
-            temperature=0.1,
-        )
-        spec_json, prose, msgs = ensure_valid_spec(
-            retry.strip(), diagram_type, source_text=requirement, input_mode="requirement"
-        )
+        try:
+            retry = provider.chat(
+                json_system + " Retry: emit JSON only matching the required schema.",
+                prompt,
+                temperature=0.1,
+            )
+            spec_json, prose, msgs = ensure_valid_spec(
+                retry.strip(), diagram_type, source_text=requirement, input_mode="requirement"
+            )
+        except Exception as exc:
+            logger.warning("Stage-1 retry failed: %s", exc)
+            spec_json, prose, msgs = ensure_valid_spec(
+                "{}", diagram_type, source_text=requirement, input_mode="requirement"
+            )
+            model_name = "grounded-fallback"
     return prose, spec_json, ref.name, ref.version, str(model_name), msgs
 
 
@@ -197,15 +256,18 @@ def generate_plantuml_code(
     Hugging Face UMLCode corpus; fall back to base LLM / grounded spec-builder
     if validation or fidelity checks fail.
     """
+    from app.services.input_prepare import LORA_SPEC_CHARS, clip_for_llm
+
     settings = settings or get_settings()
     name = diagram_prompt_name(diagram_type)
-    ref, prompt = render_prompt(name, "v1", specification=specification)
+    # Long specs overwhelm the 0.5B LoRA; clip for the model, keep full JSON for builder.
+    spec_for_llm = clip_for_llm(specification, LORA_SPEC_CHARS)
+    ref, prompt = render_prompt(name, "v1", specification=spec_for_llm)
 
     # Scripts with no class types: never invent classes via LoRA.
     if spec_json and spec_json.get("script_without_types"):
-        dtype = "flowchart" if diagram_type in {"class", "object"} else diagram_type
-        code = plantuml_from_spec(spec_json, dtype)
-        if validate_diagram(code, dtype).ok:
+        code = plantuml_from_spec(spec_json, diagram_type)
+        if validate_diagram(code, diagram_type).ok:
             return code, f"tech_spec_to_{diagram_type}", "v1", "spec-builder", False
 
     system = (
@@ -213,12 +275,7 @@ def generate_plantuml_code(
         if settings.enable_cot
         else "You output only valid PlantUML code between @startuml and @enduml."
     )
-    if diagram_type == "flowchart":
-        system = (
-            "You output only valid PlantUML ACTIVITY/FLOWCHART syntax using "
-            "start, :Step;, if/else/endif, and stop. Do NOT emit class diagrams."
-        )
-    elif diagram_type == "package":
+    if diagram_type == "package":
         system = (
             "You output only valid PlantUML PACKAGE diagrams with nested "
             "package { } blocks and ..> dependencies. No self-dependencies. "
@@ -355,14 +412,18 @@ def score_image(
     image_path: Path,
     specification: str,
     settings: Settings | None = None,
-) -> tuple[dict[str, int], dict[str, dict], float]:
+) -> tuple[dict[str, int | None], dict[str, dict], float]:
     """Returns (scores, meta_by_key, composite)."""
     settings = settings or get_settings()
     weights = settings.vlm_weight_map
     providers = build_vlm_providers(settings)
+    # Fast mode: first available VLM only (demos / weak machines). Full ensemble for thesis.
+    if settings.vlm_fast_mode and providers:
+        first_key = next(iter(providers))
+        providers = {first_key: providers[first_key]}
     _, scoring_prompt = render_prompt("vlm_scoring", "v1", specification=specification)
 
-    scores: dict[str, int] = {}
+    scores: dict[str, int | None] = {}
     meta: dict[str, dict] = {}
     for key, provider in providers.items():
         model_name = getattr(provider, "model", key)
@@ -393,13 +454,23 @@ def score_image(
                 "explanation": str(exc),
                 "raw_output": None,
             }
+    # Mark skipped ensemble members as unavailable (None) so they do not drag S to 0
+    for key in weights:
+        if key not in scores:
+            scores[key] = None
+            meta[key] = {
+                "model_name": key,
+                "available": False,
+                "explanation": "skipped (VLM_FAST_MODE)",
+                "raw_output": None,
+            }
     composite = paper_composite(scores, weights, render_ok=True)
     return scores, meta, composite
 
 
 def apply_verification(
     artifact: UMLArtifact,
-    scores: dict[str, int],
+    scores: dict[str, int | None],
     meta: dict[str, dict],
     verification: VerificationResult,
     session: Session,
@@ -425,12 +496,13 @@ def apply_verification(
 
     for key, weight in settings.vlm_weight_map.items():
         m = meta.get(key, {})
+        raw_score = scores.get(key, 0)
         session.add(
             ModelScore(
                 artifact_id=artifact.id,
                 model_key=key,
                 model_name=str(m.get("model_name", key)),
-                score=int(scores.get(key, 0)),
+                score=0 if raw_score is None else int(raw_score),
                 weight=weight,
                 available=bool(m.get("available", True)),
                 explanation=m.get("explanation"),
@@ -502,34 +574,22 @@ def run_single_generation(
     session.commit()
     session.refresh(tech)
 
-    # Source scripts with no class declarations must not become fake class diagrams
-    effective_dtype = diagram_type
+    # Source scripts with no class declarations must not invent fake classes
     if isinstance(spec_json, dict) and spec_json.get("script_without_types"):
-        effective_dtype = str(spec_json.get("diagram_type") or "flowchart")
-        if diagram_type in {"class", "object"} and effective_dtype == "flowchart":
-            logger.info(
-                "Source has no type declarations; generating flowchart instead of %s",
-                diagram_type,
-            )
-            validation_note = (
-                "Adjusted: source has no class declarations; "
-                "generated a flowchart of the script instead of a fake class diagram."
-            )
-        else:
-            validation_note = (
-                "Source has no class declarations; avoided inventing classes from variables."
-            )
+        validation_note = (
+            "Source has no class declarations; avoided inventing classes from variables."
+        )
     else:
         validation_note = ""
 
     plantuml, p_name, p_ver, code_model, used_cot = generate_plantuml_code(
         spec_text,
-        effective_dtype,
+        diagram_type,
         settings,
         input_mode=resolved_mode,
         spec_json=spec_json,
     )
-    validation = validate_diagram(plantuml, effective_dtype)
+    validation = validate_diagram(plantuml, diagram_type)
     validation_msgs = list(validation.messages)
     if validation_note:
         validation_msgs.insert(0, validation_note)
@@ -539,7 +599,7 @@ def run_single_generation(
         requirement_id=req.id,
         specification_id=tech.id,
         project_id=project_id,
-        diagram_type=effective_dtype,
+        diagram_type=diagram_type,
         input_mode=resolved_mode,
         source_language=source_language,
         source_requirement=requirement,
@@ -570,12 +630,12 @@ def run_single_generation(
 
     while attempt <= settings.max_repair_attempts:
         # Static validation; force repair if package guards fail
-        v = validate_diagram(artifact.plantuml_code, effective_dtype)
+        v = validate_diagram(artifact.plantuml_code, diagram_type)
         if not v.ok and attempt < settings.max_repair_attempts:
             repair = repair_plantuml(
                 artifact.plantuml_code,
                 spec_text,
-                effective_dtype,
+                diagram_type,
                 v.messages,
                 repair_notes=repair_notes,
                 settings=settings,
@@ -634,7 +694,7 @@ def run_single_generation(
         repair = repair_plantuml(
             artifact.plantuml_code,
             spec_text,
-            effective_dtype,
+            diagram_type,
             [err or "render failed"],
             repair_notes=repair_notes,
             settings=settings,
@@ -656,7 +716,7 @@ def run_single_generation(
 
     # Last resort: deterministic template if model/repair PlantUML still will not render
     if image_path is None:
-        safe = _safe_template_plantuml(spec_text, effective_dtype, spec_json)
+        safe = _safe_template_plantuml(spec_text, diagram_type, spec_json)
         if safe.strip() and safe.strip() != (artifact.plantuml_code or "").strip():
             img, err = render_plantuml(safe, out_dir, jar, fmt=settings.image_format)
             session.add(
@@ -714,6 +774,7 @@ def run_single_generation(
             render_ok=True,
             tau=settings.acceptance_tau,
             min_composite=settings.min_composite_for_dataset,
+            min_votes=1 if settings.vlm_fast_mode else 2,
         )
 
     apply_verification(artifact, scores, meta, verification, session)

@@ -31,7 +31,7 @@ apply_theme(live=live)
 
 hero(
     "From requirements to verified UML diagrams",
-    "Generate class, object, component, package, and flowchart diagrams from natural "
+    "Generate class, object, component, and package diagrams from natural "
     "language or source code — with PlantUML rendering, multimodal scores, and dataset gating.",
     chips=["Dipak Yadav · Yutong Zhao", "Design-phase modeling", "PlantUML + VLM ensemble"],
 )
@@ -57,7 +57,7 @@ elif not live:
 
 n1, n2, n3, n4 = st.columns(4)
 with n1:
-    panel("Generate", "Turn a requirement or source file into a scored UML / flowchart diagram.")
+    panel("Generate", "Turn a requirement or source file into a scored UML diagram.")
 with n2:
     panel("Batch", "Run multi-type generation jobs and build evaluation sets.")
 with n3:
@@ -69,7 +69,7 @@ c1, c2, c3 = st.columns(3)
 with c1:
     panel("1 · Write a requirement", "Open Generate. Free text is the primary input; examples are optional.")
 with c2:
-    panel("2 · Choose a diagram", "Class, object, component, package, or flowchart — rendered with PlantUML.")
+    panel("2 · Choose a diagram", "Class, object, component, or package — rendered with PlantUML.")
 with c3:
     panel("3 · Inspect quality", "Per-model scores, composite score, repairs, and human review.")
 

@@ -48,6 +48,7 @@ def test_generate_class_artifact(client):
         json={
             "requirement": "Online bookstore with books, carts, and checkout orders.",
             "diagram_type": "class",
+            "async_mode": False,
         },
     )
     assert r.status_code == 200, r.text
@@ -74,6 +75,7 @@ class User:
             "requirement": code,
             "diagram_type": "class",
             "input_mode": "source_code",
+            "async_mode": False,
         },
     )
     assert r.status_code == 200, r.text
@@ -84,7 +86,7 @@ class User:
 
 
 @pytest.mark.parametrize(
-    "diagram_type", ["class", "object", "component", "package", "flowchart"]
+    "diagram_type", ["class", "object", "component", "package"]
 )
 def test_e2e_each_diagram_type(client, diagram_type):
     r = client.post(
@@ -92,6 +94,7 @@ def test_e2e_each_diagram_type(client, diagram_type):
         json={
             "requirement": "Hospital appointments with patients, doctors, and clinics.",
             "diagram_type": diagram_type,
+            "async_mode": False,
         },
     )
     assert r.status_code == 200, r.text
@@ -106,7 +109,7 @@ def test_e2e_each_diagram_type(client, diagram_type):
 def test_human_review_and_analytics(client):
     gen = client.post(
         "/api/generate",
-        json={"requirement": "Fleet logistics routes and vehicles", "diagram_type": "component"},
+        json={"requirement": "Fleet logistics routes and vehicles", "diagram_type": "component", "async_mode": False},
     )
     assert gen.status_code == 200
     artifact_id = gen.json()["artifact"]["id"]
@@ -140,7 +143,7 @@ def test_human_review_and_analytics(client):
 def test_list_and_get_artifact(client):
     gen = client.post(
         "/api/generate",
-        json={"requirement": "LMS courses and quizzes", "diagram_type": "object"},
+        json={"requirement": "LMS courses and quizzes", "diagram_type": "object", "async_mode": False},
     )
     aid = gen.json()["artifact"]["id"]
     listed = client.get("/api/artifacts")
@@ -150,3 +153,32 @@ def test_list_and_get_artifact(client):
     puml = client.get(f"/api/artifacts/{aid}/plantuml")
     assert puml.status_code == 200
     assert b"@startuml" in puml.content.lower()
+
+
+def test_async_generate_returns_job_and_completes(client):
+    import time
+
+    r = client.post(
+        "/api/generate",
+        json={
+            "requirement": "Bookstore with carts and checkout",
+            "diagram_types": ["class", "object"],
+            "async_mode": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert body.get("async") is True
+    assert body.get("artifact") is None
+    job_id = body["job_id"]
+    # Wait for background worker (mock providers are fast)
+    for _ in range(60):
+        job = client.get(f"/api/jobs/{job_id}").json()
+        if job["status"] in ("completed", "failed"):
+            break
+        time.sleep(0.1)
+    assert job["status"] == "completed", job
+    assert job["completed"] == 2
+    arts = client.get(f"/api/jobs/{job_id}/artifacts").json()
+    assert len(arts) == 2
+    assert {a["diagram_type"] for a in arts} == {"class", "object"}

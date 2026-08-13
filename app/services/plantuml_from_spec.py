@@ -109,7 +109,7 @@ def build_class_plantuml(spec: dict[str, Any]) -> str:
         lines.append("note as NoTypes")
         lines.append("  This source is a script/driver with no `class` / interface types.")
         lines.append("  Configuration variables and string paths are NOT UML classes.")
-        lines.append("  Paste domain model classes, or generate a Flowchart of this script.")
+        lines.append("  Paste domain model classes (class/interface types) to build a class diagram.")
         lines.append("end note")
         lines.append("@enduml")
         return "\n".join(lines) + "\n"

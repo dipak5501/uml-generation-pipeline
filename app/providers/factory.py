@@ -201,6 +201,49 @@ def build_base_code_provider(settings: Settings | None = None):
     return _live_chat_provider(settings, model)
 
 
+def _build_aya_provider(settings: Settings, configured_model: str) -> object:
+    """Paper 3rd VLM: real Aya when possible; otherwise explicit stand-in."""
+    backend = (settings.vlm_aya_backend or "ollama_standin").strip().lower()
+    model_id = (settings.aya_vlm_model or "CohereLabs/aya-vision-8b").strip()
+
+    if backend in {"local", "transformers", "mps", "local_transformers"}:
+        from app.providers.aya_local_provider import LocalAyaVisionProvider
+
+        token = settings.hf_token or settings.openai_api_key or None
+        return LocalAyaVisionProvider(model_id, hf_token=token)
+
+    if backend in {"hf", "huggingface"}:
+        token = settings.hf_token or settings.openai_api_key
+        if not token:
+            raise RuntimeError(
+                "VLM_AYA_BACKEND=hf requires HF_TOKEN. "
+                "Note: CohereLabs/aya-vision-8b may be unavailable on HF Inference Providers."
+            )
+        return HuggingFaceProvider(
+            model_id,
+            token=token,
+            base_url=settings.hf_base_url,
+        )
+
+    if backend in {"openai_compat", "vllm", "openai", "custom"}:
+        base = (settings.aya_vlm_base_url or "").strip().rstrip("/")
+        if not base:
+            raise RuntimeError(
+                "VLM_AYA_BACKEND=openai_compat requires AYA_VLM_BASE_URL "
+                "(OpenAI-compatible vLLM endpoint serving Aya-Vision-8B)."
+            )
+        token = settings.hf_token or settings.openai_api_key or "EMPTY"
+        return OpenAIProvider(model=model_id, base_url=base, api_key=token)
+
+    # Default / ollama_standin: local llava mapped from aya-vision:8b
+    run_tag, label = _resolve_ollama_vlm_tag(configured_model or "aya-vision:8b")
+    return OllamaProvider(
+        run_tag,
+        ollama_url=settings.ollama_base_url.rstrip("/"),
+        label=label,
+    )
+
+
 def build_vlm_providers(settings: Settings | None = None) -> dict[str, object]:
     """Map paper weight keys -> provider instances (or unavailable markers)."""
     settings = settings or get_settings()
@@ -215,7 +258,14 @@ def build_vlm_providers(settings: Settings | None = None) -> dict[str, object]:
                 providers[key].model = model  # type: ignore[attr-defined]
             except Exception:
                 pass
+            continue
+
+        # Paper routing:
+        #   qwen25vl3b     -> Ollama :11435 (qwen2.5vl:3b)
+        #   llama32vl11b   -> Ollama :11434 (llama3.2-vision:11b)
+        #   aya_vision_8b  -> configured Aya backend (not available on Ollama)
+        if key == "aya_vision_8b":
+            providers[key] = _build_aya_provider(settings, model)
         else:
-            # Provider sets .model to the resolved runtime label (incl. Aya→llava stand-in).
             providers[key] = _live_chat_provider(settings, model)
     return providers

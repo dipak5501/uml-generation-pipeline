@@ -10,7 +10,7 @@ st.title("Artifact Review")
 
 diagram_type = st.selectbox(
     "Filter diagram type",
-    ["(all)", "class", "object", "component", "package", "flowchart"],
+    ["(all)", "class", "object", "component", "package"],
 )
 render_status = st.selectbox("Filter render status", ["(all)", "success", "failed", "pending"])
 min_score = st.slider("Minimum composite score", 0.0, 6.0, 0.0, 0.1)

@@ -1,17 +1,16 @@
-import time
-
 import streamlit as st
 
+from ui.api_client import api_get, api_post
+from ui.jobs import active_job_id, clear_job, fetch_job, render_active_job_banner, track_job
 from ui.theme import apply_theme
 
-from ui.api_client import api_get, api_post
-
 st.set_page_config(page_title="UML-Pipeline · Batch", layout="wide")
-apply_theme()
+apply_theme(show_job_banner=False)
 st.title("Batch Generation")
 st.markdown(
     "Generate a large evaluation dataset from built-in sample sentences "
-    "(50 requirements × 4 diagram types = **200 artifacts**)."
+    "(50 requirements × 4 diagram types = **200 artifacts**). "
+    "Jobs run in the background — you can leave this page while they finish."
 )
 
 n = st.number_input(
@@ -23,8 +22,8 @@ n = st.number_input(
 )
 diagram_types = st.multiselect(
     "Diagram types",
-    ["class", "object", "component", "package", "flowchart"],
-    default=["class", "object", "component", "package", "flowchart"],
+    ["class", "object", "component", "package"],
+    default=["class", "object", "component", "package"],
 )
 custom = st.text_area(
     "Optional: one custom sentence (creates n variants instead of the sample file)",
@@ -44,7 +43,13 @@ if preview:
 est = int(n) * max(len(diagram_types), 1)
 st.info(f"Estimated artifacts in this run: **{est}**")
 
-if st.button("Start batch job", type="primary", disabled=not diagram_types):
+busy = False
+jid = active_job_id()
+if jid is not None:
+    j = fetch_job(jid)
+    busy = bool(j and j.get("status") in ("pending", "running"))
+
+if st.button("Start batch job", type="primary", disabled=not diagram_types or busy):
     payload = {
         "n_samples": int(n),
         "diagram_types": diagram_types,
@@ -54,30 +59,33 @@ if st.button("Start batch job", type="primary", disabled=not diagram_types):
         payload["requirement"] = custom.strip()
     try:
         job = api_post("/api/generate/batch", payload)
-        st.session_state["batch_job_id"] = job["id"]
+        track_job(job["id"], label="Batch")
         st.success(f"Started job #{job['id']} — total units: {job['total']}")
+        st.rerun()
     except Exception as exc:
         st.error(str(exc))
 
-job_id = st.session_state.get("batch_job_id")
-if job_id:
-    placeholder = st.empty()
-    # Allow long runs (200+ artifacts)
-    for _ in range(3600):
-        job = api_get(f"/api/jobs/{job_id}")
-        placeholder.info(
-            f"Job {job_id}: {job['status']} — {job['completed']}/{job['total']}"
-        )
-        if job["status"] in ("completed", "failed"):
-            if job["status"] == "failed":
-                st.error(job.get("error") or "Batch failed")
-            else:
-                st.success("Batch completed")
-            break
-        time.sleep(1.0)
+job = render_active_job_banner(auto_refresh=False)
+if job and job.get("status") in ("pending", "running"):
+    st.progress(min(0.99, (job.get("completed") or 0) / max(job.get("total") or 1, 1)))
+    if st.button("Refresh progress"):
+        st.rerun()
+    # Soft auto-refresh while on this page only
+    import time
 
-    st.subheader("Artifacts")
+    time.sleep(2.0)
+    st.rerun()
+elif job and job.get("status") == "completed":
+    st.success("Batch completed")
+    clear_job()
+elif job and job.get("status") == "failed":
+    clear_job()
+
+st.subheader("Artifacts")
+try:
     arts = api_get("/api/artifacts")
     st.metric("Total artifacts now", len(arts))
     st.table(arts[:100])
-    st.markdown("Download dataset from **Analytics** or `/api/export/dataset?fmt=jsonl`")
+except Exception as exc:
+    st.error(exc)
+st.markdown("Download dataset from **Analytics** or `/api/export/dataset?fmt=jsonl`")

@@ -82,7 +82,30 @@ def health(session: Session = Depends(get_session)):
         if not (settings.hf_token or settings.openai_api_key):
             messages.append("HF_TOKEN is empty — set it before generating with live models")
     elif settings.use_ollama:
-        messages.append(f"USE_OLLAMA=true — Ollama at {settings.ollama_base_url}")
+        messages.append(
+            f"USE_OLLAMA=true — LLaMA-Vision at {settings.ollama_base_url}; "
+            f"Qwen2.5-VL at {settings.ollama_qwen_base_url}"
+        )
+        messages.append(f"VLM ensemble: {settings.vlm_models}")
+        aya_backend = (settings.vlm_aya_backend or "ollama_standin").strip().lower()
+        if aya_backend in {"local", "transformers", "mps", "local_transformers"}:
+            messages.append(
+                f"Aya-Vision-8B backend: local transformers ({settings.aya_vlm_model}) — paper-exact"
+            )
+        elif aya_backend in {"ollama_standin", "ollama", "standin", ""}:
+            messages.append(
+                "Aya-Vision-8B backend: llava:7b stand-in (not paper-exact). "
+                "Set VLM_AYA_BACKEND=local for paper-exact Aya on this Mac."
+            )
+        elif aya_backend in {"hf", "huggingface"}:
+            messages.append(f"Aya-Vision backend: Hugging Face ({settings.aya_vlm_model})")
+        else:
+            messages.append(
+                f"Aya-Vision backend: openai_compat ({settings.aya_vlm_model} @ "
+                f"{settings.aya_vlm_base_url or 'AYA_VLM_BASE_URL unset'})"
+            )
+        if settings.vlm_fast_mode:
+            messages.append("VLM_FAST_MODE=true — only the first VLM scores (not paper ensemble)")
 
     adapter_ok = Path(settings.finetuned_adapter_path).exists()
     if settings.use_finetuned_code:
