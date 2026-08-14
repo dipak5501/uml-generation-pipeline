@@ -217,13 +217,14 @@ def build_component_plantuml(spec: dict[str, Any]) -> str:
             comps.append(c.strip())
     if not comps:
         for name in _entity_names(spec):
-            # keep Service suffix if present; do not double-suffix
-            comps.append(name if re.search(r"Service$|Api$|Store$", name) else name)
-    comps = [
+            comps.append(name)
+    filtered = [
         c
         for c in comps
         if c and not _GENERIC_NAME.match(c) and c.lower() not in {"svc", "api", "store", "service"}
-    ][:8]
+    ]
+    # Never emit an empty component diagram — keep original names if the filter wiped them.
+    comps = (filtered or [c for c in comps if c] or ["Application", "DomainService"])[:8]
     aliases: dict[str, str] = {}
     for name in comps:
         alias = _safe_id(name)

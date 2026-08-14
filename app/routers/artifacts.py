@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import re
 import shutil
 from pathlib import Path
@@ -165,6 +166,21 @@ def get_image(artifact_id: int, session: Session = Depends(get_session)):
         raise HTTPException(404, "Image not available")
     media = "image/png" if a.image_format == "png" else "image/svg+xml"
     return FileResponse(path, media_type=media)
+
+
+@router.get("/artifacts/{artifact_id}/adaptation")
+def get_adaptation(artifact_id: int, session: Session = Depends(get_session)):
+    settings = get_settings()
+    a = session.get(UMLArtifact, artifact_id)
+    if not a:
+        raise HTTPException(404, "Artifact not found")
+    path = settings.artifact_dir / str(a.id) / "adaptation.json"
+    if not path.is_file():
+        return {"artifact_id": artifact_id, "events": [], "generator": None}
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        return {"artifact_id": artifact_id, "events": [], "generator": None}
 
 
 @router.get("/artifacts/{artifact_id}/plantuml")

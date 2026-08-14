@@ -42,6 +42,15 @@ def test_health(client):
     assert body["database_ok"] is True
 
 
+def test_adaptation_status(client):
+    r = client.get("/api/adaptation/status")
+    assert r.status_code == 200, r.text
+    body = r.json()
+    assert "generators" in body
+    assert "strategies" in body
+    assert "policy" in body
+
+
 def test_generate_class_artifact(client):
     r = client.post(
         "/api/generate",

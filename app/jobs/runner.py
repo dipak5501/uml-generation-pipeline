@@ -15,8 +15,8 @@ from app.settings import get_settings
 logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=4)
 
-# (requirement, diagram_type, input_mode)
-JobItem = tuple[str, str, str]
+# (requirement, diagram_type, input_mode, skip_vlm)
+JobItem = tuple[str, str, str, bool]
 
 
 def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
@@ -28,7 +28,7 @@ def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
         update_job(session, job, status="running")
         completed = 0
         try:
-            for requirement, diagram_type, input_mode in items:
+            for requirement, diagram_type, input_mode, skip_vlm in items:
                 run_single_generation(
                     session,
                     requirement=requirement,
@@ -37,6 +37,7 @@ def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
                     job_id=job_id,
                     settings=settings,
                     input_mode=input_mode,
+                    skip_vlm=skip_vlm,
                 )
                 completed += 1
                 job = session.get(GenerationJob, job_id)
@@ -45,11 +46,11 @@ def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
             job = session.get(GenerationJob, job_id)
             if job:
                 update_job(session, job, status="completed", completed=completed)
-        except Exception as exc:
+        except Exception as visc:
             logger.exception("Batch job %s failed", job_id)
             job = session.get(GenerationJob, job_id)
             if job:
-                update_job(session, job, status="failed", error=str(exc), completed=completed)
+                update_job(session, job, status="failed", error=str(visc), completed=completed)
 
 
 def submit_batch(job_id: int, items: list[JobItem], project_id: int) -> None:
@@ -63,6 +64,7 @@ def enqueue_batch(
     project_id: int | None = None,
     *,
     input_mode: str = "requirement",
+    skip_vlm: bool = False,
 ) -> int:
     if project_id is None:
         project_id = get_or_create_default_project(session).id
@@ -71,7 +73,7 @@ def enqueue_batch(
     items: list[JobItem] = []
     for req in requirements:
         for dt in diagram_types:
-            items.append((req, dt, input_mode))
+            items.append((req, dt, input_mode, skip_vlm))
 
     job = create_job(session, mode="batch", total=len(items), project_id=project_id)
     submit_batch(job.id, items, project_id)
@@ -86,6 +88,7 @@ def enqueue_generation(
     input_mode: str = "requirement",
     project_id: int | None = None,
     mode: str = "single",
+    skip_vlm: bool = False,
 ) -> int:
     """Queue one requirement across one or more diagram types (runs in background)."""
     if project_id is None:
@@ -94,7 +97,7 @@ def enqueue_generation(
     types = [dt for dt in diagram_types if dt]
     if not types:
         types = ["class"]
-    items: list[JobItem] = [(requirement, dt, input_mode) for dt in types]
+    items: list[JobItem] = [(requirement, dt, input_mode, skip_vlm) for dt in types]
     job = create_job(session, mode=mode, total=len(items), project_id=project_id)
     submit_batch(job.id, items, project_id)
     return job.id

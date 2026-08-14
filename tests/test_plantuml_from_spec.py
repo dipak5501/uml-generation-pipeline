@@ -114,3 +114,35 @@ class Payment:
     names = {e["name"] for e in data["entities"]}
     assert {"User", "Order", "Payment"} <= names
     assert fidelity_report(plantuml_from_spec(data, "class"), data, "class")["ok"]
+
+
+def test_component_builder_never_empty():
+    spec = {
+        "diagram_type": "component",
+        "entities": [{"name": "Svc"}, {"name": "api"}],
+        "components": [{"name": "Svc"}, {"name": "api"}],
+        "relationships": [],
+    }
+    code = plantuml_from_spec(spec, "component")
+    assert validate_diagram(code, "component").ok
+    assert "[" in code or "component " in code.lower()
+
+
+def test_ecommerce_sentence_yields_component_types():
+    text = (
+        "Customers can create accounts, browse products, add products to a shopping cart, "
+        "place orders, make payments, and track deliveries, while administrators manage products and orders"
+    )
+    names = {n.lower() for n in extract_named_concepts(text)}
+    assert "customer" in names
+    assert "product" in names
+    assert "order" in names
+    assert "cart" in names
+    spec = {
+        "diagram_type": "component",
+        "entities": [{"name": n} for n in extract_named_concepts(text)],
+        "relationships": [],
+    }
+    code = plantuml_from_spec(spec, "component")
+    assert validate_diagram(code, "component").ok
+    assert "@startuml\n@enduml" not in code.replace(" ", "")

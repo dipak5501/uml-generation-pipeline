@@ -49,6 +49,13 @@ def export(
     )
 
 
+@router.get("/adaptation/status")
+def adaptation_status():
+    from app.services.adaptation import AdaptationMemory
+
+    return AdaptationMemory().snapshot()
+
+
 @router.get("/settings/health", response_model=HealthResponse)
 def health(session: Session = Depends(get_session)):
     settings = get_settings()

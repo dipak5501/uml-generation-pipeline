@@ -4,19 +4,43 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.api_client import api_get, api_get_bytes
-from ui.theme import apply_theme, hero
+from ui.api_client import api_get, api_get_bytes, api_post
+from ui.jobs import (
+    active_job_id,
+    clear_job,
+    fetch_job,
+    fetch_job_artifacts,
+    track_job,
+)
+from ui.theme import apply_theme, hero, show_image
 
 st.set_page_config(page_title="UML-Pipeline · Generated Diagrams", layout="wide", page_icon="▦")
 apply_theme()
 
-PAGE_SIZE = 12
+PAGE_SIZE = 6
+ALL_TYPES = ["class", "object", "component", "package"]
 
 hero(
     "Generated UML diagrams",
-    "Every diagram this application has produced — images, PlantUML, scores, and the original requirement.",
+    "Every diagram this application has produced. Open one to rescore it or generate "
+    "class, object, component, or package from the same requirement.",
     chips=["History", "Gallery", "All diagram types"],
 )
+
+# If a "generate another type" job just finished, open the new diagram.
+_job_id = active_job_id()
+if _job_id is not None:
+    _job = fetch_job(_job_id)
+    if _job and _job.get("status") == "completed":
+        arts = fetch_job_artifacts(_job_id)
+        clear_job()
+        if arts:
+            st.session_state["gallery_selected"] = arts[-1]["id"]
+            st.session_state["gallery_offset"] = 0
+        st.rerun()
+    elif _job and _job.get("status") == "failed":
+        st.error(_job.get("error") or "Generation failed")
+        clear_job()
 
 
 @st.cache_data(show_spinner=False, ttl=90)
@@ -89,7 +113,11 @@ if opened:
     st.subheader(f"#{opened['id']} · {opened['diagram_type']} diagram")
     meta = st.columns(4)
     meta[0].metric("Render", opened.get("render_status") or "—")
-    meta[1].metric("Score", f"{float(opened.get('composite_score') or 0):.2f}")
+    skipped = "VLM ensemble skipped" in str(opened.get("validation_messages") or "") or (
+        bool(opened.get("model_scores"))
+        and all(not s.get("available", True) for s in (opened.get("model_scores") or []))
+    )
+    meta[1].metric("Score", "not scored" if skipped else f"{float(opened.get('composite_score') or 0):.2f}")
     meta[2].metric("Dataset", "accepted" if opened.get("dataset_accepted") else "held out")
     meta[3].metric("Majority", "yes" if opened.get("majority_accepted") else "no")
     st.caption(
@@ -101,7 +129,7 @@ if opened:
         if opened.get("render_status") == "success":
             png = _diagram_png(opened["id"])
             if png:
-                st.image(png, use_container_width=True)
+                show_image(png)
                 st.download_button(
                     "Download PNG",
                     png,
@@ -136,6 +164,61 @@ if opened:
         if scores:
             st.markdown("**VLM scores**")
             st.dataframe(scores, use_container_width=True, hide_index=True)
+        if opened.get("render_status") == "success":
+            if st.button("Rescore with VLMs", key=f"gallery-rescore-{opened['id']}"):
+                try:
+                    updated = api_post(f"/api/artifacts/{opened['id']}/rescore", {})
+                    st.session_state["gallery_selected"] = updated["id"]
+                    st.success("VLM scoring finished.")
+                    st.rerun()
+                except Exception as exc:
+                    st.error(str(exc))
+
+        current_type = str(opened.get("diagram_type") or "class")
+        other_types = [t for t in ALL_TYPES if t != current_type]
+        st.markdown("**Generate another UML type from this same input**")
+        st.caption(
+            "Uses the original requirement or source code. The new diagram is stored in this gallery."
+        )
+        more_types = st.multiselect(
+            "Diagram type(s) to add",
+            other_types,
+            default=[],
+            key=f"more-types-{opened['id']}",
+        )
+        more_vlm = st.checkbox(
+            "Score with all 3 VLMs (Qwen, LLaMA-Vision, Aya)",
+            value=True,
+            key=f"more-vlm-{opened['id']}",
+        )
+        busy = active_job_id() is not None
+        if st.button(
+            "Generate selected type(s)",
+            type="primary",
+            disabled=not more_types or busy,
+            key=f"more-go-{opened['id']}",
+            use_container_width=True,
+        ):
+            try:
+                result = api_post(
+                    "/api/generate",
+                    {
+                        "requirement": opened.get("source_requirement") or "",
+                        "diagram_type": more_types[0],
+                        "diagram_types": more_types,
+                        "input_mode": opened.get("input_mode") or "requirement",
+                        "async_mode": True,
+                        "skip_vlm": not more_vlm,
+                    },
+                )
+                track_job(int(result["job_id"]), label="Generate other UML type")
+                st.success(
+                    f"Started job #{result['job_id']} for {', '.join(more_types)}. "
+                    "Stay on this page or come back — the new diagram will appear here."
+                )
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
     if st.button("Close detail", key="close-gallery-detail"):
         st.session_state.pop("gallery_selected", None)
         st.rerun()
@@ -155,7 +238,7 @@ for i, art in enumerate(items):
             if art.get("has_image") and art.get("render_status") == "success":
                 png = _diagram_png(art["id"])
                 if png:
-                    st.image(png, use_container_width=True)
+                    show_image(png)
                 else:
                     st.caption("Image missing")
             else:
@@ -170,6 +253,7 @@ for i, art in enumerate(items):
             if st.button("Open", key=f"open-{art['id']}", use_container_width=True):
                 st.session_state["gallery_selected"] = art["id"]
                 st.rerun()
+            st.caption("Open → generate another UML type from this input")
 
 nav1, nav2, nav3 = st.columns([1, 2, 1])
 with nav1:

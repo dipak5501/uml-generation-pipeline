@@ -117,6 +117,17 @@ def panel(title: str, body: str) -> None:
         st.markdown(clean)
 
 
+def show_image(data, *, caption: str | None = None) -> None:
+    """Streamlit 1.39 accepts use_column_width, not use_container_width, on st.image."""
+    kwargs = {}
+    if caption:
+        kwargs["caption"] = caption
+    try:
+        st.image(data, use_column_width=True, **kwargs)
+    except TypeError:
+        st.image(data, **kwargs)
+
+
 def stats_row(items: list[tuple[str, str]]) -> None:
     cols = st.columns(len(items) or 1)
     for col, (label, value) in zip(cols, items):

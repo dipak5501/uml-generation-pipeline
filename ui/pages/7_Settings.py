@@ -47,6 +47,54 @@ if ft:
 else:
     st.caption("Fine-tuned code model is OFF. Train with `make finetune`, then set USE_FINETUNED_CODE=true.")
 
+try:
+    adapt = api_get("/api/adaptation/status")
+except Exception:
+    adapt = None
+
+if adapt:
+    st.subheader("Self-adaptation memory")
+    st.caption(
+        "The pipeline records which generator and repair strategy succeeded for each "
+        "diagram type, then prefers winners on later runs instead of repeating the same prompt."
+    )
+    st.caption(f"Updated: `{adapt.get('updated_at') or 'no runs yet'}`")
+    gens = adapt.get("generators") or {}
+    if gens:
+        rows = []
+        for dtype, cells in gens.items():
+            for name, cell in cells.items():
+                rows.append(
+                    {
+                        "diagram_type": dtype,
+                        "generator": name,
+                        "ok": cell.get("ok"),
+                        "fail": cell.get("fail"),
+                        "n": cell.get("n"),
+                        "rate": cell.get("rate"),
+                    }
+                )
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+    strats = adapt.get("strategies") or {}
+    if strats:
+        srows = []
+        for key, cells in strats.items():
+            for name, cell in cells.items():
+                srows.append(
+                    {
+                        "key": key,
+                        "strategy": name,
+                        "ok": cell.get("ok"),
+                        "fail": cell.get("fail"),
+                        "rate": cell.get("rate"),
+                    }
+                )
+        st.dataframe(srows, use_container_width=True, hide_index=True)
+    recent = adapt.get("recent") or []
+    if recent:
+        st.markdown("**Recent adaptation events**")
+        st.dataframe(list(reversed(recent)), use_container_width=True, hide_index=True)
+
 st.markdown(
     """
 ### Configuration flags (environment)

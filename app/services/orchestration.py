@@ -46,6 +46,14 @@ from app.services.acceptance import (
     write_acceptance_sidecar,
 )
 from app.services.plantuml_validate import ensure_plantuml_bounds, sanitize_plantuml_output, validate_diagram
+from app.services.adaptation import (
+    AdaptationMemory,
+    AdaptationSession,
+    choose_generator,
+    record_generator,
+    record_strategy,
+    write_adaptation_sidecar,
+)
 from app.services.repair import repair_plantuml
 from app.services.scoring import VerificationResult, paper_composite, verify_scores
 from app.services.plantuml_from_spec import ensure_faithful_plantuml, plantuml_from_spec
@@ -258,6 +266,8 @@ def generate_plantuml_code(
     *,
     input_mode: str = "requirement",
     spec_json: dict | None = None,
+    adapt: AdaptationSession | None = None,
+    memory: AdaptationMemory | None = None,
 ) -> tuple[str, str, str, str, bool]:
     """Returns (plantuml, prompt_name, prompt_version, model_name, used_cot).
 
@@ -305,11 +315,29 @@ def generate_plantuml_code(
             "Use --|> only for true inheritance; otherwise use --> *-- o-- or ..>."
         )
 
-    use_lora = settings.use_finetuned_code and diagram_type in _LORA_PRIMARY_TYPES
+    memory = memory or AdaptationMemory()
+    generator, gen_reason = choose_generator(diagram_type, settings=settings, memory=memory)
+    if adapt is not None:
+        adapt.generator = generator
+        adapt.generator_reason = gen_reason
+        adapt.note(event="generator_choice", generator=generator, reason=gen_reason)
+
+    use_lora = (
+        generator == "lora"
+        and settings.use_finetuned_code
+        and diagram_type in _LORA_PRIMARY_TYPES
+    )
     code = ""
     used_cot = False
     model_name = "spec-builder"
     validation = validate_diagram("@startuml\n@enduml\n", diagram_type)
+
+    if generator == "spec-builder" and spec_json:
+        built = plantuml_from_spec(spec_json, diagram_type)
+        if validate_diagram(built, diagram_type).ok:
+            if adapt is not None:
+                adapt.note(event="generator_used", generator="spec-builder", reason=gen_reason)
+            return built, f"tech_spec_to_{diagram_type}", "v1", "spec-builder", False
 
     if use_lora:
         provider = build_code_provider(settings)
@@ -333,9 +361,15 @@ def generate_plantuml_code(
                         used_cot = False
                 return code, ref.name, ref.version, model_name, used_cot
             logger.warning(
-                "LoRA PlantUML weak for %s; trying base provider / spec-builder",
+                "LoRA PlantUML weak for %s; using spec-builder (skip slow LLM rewrite)",
                 diagram_type,
             )
+            if spec_json:
+                built = plantuml_from_spec(spec_json, diagram_type)
+                if validate_diagram(built, diagram_type).ok:
+                    if adapt is not None:
+                        adapt.note(event="generator_used", generator="spec-builder", reason="lora_weak")
+                    return built, f"tech_spec_to_{diagram_type}", "v1", "spec-builder", False
             fallback = build_base_code_provider(settings)
             try:
                 raw_fb = fallback.chat(system, prompt, temperature=0.2)
@@ -426,10 +460,6 @@ def score_image(
     settings = settings or get_settings()
     weights = settings.vlm_weight_map
     providers = build_vlm_providers(settings)
-    # Fast mode: first available VLM only (demos / weak machines). Full ensemble for thesis.
-    if settings.vlm_fast_mode and providers:
-        first_key = next(iter(providers))
-        providers = {first_key: providers[first_key]}
     _, scoring_prompt = render_prompt("vlm_scoring", "v1", specification=specification)
 
     scores: dict[str, int | None] = {}
@@ -456,21 +486,20 @@ def score_image(
             }
         except Exception as exc:
             logger.warning("VLM %s unavailable: %s", key, exc)
-            scores[key] = 0
+            scores[key] = None
             meta[key] = {
                 "model_name": str(model_name),
                 "available": False,
                 "explanation": str(exc),
                 "raw_output": None,
             }
-    # Mark skipped ensemble members as unavailable (None) so they do not drag S to 0
     for key in weights:
         if key not in scores:
             scores[key] = None
             meta[key] = {
                 "model_name": key,
                 "available": False,
-                "explanation": "skipped (VLM_FAST_MODE)",
+                "explanation": "provider not configured",
                 "raw_output": None,
             }
     composite = paper_composite(scores, weights, render_ok=True)
@@ -539,6 +568,7 @@ def run_single_generation(
     job_id: int | None = None,
     settings: Settings | None = None,
     input_mode: str = "requirement",
+    skip_vlm: bool = False,
 ) -> UMLArtifact:
     settings = settings or get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -591,17 +621,30 @@ def run_single_generation(
     else:
         validation_note = ""
 
+    adapt = AdaptationSession(diagram_type=diagram_type)
+    memory = AdaptationMemory()
     plantuml, p_name, p_ver, code_model, used_cot = generate_plantuml_code(
         spec_text,
         diagram_type,
         settings,
         input_mode=resolved_mode,
         spec_json=spec_json,
+        adapt=adapt,
+        memory=memory,
     )
     validation = validate_diagram(plantuml, diagram_type)
     validation_msgs = list(validation.messages)
     if validation_note:
         validation_msgs.insert(0, validation_note)
+    model_l = (code_model or "").lower()
+    if "spec-builder" in model_l or model_l == "template-fallback":
+        gen_label = "spec-builder"
+    elif "finetuned" in model_l:
+        gen_label = "lora"
+    else:
+        gen_label = adapt.generator or "llm"
+    record_generator(diagram_type, gen_label, ok=validation.ok, memory=memory)
+    adapt.note(event="generator_result", generator=gen_label, model=code_model, ok=validation.ok)
 
     artifact = UMLArtifact(
         job_id=job_id,
@@ -650,6 +693,17 @@ def run_single_generation(
             settings=settings,
             category=category,
             spec_json=spec_json,
+            tried=adapt.tried_strategies,
+            memory=memory,
+        )
+        adapt.tried_strategies.append(repair.strategy)
+        record_strategy(diagram_type, category, repair.strategy, ok=repair.success_validation, memory=memory)
+        adapt.note(
+            event="repair",
+            category=category,
+            strategy=repair.strategy,
+            ok=repair.success_validation,
+            reason=repair.reason,
         )
         session.add(
             RepairAttempt(
@@ -662,7 +716,7 @@ def run_single_generation(
             )
         )
         artifact.plantuml_code = repair.code
-        repair_notes += f"\n[{category}] {repair.reason}"
+        repair_notes += f"\n[{category}/{repair.strategy}] {repair.reason}"
         validation_msgs.extend(repair.messages)
         session.add(artifact)
         session.commit()
@@ -776,6 +830,22 @@ def run_single_generation(
         repair_iterations=attempt,
     )
     write_acceptance_sidecar(out_dir, final_report)
+    adapt.note(
+        event="final",
+        accepted=final_report.accepted,
+        failure_category=final_report.failure_category,
+        repair_iterations=attempt,
+    )
+    write_adaptation_sidecar(out_dir, adapt)
+    validation_msgs.insert(
+        0,
+        "ADAPT generator={gen} ({reason}); strategies={tried}; accepted={ok}".format(
+            gen=adapt.generator or gen_label,
+            reason=adapt.generator_reason or "n/a",
+            tried=",".join(adapt.tried_strategies) or "none",
+            ok=final_report.accepted,
+        ),
+    )
     validation_msgs.extend(final_report.summary_lines())
     artifact.validation_messages = "\n".join(validation_msgs) if validation_msgs else artifact.validation_messages
     artifact.updated_at = _utcnow()
@@ -803,17 +873,39 @@ def run_single_generation(
     else:
         artifact.render_status = "success"
         artifact.image_path = str(image_path)
-        scores, meta, _ = score_image(image_path, spec_text, settings)
-        verification = verify_scores(
-            scores,
-            settings.vlm_weight_map,
-            render_ok=True,
-            tau=settings.acceptance_tau,
-            min_composite=settings.min_composite_for_dataset,
-            min_votes=1 if settings.vlm_fast_mode else 2,
-        )
+        if skip_vlm:
+            for key in settings.vlm_weight_map:
+                scores[key] = None
+                meta[key] = {
+                    "model_name": key,
+                    "available": False,
+                    "explanation": "VLM scoring skipped (Score with VLMs was off)",
+                    "raw_output": None,
+                }
+            verification = verify_scores(
+                scores,
+                settings.vlm_weight_map,
+                render_ok=True,
+                tau=settings.acceptance_tau,
+                min_composite=settings.min_composite_for_dataset,
+                min_votes=0,
+            )
+            validation_msgs.append("VLM ensemble skipped (interactive generate)")
+        else:
+            scores, meta, _ = score_image(image_path, spec_text, settings)
+            verification = verify_scores(
+                scores,
+                settings.vlm_weight_map,
+                render_ok=True,
+                tau=settings.acceptance_tau,
+                min_composite=settings.min_composite_for_dataset,
+                min_votes=2,
+            )
 
     apply_verification(artifact, scores, meta, verification, session)
+    if skip_vlm:
+        artifact.dataset_accepted = False
+        artifact.majority_accepted = False
     if not final_report.accepted:
         artifact.dataset_accepted = False
     session.add(artifact)

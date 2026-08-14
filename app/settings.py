@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     plantuml_jar: Path = ROOT / "tools" / "plantuml.jar"
     image_format: str = "png"
     max_repair_attempts: int = 3
+    adaptation_memory_path: Path = ROOT / "data" / "adaptation_memory.json"
     mock_providers: bool = True
 
     openai_api_key: str = ""
@@ -72,6 +73,8 @@ class Settings(BaseSettings):
     finetuned_max_tokens: int = 1536
     # When true, score with only the first available VLM (much faster demos).
     vlm_fast_mode: bool = False
+    # Interactive Generate skips VLMs unless the client sets skip_vlm=false.
+    interactive_skip_vlm: bool = False
 
     api_base_url: str = "http://127.0.0.1:8000"
 

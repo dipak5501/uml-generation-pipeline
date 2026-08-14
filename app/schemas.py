@@ -38,6 +38,8 @@ class GenerateRequest(BaseModel):
     project_id: Optional[int] = None
     # Default true so UI navigation does not cancel in-flight HTTP generate calls.
     async_mode: bool = True
+    # Skip the 3-VLM ensemble (Qwen/LLaMA/Aya). Diagram + acceptance still run.
+    skip_vlm: bool = False
 
 
 class BatchGenerateRequest(BaseModel):

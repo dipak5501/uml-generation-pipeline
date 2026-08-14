@@ -39,6 +39,22 @@ for dtype, hist in by.items():
     st.markdown(f"**{dtype}**")
     st.bar_chart(pd.DataFrame({"score": list(hist.keys()), "count": list(hist.values())}).set_index("score"))
 
+try:
+    adapt = api_get("/api/adaptation/status")
+except Exception:
+    adapt = None
+if adapt and (adapt.get("generators") or adapt.get("recent")):
+    st.subheader("Self-adaptation")
+    st.caption("Win rates the pipeline uses to pick the next generator and repair strategy.")
+    gens = adapt.get("generators") or {}
+    if gens:
+        rows = [
+            {"type": dt, "generator": name, **cell}
+            for dt, cells in gens.items()
+            for name, cell in cells.items()
+        ]
+        st.dataframe(rows, use_container_width=True, hide_index=True)
+
 st.subheader("Repair stats")
 st.write(
     {

@@ -2,7 +2,7 @@ import time
 
 import streamlit as st
 
-from ui.api_client import api_get_bytes, api_post
+from ui.api_client import api_get, api_get_bytes, api_post
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -11,7 +11,15 @@ from ui.jobs import (
     render_active_job_banner,
     track_job,
 )
-from ui.theme import apply_theme, hero, panel
+from ui.theme import apply_theme, hero, panel, show_image
+
+
+def _vlm_skipped(artifact: dict) -> bool:
+    msgs = str(artifact.get("validation_messages") or "")
+    if "VLM ensemble skipped" in msgs or "VLM scoring skipped" in msgs:
+        return True
+    scores = artifact.get("model_scores") or []
+    return bool(scores) and all(not s.get("available", True) for s in scores)
 
 st.set_page_config(page_title="UML-Pipeline · Generate", layout="wide", page_icon="▦")
 apply_theme(show_job_banner=False)
@@ -72,7 +80,7 @@ panel(
     "Choose Requirement text or Source code, then generate. Pipeline: CoT PlantUML → "
     "validation → render gate → 3 VLMs → weighted composite S + majority vote A (τ=4) → "
     "dataset gate (A=1 and S≥3). The four paper UML types: class, object, component, package. "
-    "Generation runs in the background — you can switch pages while it works.",
+    "Turn on **Score with VLMs** to compute composite S (takes longer). Generation runs in the background."
 )
 
 input_mode_label = st.radio(
@@ -115,8 +123,8 @@ requirement = st.text_area(
 st.caption(
     "Tips for reliable runs: use 2–8 clear sentences (or a focused class file), pick one "
     "diagram type that matches the content, and avoid pasting entire repos. Long inputs are "
-    "auto-clipped for the model but still grounded structurally. Full VLM scoring can take "
-    "1–4 minutes; set `VLM_FAST_MODE=true` in `.env` for quicker demos."
+    "auto-clipped for the model but still grounded structurally. Leave **Score with VLMs** "
+    "on to get Qwen / LLaMA / Aya scores; uncheck it only if you want a fast diagram with no S."
 )
 
 left, right = st.columns([1.2, 1])
@@ -127,6 +135,12 @@ with left:
     )
 with right:
     gen_all = st.checkbox("Also generate the other diagram types", value=False)
+    score_vlm = st.checkbox(
+        "Score with VLMs (paper composite S)",
+        value=True,
+        help="If off, PlantUML still renders but S stays unscored (shown as 0 / —). "
+        "If on, generation waits for vision models (~1–2 minutes).",
+    )
 
 can_run = bool((requirement or "").strip())
 busy = active_job_id() is not None and (fetch_job(active_job_id() or 0) or {}).get("status") in (
@@ -161,6 +175,7 @@ if run and can_run and not busy:
                 "diagram_types": types,
                 "input_mode": input_mode,
                 "async_mode": True,
+                "skip_vlm": not score_vlm,
             },
         )
         job_id = int(result["job_id"])
@@ -215,6 +230,7 @@ render_ok = artifact["render_status"] == "success"
 syntax_ok = not (artifact.get("validation_messages") or "").strip()
 scores = artifact.get("model_scores") or []
 available = [s for s in scores if s.get("available", True)]
+vlm_skipped = _vlm_skipped(artifact)
 vlm_ok = bool(available) and render_ok
 composite = artifact.get("composite_score", 0)
 majority_ok = bool(artifact.get("majority_accepted"))
@@ -226,8 +242,8 @@ v1, v2, v3, v4, v5 = st.columns(5)
 v1.metric("1. Spec + CoT", "Pass" if artifact.get("used_cot", True) else "Spec only")
 v2.metric("2. PlantUML syntax", "Pass" if syntax_ok else "Flags")
 v3.metric("3. Render gate", "Pass" if render_ok else "Fail → score 0")
-v4.metric("4. Composite S", f"{composite:.2f}")
-v5.metric("5. Majority A", f"{'Yes' if majority_ok else 'No'} ({votes}/3 ≥τ={tau:g})")
+v4.metric("4. Composite S", "not scored" if vlm_skipped else f"{composite:.2f}")
+v5.metric("5. Majority A", "not scored" if vlm_skipped else f"{'Yes' if majority_ok else 'No'} ({votes}/3 ≥τ={tau:g})")
 
 st.caption(
     f"Dataset entry accepted: **{'Yes' if dataset_ok else 'No'}** "
@@ -247,7 +263,19 @@ with c1:
     st.code(artifact["plantuml_code"], language="text")
     st.download_button("Download PlantUML", artifact["plantuml_code"], file_name="diagram.puml")
 with c2:
-    st.metric("Final weighted score", f"{artifact['composite_score']:.3f}")
+    st.metric(
+        "Final weighted score",
+        "not scored" if _vlm_skipped(artifact) else f"{artifact['composite_score']:.3f}",
+    )
+    if artifact.get("render_status") == "success":
+        if st.button("Rescore with VLMs", key=f"rescore-{artifact['id']}"):
+            try:
+                updated = api_post(f"/api/artifacts/{artifact['id']}/rescore", {})
+                st.session_state["last_artifact"] = updated
+                st.success("VLM scoring finished.")
+                st.rerun()
+            except Exception as exc:
+                st.error(str(exc))
     st.caption(
         "Weights (MMMU): Qwen 53.1 · LLaMA-Vision 50.7 · Aya-Vision 39.9 · "
         "render failure forces S=0; majority vote τ=4 (≥2 VLMs)."
@@ -261,11 +289,7 @@ with c2:
     if artifact["render_status"] == "success":
         try:
             img = api_get_bytes(f"/api/artifacts/{artifact['id']}/image")
-            st.image(
-                img,
-                caption="Rendered + multimodal-validated diagram",
-                use_column_width=True,
-            )
+            show_image(img, caption="Rendered + multimodal-validated diagram")
             st.download_button(
                 "Download image",
                 img,
@@ -290,6 +314,21 @@ else:
 if artifact.get("repair_attempts"):
     st.subheader("Repair attempts")
     st.table(artifact["repair_attempts"])
+
+try:
+    adapt = api_get(f"/api/artifacts/{artifact['id']}/adaptation")
+except Exception:
+    adapt = None
+if adapt and (adapt.get("events") or adapt.get("generator")):
+    st.subheader("Self-adaptation")
+    st.caption(adapt.get("generator_reason") or "")
+    st.write(
+        f"Generator: `{adapt.get('generator') or '—'}` · "
+        f"strategies tried: `{', '.join(adapt.get('tried_strategies') or []) or 'none'}`"
+    )
+    events = adapt.get("events") or []
+    if events:
+        st.dataframe(events, use_container_width=True, hide_index=True)
 
 extras = st.session_state.get("last_artifacts") or []
 if len(extras) > 1:

@@ -366,7 +366,25 @@ def extract_named_concepts(text: str) -> list[str]:
             for tok in tokens[-2:]:
                 _add(_singularize_token(tok))
 
-    # CamelCase / PascalCase service-style tokens (CartService) — prefer these
+    # Verb + object: "browse products", "place orders", "shopping cart"
+    if re.search(r"(?i)shopping\s+carts?", text):
+        _add("Cart")
+    for m in re.finditer(
+        r"(?i)\b(?:browse|add|place|make|track|manage|create|book)\s+"
+        r"(?:a\s+|the\s+|an\s+)?([a-z]{3,})",
+        text,
+    ):
+        tok = m.group(1)
+        if tok.lower() not in {"and", "the", "for", "with", "from"}:
+            _add(_singularize_token(tok))
+    # Actors: "Customers can …", "administrators manage"
+    for m in re.finditer(r"(?i)\b([A-Za-z]{4,})\s+(?:can|may|should|will|must)\b", text):
+        _add(_singularize_token(m.group(1)))
+    for m in re.finditer(
+        r"(?i)\b(?:while|and)\s+([A-Za-z]{4,})\s+(?:manage|handle|process|administer)\b",
+        text,
+    ):
+        _add(_singularize_token(m.group(1)))
     for tok in re.findall(r"\b([A-Z][a-z]+(?:[A-Z][a-zA-Z0-9]+)+)\b", text):
         _add(tok)
 
@@ -384,6 +402,8 @@ def extract_named_concepts(text: str) -> list[str]:
 
 
 def _singularize_token(name: str) -> str:
+    if len(name) > 4 and name.lower().endswith("ies"):
+        return name[:-3] + "y"
     if len(name) > 3 and name.endswith("s") and not name.endswith("ss"):
         return name[:-1]
     return name

@@ -1,7 +1,7 @@
 import streamlit as st
 
 from ui.api_client import api_get, api_get_bytes
-from ui.theme import apply_theme, hero, stats_row
+from ui.theme import apply_theme, hero, stats_row, show_image
 
 st.set_page_config(page_title="UML-Pipeline · Dashboard", layout="wide", page_icon="▦")
 apply_theme()
@@ -60,7 +60,7 @@ else:
                 st.caption(" ".join((art.get("source_requirement") or "").split())[:100])
                 if art.get("render_status") == "success":
                     try:
-                        st.image(api_get_bytes(f"/api/artifacts/{art['id']}/image"), use_container_width=True)
+                        show_image(api_get_bytes(f"/api/artifacts/{art['id']}/image"))
                     except Exception:
                         st.caption("Image unavailable")
                 else:
