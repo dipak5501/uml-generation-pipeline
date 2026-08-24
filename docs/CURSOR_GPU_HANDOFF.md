@@ -52,11 +52,31 @@ Start script: `./scripts/run_local.sh` → API `:8000`, UI `:8501`.
 
 ### Apple Silicon GPU (M-series iMac / Mac Studio)
 
-Same stack as the original Mac:
+**Verified target device:** Mac Studio (`Mac13,2`), **Apple M1 Ultra**, **128 GB** unified memory. That is **not** NVIDIA CUDA. Do **not** run `make finetune-cuda` or `scripts/finetune_plantuml_cuda.py` on it.
 
-- `make install` / `make install-java` / `make train-real` (MLX LoRA)
-- Dual Ollama: `scripts/ensure_ollama_dual.sh`
-- Aya: vLLM **or** leave `USE_AYA=false` (do not `model.to("mps")`)
+Use the Apple stack:
+
+- `make install` / `make install-java` / `make train-real` (**MLX** LoRA)
+- Dual Ollama: `scripts/ensure_ollama_dual.sh` (0.24 `:11434` for LLaMA-Vision, 0.32 `:11435` for Qwen2.5-VL)
+- Copy `models/uml-plantuml-lora/` from the old Mac if you already trained it (MLX adapters **are** useful here)
+- Aya-Vision-8B: **128 GB is enough** for `VLM_AYA_BACKEND=local` (transformers on MPS). The old **24 GB** M2 hung on `model.to("mps")` — that guard still applies below 64 GB. Do **not** use NVIDIA vLLM on this Mac.
+
+`.env` on the Mac Studio (live, not mock):
+
+```bash
+MOCK_PROVIDERS=false
+USE_OLLAMA=true
+USE_HF_INFERENCE=false
+USE_FINETUNED_CODE=true
+FINETUNED_BASE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora
+USE_AYA=true
+VLM_AYA_BACKEND=local
+VLM_MODELS=qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b
+VLM_FAST_MODE=false
+```
+
+Put `HF_TOKEN` only in that machine’s `.env`. Never commit it.
 
 ### NVIDIA GPU (Linux / Windows + CUDA)
 
@@ -166,19 +186,37 @@ FINETUNED_MAX_TOKENS=1536
 
 ## 6. App `.env` (live, not mock)
 
+**Mac Studio M1 Ultra 128 GB (Apple path):**
+
 ```bash
 MOCK_PROVIDERS=false
-USE_OLLAMA=true          # or false if all VLMs are vLLM
+USE_OLLAMA=true
 USE_HF_INFERENCE=false
-USE_FINETUNED_CODE=true  # Apple MLX only unless CUDA PEFT adapters exist
+USE_FINETUNED_CODE=true
+FINETUNED_BASE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora
 USE_AYA=true
-VLM_AYA_BACKEND=openai_compat
-AYA_VLM_BASE_URL=http://127.0.0.1:8001/v1
+VLM_AYA_BACKEND=local
 VLM_MODELS=qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b
 VLM_FAST_MODE=false
 PLANTUML_PREFER_LOCAL=true
 ACCEPTANCE_TAU=4.0
 MIN_COMPOSITE_FOR_DATASET=3.0
+```
+
+**NVIDIA only** (not the Mac Studio):
+
+```bash
+MOCK_PROVIDERS=false
+USE_OLLAMA=true          # or false if all VLMs are vLLM
+USE_HF_INFERENCE=false
+USE_FINETUNED_CODE=true
+FINETUNED_BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+USE_AYA=true
+VLM_AYA_BACKEND=openai_compat
+AYA_VLM_BASE_URL=http://127.0.0.1:8001/v1
+VLM_MODELS=qwen2.5vl:3b,llama3.2-vision:11b,aya-vision:8b
+VLM_FAST_MODE=false
 ```
 
 Copy `HF_TOKEN` from the old Mac `.env` (do not paste into chat).
@@ -200,10 +238,10 @@ Parser: `uml_pipeline/llm_client.py` `extract_vlm_score` must accept `**SEMANTIC
 ## 7. What we already learned (do not repeat mistakes)
 
 - Azure for Students: T4 quota **0**; increase failed `ResourceNotAvailableForOffer`. CPU ACI Aya was slow and **timed out** in the live app.
-- Do not load Aya with `model.to("mps")` on 24 GB.
+- Do not load Aya with `model.to("mps")` on **24 GB**. On **Mac Studio M1 Ultra 128 GB**, `VLM_AYA_BACKEND=local` is the paper path (unified memory is enough).
 - One Ollama **0.32** cannot run LLaMA-Vision (`mllama`). Dual servers: 0.24 `:11434` + 0.32 `:11435`.
 - Generate jobs are **in-process**; restarting the API kills them. Status polls must not report “API offline” on slow VLM calls.
-- Interactive UI on one LAN iMac: `./scripts/run_local.sh`, bind `0.0.0.0`, don’t sleep the machine.
+- Interactive UI on one LAN Mac: `./scripts/run_local.sh`, bind `0.0.0.0`, don’t sleep the machine.
 - Stop Azure: `bash scripts/stop_azure_aya.sh`. Stop Kaggle GPU sessions when idle.
 
 ---
@@ -216,21 +254,23 @@ Copy everything between the lines:
 
 You are setting up UML-Pipeline from scratch on THIS machine (it has a GPU). Full handoff: `docs/CURSOR_GPU_HANDOFF.md` in the repo.
 
-Goal: download all training/eval datasets, train (or CUDA-retrain) the PlantUML generator, run Aya-Vision-8B on GPU via vLLM, run Qwen2.5-VL-3B and LLaMA-3.2-Vision-11B as the other two paper VLMs, start FastAPI :8000 + Streamlit :8501, verify a generate+score with all three VLMs returning numeric scores.
+Goal: download all training/eval datasets, train (or CUDA-retrain) the PlantUML generator, run Aya-Vision-8B, run Qwen2.5-VL-3B and LLaMA-3.2-Vision-11B as the other two paper VLMs, start FastAPI :8000 + Streamlit :8501, verify a generate+score with all three VLMs returning numeric scores.
 
 Repo: clone https://github.com/dipak5501/uml-generation-pipeline.git if not already open.
 
-Detect GPU: Apple Silicon vs NVIDIA CUDA. MLX LoRA (`scripts/finetune_plantuml.py`, `FinetunedMLXProvider`) is Apple-only. On NVIDIA, download the same HF corpora, prepare `data/finetune/*.jsonl`, train PEFT/CUDA (do not use mlx_lm), serve Aya with vLLM on a port other than 8000, wire `.env` `VLM_AYA_BACKEND=openai_compat`.
+Detect GPU first:
+- **Apple Silicon (including Mac Studio M1 Ultra 128 GB):** MLX LoRA (`make train-real` / `scripts/finetune_plantuml.py`). Dual Ollama (0.24 `:11434` llama3.2-vision:11b, 0.32 `:11435` qwen2.5vl:3b). Aya: `VLM_AYA_BACKEND=local` (128 GB is enough; do **not** use CUDA scripts or vLLM). Copy existing `models/uml-plantuml-lora/` from the old Mac if present.
+- **NVIDIA CUDA:** download the same HF corpora, prepare `data/finetune/*.jsonl`, train PEFT with `scripts/finetune_plantuml_cuda.py` (do not use mlx_lm), serve Aya with vLLM on port 8001, wire `.env` `VLM_AYA_BACKEND=openai_compat`.
 
 Steps:
 1. `make install` (and Java/PlantUML). Copy HF_TOKEN into `.env` from the user (never commit, never print).
 2. `python scripts/build_training_corpus.py --target 8000 --include-flowchart`
 3. `make scenario-corpus` then `make finetune-prepare`
-4. Train: `make train-real` on Apple; CUDA LoRA on NVIDIA.
-5. Pull/serve VLMs. Aya: accept CohereLabs/aya-vision-8b license. Do not load Aya in-process on CPU/MPS.
-6. `.env`: MOCK_PROVIDERS=false, VLM_FAST_MODE=false, USE_AYA=true with openai_compat, paper VLM_MODELS, USE_FINETUNED_CODE if adapters exist for this platform.
+4. Train: `make train-real` on Apple; CUDA LoRA only on NVIDIA.
+5. Pull/serve VLMs. Aya: accept CohereLabs/aya-vision-8b license. On 24 GB Mac do not load Aya in-process; on 128 GB Mac Studio local MPS is OK.
+6. `.env`: MOCK_PROVIDERS=false, VLM_FAST_MODE=false, USE_AYA=true, paper VLM_MODELS, USE_FINETUNED_CODE if adapters exist for this platform. Apple: VLM_AYA_BACKEND=local USE_OLLAMA=true. NVIDIA: openai_compat + :8001.
 7. `./scripts/run_local.sh`. Health: http://127.0.0.1:8000/api/settings/health
-8. Generate one class diagram with VLM scoring on. Confirm three model keys qwen25vl3b, llama32vl11b, aya_vision_8b are available≠0 timeout. Fix parse_score_response if models emit markdown or `<0-6>` placeholders.
+8. Generate one class diagram with VLM scoring on. Confirm three model keys qwen25vl3b, llama32vl11b, aya_vision_8b are available≠0 timeout.
 
 Do not convert Azure to PAYG. Do not put secrets in notebooks or git. Prefer this machine’s GPU over Azure student VMs (T4 blocked) and over Kaggle for the live app.
 

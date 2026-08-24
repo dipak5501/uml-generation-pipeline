@@ -1,9 +1,11 @@
-"""Local paper-exact Aya-Vision-8B scorer (Apple MPS / CPU)."""
+"""Local paper-exact Aya-Vision-8B scorer (Apple MPS / CUDA)."""
 
 from __future__ import annotations
 
 import logging
 import os
+import subprocess
+import sys
 import threading
 from pathlib import Path
 
@@ -15,6 +17,52 @@ _LOCK = threading.Lock()
 _MODEL = None
 _PROCESSOR = None
 _MODEL_ID: str | None = None
+
+# 24 GB M2 hung on model.to("mps"). Mac Studio M1 Ultra 128 GB unified memory is enough.
+_AYA_MPS_MIN_GB = 64.0
+
+
+def host_memory_gb() -> float:
+    """Best-effort physical RAM in GiB (unified memory on Apple Silicon)."""
+    if sys.platform == "darwin":
+        try:
+            raw = subprocess.check_output(["sysctl", "-n", "hw.memsize"], text=True).strip()
+            return int(raw) / (1024**3)
+        except (OSError, ValueError):
+            return 0.0
+    meminfo = Path("/proc/meminfo")
+    if meminfo.is_file():
+        try:
+            for line in meminfo.read_text(encoding="utf-8").splitlines():
+                if line.startswith("MemTotal:"):
+                    return int(line.split()[1]) / (1024**2)
+        except (OSError, ValueError, IndexError):
+            return 0.0
+    return 0.0
+
+
+def select_aya_device(
+    *,
+    cuda: bool,
+    mps: bool,
+    memory_gb: float,
+    allow_inprocess: bool,
+) -> str:
+    """Pick cuda / mps / cpu, or raise if in-process Aya would hang on a small Mac."""
+    if cuda:
+        return "cuda"
+    high_mem_mps = mps and memory_gb >= _AYA_MPS_MIN_GB
+    if mps and (allow_inprocess or high_mem_mps):
+        return "mps"
+    if allow_inprocess:
+        return "cpu"
+    raise RuntimeError(
+        "Refusing to load Aya-Vision-8B in-process on this machine "
+        f"(RAM={memory_gb:.0f} GB; MPS needs ≥{_AYA_MPS_MIN_GB:.0f} GB unified memory, "
+        "e.g. Mac Studio M1 Ultra 128 GB). On 24 GB Macs this hung. "
+        "NVIDIA: vLLM + VLM_AYA_BACKEND=openai_compat AYA_VLM_BASE_URL=http://127.0.0.1:8001/v1. "
+        "Override with UML_ALLOW_AYA_INPROCESS=true only for debugging."
+    )
 
 
 def _load(model_id: str, hf_token: str | None = None):
@@ -31,22 +79,13 @@ def _load(model_id: str, hf_token: str | None = None):
     logger.info("Loading Aya-Vision from %s …", source)
 
     allow_inprocess = os.getenv("UML_ALLOW_AYA_INPROCESS", "").lower() in {"1", "true", "yes"}
-    if torch.cuda.is_available():
-        device = "cuda"
-        dtype = torch.float16
-    elif allow_inprocess and torch.backends.mps.is_available():
-        device = "mps"
-        dtype = torch.float16
-    elif allow_inprocess:
-        device = "cpu"
-        dtype = torch.float32
-    else:
-        raise RuntimeError(
-            "Refusing to load Aya-Vision-8B in-process on CPU/MPS (known hang / timeout). "
-            "Serve it with vLLM on a CUDA GPU and set VLM_AYA_BACKEND=openai_compat "
-            "AYA_VLM_BASE_URL=http://127.0.0.1:8001/v1. Override only with "
-            "UML_ALLOW_AYA_INPROCESS=true for debugging."
-        )
+    device = select_aya_device(
+        cuda=torch.cuda.is_available(),
+        mps=bool(getattr(torch.backends, "mps", None) and torch.backends.mps.is_available()),
+        memory_gb=host_memory_gb(),
+        allow_inprocess=allow_inprocess,
+    )
+    dtype = torch.float32 if device == "cpu" else torch.float16
     token = None if is_local else (hf_token or True)
 
     processor = AutoProcessor.from_pretrained(

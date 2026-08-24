@@ -134,6 +134,28 @@ def test_detect_finetuned_backend_peft_vs_mlx(tmp_path):
     assert isinstance(mlx_provider, FinetunedMLXProvider)
 
 
+def test_select_aya_device_mac_studio_128gb_allows_mps():
+    from app.providers.aya_local_provider import select_aya_device
+
+    assert (
+        select_aya_device(cuda=False, mps=True, memory_gb=128.0, allow_inprocess=False)
+        == "mps"
+    )
+
+
+def test_select_aya_device_24gb_mac_refuses_mps():
+    from app.providers.aya_local_provider import select_aya_device
+
+    with pytest.raises(RuntimeError, match="24"):
+        select_aya_device(cuda=False, mps=True, memory_gb=24.0, allow_inprocess=False)
+
+
+def test_select_aya_device_cuda_wins():
+    from app.providers.aya_local_provider import select_aya_device
+
+    assert select_aya_device(cuda=True, mps=True, memory_gb=24.0, allow_inprocess=False) == "cuda"
+
+
 def test_aya_openai_compat_requires_base_url():
     settings = Settings(
         mock_providers=False,
