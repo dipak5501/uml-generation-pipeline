@@ -92,6 +92,48 @@ def test_build_vlm_providers_hybrid_keys():
     assert isinstance(providers["aya_vision_8b"], OpenAIProvider)
 
 
+def test_use_aya_false_marks_unavailable():
+    from app.providers.factory import UnavailableProvider
+
+    settings = Settings(
+        mock_providers=False,
+        use_aya=False,
+        vlm_aya_backend="openai_compat",
+        aya_vlm_base_url="http://127.0.0.1:8001/v1",
+    )
+    p = _build_aya_provider(settings, "aya-vision:8b")
+    assert isinstance(p, UnavailableProvider)
+    with pytest.raises(RuntimeError, match="USE_AYA=false"):
+        p.vision_score("/tmp/x.png", "score")
+
+
+def test_detect_finetuned_backend_peft_vs_mlx(tmp_path):
+    from app.providers.finetuned_provider import (
+        detect_finetuned_backend,
+        peft_base_model_id,
+        build_finetuned_provider,
+        FinetunedPeftProvider,
+        FinetunedMLXProvider,
+    )
+
+    peft_dir = tmp_path / "peft"
+    peft_dir.mkdir()
+    (peft_dir / "adapter_config.json").write_text("{}", encoding="utf-8")
+    assert detect_finetuned_backend(peft_dir, "Qwen/Qwen2.5-0.5B-Instruct") == "peft"
+    provider = build_finetuned_provider("mlx-community/Qwen2.5-0.5B-Instruct-4bit", peft_dir)
+    assert isinstance(provider, FinetunedPeftProvider)
+    assert peft_base_model_id("mlx-community/Qwen2.5-0.5B-Instruct-4bit") == "Qwen/Qwen2.5-0.5B-Instruct"
+
+    mlx_dir = tmp_path / "mlx"
+    mlx_dir.mkdir()
+    (mlx_dir / "adapters.safetensors").write_bytes(b"x")
+    assert detect_finetuned_backend(mlx_dir, "mlx-community/Qwen2.5-0.5B-Instruct-4bit") == "mlx"
+    mlx_provider = build_finetuned_provider(
+        "mlx-community/Qwen2.5-0.5B-Instruct-4bit", mlx_dir
+    )
+    assert isinstance(mlx_provider, FinetunedMLXProvider)
+
+
 def test_aya_openai_compat_requires_base_url():
     settings = Settings(
         mock_providers=False,

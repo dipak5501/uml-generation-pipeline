@@ -121,8 +121,11 @@ def health(session: Session = Depends(get_session)):
         else:
             messages.append(
                 f"USE_FINETUNED_CODE=true but adapter missing at {settings.finetuned_adapter_path} "
-                "(run: python scripts/finetune_plantuml.py)"
+                "(NVIDIA: python scripts/finetune_plantuml_cuda.py · Apple: python scripts/finetune_plantuml.py)"
             )
+
+    if not settings.use_aya:
+        messages.append("USE_AYA=false — third paper VLM slot (Aya-Vision-8B) is skipped")
 
     if not access_token_configured():
         messages.append(

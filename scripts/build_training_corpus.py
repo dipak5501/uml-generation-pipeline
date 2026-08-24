@@ -280,6 +280,11 @@ def main() -> None:
         help="Exclude flowchart/activity rows (default includes them to reach 8000)",
     )
     parser.add_argument(
+        "--include-flowchart",
+        action="store_true",
+        help="Accepted for compatibility; flowcharts are included by default unless --no-flowchart",
+    )
+    parser.add_argument(
         "--no-topup-sources",
         action="store_true",
         help="Do not use deployment/extra open repos for fill",

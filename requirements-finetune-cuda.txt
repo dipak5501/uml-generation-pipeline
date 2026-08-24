@@ -1,0 +1,6 @@
+# NVIDIA CUDA LoRA (do not install on Apple Silicon — use requirements-finetune.txt / mlx-lm)
+torch>=2.4.0
+transformers>=4.44.0
+peft>=0.12.0
+accelerate>=0.33.0
+safetensors>=0.4.0

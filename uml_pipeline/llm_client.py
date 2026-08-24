@@ -105,7 +105,7 @@ class LLMClient:
             r = client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
             r.raise_for_status()
             text = r.json()["choices"][0]["message"]["content"].strip()
-        score, explanation = parse_score_response(text)
+        score, explanation = _score_from_vlm_text(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
     def _ollama_vision(self, image_path: Path, prompt: str) -> VisionAssessment:
@@ -156,7 +156,7 @@ class LLMClient:
             else:
                 if last_exc:
                     raise last_exc
-        score, explanation = parse_score_response(text)
+        score, explanation = _score_from_vlm_text(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
 
@@ -194,17 +194,42 @@ def _image_b64(image_path: Path, max_side: int = 1280) -> str:
     return base64.b64encode(raw).decode()
 
 
-def parse_score_response(text: str) -> tuple[int, str | None]:
-    """Extract SCORE (0–6) and optional EXPLANATION from a VLM reply."""
+# Unfilled prompt templates such as "SEMANTIC: <0-6>" must not become score 0.
+_SCORE_PLACEHOLDER_RE = re.compile(
+    r"<\s*(?:integer\s+)?0\s*[-–to/]+\s*6\s*>|<\s*int(?:eger)?\s*>",
+    re.IGNORECASE,
+)
+
+
+def _strip_score_markup(text: str) -> str:
+    return (text or "").replace("**", "").replace("__", "").replace("`", "")
+
+
+def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
+    """Parse a VLM reply into (score, explanation).
+
+    Returns ``score=None`` when no real 0–6 value is present (including replies
+    that only echo ``<0-6>`` placeholders). Callers that need a numeric default
+    should use :func:`parse_score_response`.
+    """
+    raw = text or ""
+    scrubbed = _SCORE_PLACEHOLDER_RE.sub(" ", raw)
+    scrubbed = _strip_score_markup(scrubbed)
+
     score: int | None = None
     explanation: str | None = None
 
-    m_score = re.search(r"(?im)^\s*SCORE\s*[:\-]\s*([0-6])\b", text)
+    m_score = re.search(r"(?im)^\s*SCORE\s*[:\-]\s*([0-6])\b", scrubbed)
     if m_score:
         score = int(m_score.group(1))
+    if score is None:
+        m_sem = re.search(r"(?i)\bSEMANTIC\s*[:\-]\s*([0-6])\b", scrubbed)
+        if m_sem:
+            score = int(m_sem.group(1))
+
     m_exp = re.search(
-        r"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:SCORE|EXPLANATION)\s*[:\-]|\Z)",
-        text,
+        r"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:SCORE|EXPLANATION|SEMANTIC)\s*[:\-]|\Z)",
+        _strip_score_markup(raw),
     )
     if m_exp:
         explanation = " ".join(m_exp.group(1).strip().split())
@@ -212,23 +237,45 @@ def parse_score_response(text: str) -> tuple[int, str | None]:
             explanation = None
 
     if score is None:
-        for token in text.replace(".", " ").split():
+        for token in scrubbed.replace(".", " ").replace("/", " ").split():
+            token = token.strip("()[]{},;:")
             if token.isdigit():
                 val = int(token)
                 if 0 <= val <= 6:
                     score = val
                     break
-    if score is None:
-        score = 0
 
     if explanation is None:
-        # Fall back to non-score prose so the UI still shows something useful.
-        cleaned = re.sub(r"(?im)^\s*SCORE\s*[:\-]\s*[0-6]\s*$", "", text).strip()
+        cleaned = re.sub(r"(?im)^\s*SCORE\s*[:\-]\s*[0-6]\s*$", "", _strip_score_markup(raw)).strip()
         cleaned = re.sub(r"(?im)^\s*EXPLANATION\s*[:\-]\s*", "", cleaned).strip()
+        cleaned = _SCORE_PLACEHOLDER_RE.sub(" ", cleaned)
         cleaned = " ".join(cleaned.split())
         if cleaned and cleaned != str(score):
             explanation = cleaned[:800] or None
 
+    return score, explanation
+
+
+def parse_score_response(text: str) -> tuple[int, str | None]:
+    """Extract SCORE (0–6) and optional EXPLANATION from a VLM reply.
+
+    Unparseable replies (markdown-stripped placeholders with no integer) default
+    to 0. Live scorers should use :func:`extract_vlm_score` and treat ``None``
+    as unavailable rather than a genuine zero.
+    """
+    score, explanation = extract_vlm_score(text)
+    return (0 if score is None else score), explanation
+
+
+def _score_from_vlm_text(text: str) -> tuple[int, str | None]:
+    """Require a real 0–6 parse so placeholder ``<0-6>`` is not a fake zero."""
+    score, explanation = extract_vlm_score(text)
+    if score is None:
+        snippet = (text or "").strip().replace("\n", " ")[:220]
+        raise RuntimeError(
+            "VLM score unparseable (markdown/placeholder, no integer 0-6): "
+            f"{snippet!r}"
+        )
     return score, explanation
 
 

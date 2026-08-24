@@ -58,6 +58,8 @@ FINETUNED_BASE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit
 
 Only the **PlantUML code** stage uses the LoRA adapter; spec + VLM scoring can stay mock or live. Restart `make api` after changing `.env`.
 
+NVIDIA CUDA machines must **retrain** with `make finetune-cuda` (MLX adapters will not load). See [docs/CURSOR_GPU_HANDOFF.md](docs/CURSOR_GPU_HANDOFF.md).
+
 ## Quick start (local)
 
 ```bash

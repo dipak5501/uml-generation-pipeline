@@ -3,10 +3,11 @@
 from __future__ import annotations
 
 import logging
+import os
 import threading
 from pathlib import Path
 
-from uml_pipeline.llm_client import VisionAssessment, parse_score_response
+from uml_pipeline.llm_client import VisionAssessment, _score_from_vlm_text
 
 logger = logging.getLogger(__name__)
 
@@ -29,8 +30,23 @@ def _load(model_id: str, hf_token: str | None = None):
     source = str(local_dir.resolve()) if is_local else model_id
     logger.info("Loading Aya-Vision from %s …", source)
 
-    device = "mps" if torch.backends.mps.is_available() else "cpu"
-    dtype = torch.float16 if device == "mps" else torch.float32
+    allow_inprocess = os.getenv("UML_ALLOW_AYA_INPROCESS", "").lower() in {"1", "true", "yes"}
+    if torch.cuda.is_available():
+        device = "cuda"
+        dtype = torch.float16
+    elif allow_inprocess and torch.backends.mps.is_available():
+        device = "mps"
+        dtype = torch.float16
+    elif allow_inprocess:
+        device = "cpu"
+        dtype = torch.float32
+    else:
+        raise RuntimeError(
+            "Refusing to load Aya-Vision-8B in-process on CPU/MPS (known hang / timeout). "
+            "Serve it with vLLM on a CUDA GPU and set VLM_AYA_BACKEND=openai_compat "
+            "AYA_VLM_BASE_URL=http://127.0.0.1:8001/v1. Override only with "
+            "UML_ALLOW_AYA_INPROCESS=true for debugging."
+        )
     token = None if is_local else (hf_token or True)
 
     processor = AutoProcessor.from_pretrained(
@@ -63,6 +79,8 @@ def unload_aya_model() -> None:
         try:
             import torch
 
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
             if torch.backends.mps.is_available():
                 torch.mps.empty_cache()
         except Exception:
@@ -120,5 +138,5 @@ class LocalAyaVisionProvider:
             if not text:
                 text = processor.tokenizer.decode(out[0], skip_special_tokens=True).strip()
 
-        score, explanation = parse_score_response(text)
+        score, explanation = _score_from_vlm_text(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)

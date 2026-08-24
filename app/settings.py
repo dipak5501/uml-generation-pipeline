@@ -65,10 +65,12 @@ class Settings(BaseSettings):
     min_composite_for_dataset: float = 3.0
     enable_cot: bool = True
 
-    # Local LoRA fine-tuned PlantUML generator (MLX on Apple Silicon)
+    # Local LoRA fine-tuned PlantUML generator (MLX on Apple Silicon, PEFT on NVIDIA)
     use_finetuned_code: bool = False
     finetuned_base_model: str = "mlx-community/Qwen2.5-0.5B-Instruct-4bit"
     finetuned_adapter_path: Path = ROOT / "models" / "uml-plantuml-lora"
+    # Paper Aya-Vision-8B (not on Ollama). False skips the 3rd VLM slot.
+    use_aya: bool = True
     # 512 truncates complex PlantUML; 1536 is safer for class/package diagrams.
     finetuned_max_tokens: int = 1536
     # When true, score with only the first available VLM (much faster demos).
@@ -95,11 +97,22 @@ class Settings(BaseSettings):
     def vlm_model_list(self) -> list[str]:
         return [m.strip() for m in self.vlm_models.split(",") if m.strip()]
 
+    def _finetuned_label(self) -> str:
+        try:
+            from app.providers.finetuned_provider import detect_finetuned_backend
+
+            backend = detect_finetuned_backend(
+                self.finetuned_adapter_path, self.finetuned_base_model
+            )
+        except Exception:
+            backend = "mlx" if "mlx" in self.finetuned_base_model.lower() else "peft"
+        return "finetuned-peft" if backend == "peft" else "finetuned-mlx"
+
     @property
     def provider_name(self) -> str:
         """Primary label for UI: prefer fine-tuned code stage when enabled."""
         if self.use_finetuned_code:
-            return "finetuned-mlx"
+            return self._finetuned_label()
         if self.mock_providers:
             return "mock"
         if self.use_ollama:
@@ -121,12 +134,12 @@ class Settings(BaseSettings):
             other = "huggingface"
         else:
             other = "openai"
-        code = "finetuned-mlx" if self.use_finetuned_code else other
+        code = self._finetuned_label() if self.use_finetuned_code else other
         if self.use_finetuned_code and self.mock_providers:
             return f"spec/VLM={other} · code={code}"
         if self.use_hf_inference and not self.mock_providers:
             code_label = (
-                "finetuned-mlx"
+                self._finetuned_label()
                 if self.use_finetuned_code
                 else self.code_model.split("/")[-1]
             )
