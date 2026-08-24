@@ -131,13 +131,19 @@ make scenario-corpus    # or scripts/build_scenario_code_corpus.py
 make finetune-prepare   # data/finetune/{train,valid,test}.jsonl
 ```
 
-### Optional gated class scored set
+### Optional gated class scored set — skip if you do not have access
+
+`nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Scored` is **not required**.
+The 8k training corpus already uses the **open** class RAW repo
+(`UMLCode-ClassDiagram-DeepSeek-32B-Reasoning-RAW`, ~5k rows) plus object/component/package scored sets.
+
+If Hugging Face still says “ask for access” on the *Scored* page, ignore it and continue.
+Do not block Mac Studio setup, LoRA training, or live VLM scoring on that dataset.
 
 ```bash
+# only if the owner later grants you access:
 python scripts/download_datasets.py --include-gated --only class --skip-errors
 ```
-
-Needs `HF_TOKEN` and license accept on the gated HF dataset page.
 
 ### Kaggle batch (optional GPU Aya scoring)
 
