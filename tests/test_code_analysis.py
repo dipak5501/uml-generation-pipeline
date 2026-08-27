@@ -81,6 +81,25 @@ def test_detect_source_language():
     assert detect_source_language("Build a bookstore.", "requirement") is None
 
 
+SAMPLE_C = '''#include <stdio.h>
+
+typedef struct User {
+    int id;
+    char name[64];
+} User;
+
+typedef struct Order {
+    User base;
+    void (*validate)(struct Order*);
+} Order;
+'''
+
+
+def test_detect_c_source_language():
+    assert detect_source_language(SAMPLE_C, "source_code") == "c"
+    assert looks_like_source_code(SAMPLE_C)
+
+
 def test_procedural_script_has_no_type_entities():
     from app.services.code_analysis import analyze_source_code
     from app.services.spec_json import structure_to_spec_json

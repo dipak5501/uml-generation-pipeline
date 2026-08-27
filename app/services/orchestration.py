@@ -268,6 +268,8 @@ def generate_plantuml_code(
     settings: Settings | None = None,
     *,
     input_mode: str = "requirement",
+    source_text: str = "",
+    source_language: str | None = None,
     spec_json: dict | None = None,
     adapt: AdaptationSession | None = None,
     memory: AdaptationMemory | None = None,
@@ -279,12 +281,24 @@ def generate_plantuml_code(
     if validation or fidelity checks fail.
     """
     from app.services.input_prepare import LORA_SPEC_CHARS, clip_for_llm
+    from app.services.lora_prompt import format_plantuml_user_prompt
 
     settings = settings or get_settings()
     name = diagram_prompt_name(diagram_type)
     # Long specs overwhelm the 0.5B LoRA; clip for the model, keep full JSON for builder.
     spec_for_llm = clip_for_llm(specification, LORA_SPEC_CHARS)
+    mode = resolve_input_mode(source_text or specification, input_mode)
+    lora_user = format_plantuml_user_prompt(
+        diagram_type=diagram_type,
+        specification=spec_for_llm,
+        input_mode=mode,
+        source_text=source_text,
+        source_language=source_language,
+        max_spec_chars=LORA_SPEC_CHARS,
+    )
     ref, prompt = render_prompt(name, "v1", specification=spec_for_llm)
+    if mode == "source_code" and source_text.strip():
+        prompt = lora_user
 
     # Scripts with no class types: never invent classes via LoRA.
     if spec_json and spec_json.get("script_without_types"):
@@ -632,6 +646,8 @@ def run_single_generation(
         diagram_type,
         settings,
         input_mode=resolved_mode,
+        source_text=requirement if resolved_mode == "source_code" else "",
+        source_language=source_language,
         spec_json=spec_json,
         adapt=adapt,
         memory=memory,

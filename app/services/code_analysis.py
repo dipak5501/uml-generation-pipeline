@@ -88,6 +88,12 @@ def detect_language(code: str) -> str:
         return "java"
     if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
         return "java"
+    if re.search(r"^\s*#\s*include\s*[<\"]", code, re.M) or re.search(
+        r"\btypedef\s+struct\b", code
+    ):
+        if re.search(r"\bstd::|namespace\s+\w+|class\s+\w+\s*:\s*public", code):
+            return "cpp"
+        return "c"
     if "fn " in code and ("impl " in code or "struct " in code):
         return "rust"
     if re.search(r"^\s*package\s+\w+|func\s+\(\w+\s+\*", code, re.M) or (
@@ -149,7 +155,7 @@ def looks_like_source_code(text: str) -> bool:
         return False
     signals = 0
     patterns = [
-        r"\b(class|def|function|interface|struct|enum|public|private|package|import)\b",
+        r"\b(class|def|function|interface|struct|enum|public|private|package|import|typedef)\b",
         r"[{};]\s*$",
         r"^\s{2,}\w+",
         r"->|=>|::",
@@ -157,6 +163,7 @@ def looks_like_source_code(text: str) -> bool:
         r"\bprint\s*\(",
         r"\binput\s*\(",
         r"^\s*#",
+        r"^\s*#\s*include\b",
     ]
     for p in patterns:
         if re.search(p, t, re.M):

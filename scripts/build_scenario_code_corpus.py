@@ -235,6 +235,54 @@ def build_scenarios(n: int, seed: int) -> list[dict]:
     return rows
 
 
+def build_code_samples_for_langs(
+    n: int,
+    seed: int,
+    langs: list[str] | None = None,
+) -> list[dict]:
+    """Build source-code training rows, optionally restricted to language ids."""
+    rng = random.Random(seed + 7)
+    templates = CODE_TEMPLATES
+    if langs:
+        want = {str(l).strip().lower() for l in langs}
+        templates = [(lang, tmpl) for lang, tmpl in CODE_TEMPLATES if lang in want]
+        if not templates:
+            raise ValueError(f"No CODE_TEMPLATES for languages={langs}")
+    rows: list[dict] = []
+    for i in range(n):
+        lang, tmpl = templates[i % len(templates)]
+        domain = DOMAINS[i % len(DOMAINS)]
+        ents = ENTITIES[domain]
+        a, b, c = rng.sample(ents, 3)
+        ma, mb = "process", "validate"
+        code = tmpl.format(
+            A=a, B=b, C=c, ma=ma, mb=mb, Ma=ma.capitalize(), Mb=mb.capitalize()
+        )
+        dtype = DIAGRAM_TYPES[i % len(DIAGRAM_TYPES)]
+        if dtype in ("object",) and lang in ("haskell", "r", "matlab"):
+            dtype = "class"
+        from app.services.code_analysis import structure_to_spec
+
+        spec = structure_to_spec(code, dtype)
+        uml = UML_BUILDERS[dtype]([a, b, c])
+        rows.append(
+            {
+                "id": _id("cd", str(i), lang, dtype),
+                "diagram_type": dtype,
+                "source_requirement": code,
+                "technical_spec": spec,
+                "uml_code": uml,
+                "human_language": "en",
+                "domain": domain,
+                "input_mode": "source_code",
+                "source_language": lang,
+                "dataset_accepted": True,
+                "source_dataset": "synthetic_code_langs_focused",
+            }
+        )
+    return rows
+
+
 def build_code_samples(n: int, seed: int) -> list[dict]:
     rng = random.Random(seed + 7)
     rows: list[dict] = []

@@ -19,6 +19,8 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.services.lora_prompt import format_plantuml_user_prompt
+
 SYSTEM = (
     "You are a UML expert. Given a technical specification and a target diagram type, "
     "output ONLY valid PlantUML between @startuml and @enduml. "
@@ -60,18 +62,20 @@ def row_to_messages(row: dict, max_spec: int, max_uml: int) -> dict | None:
     src_req = str(row.get("source_requirement") or "").strip()
 
     if input_mode == "source_code" and src_req and len(src_req) >= 20:
-        lang_label = source_lang or "source"
-        user = (
-            f"Target diagram type: {dtype}\n\n"
-            f"Source code context ({lang_label}):\n{_truncate(src_req, max_spec // 2)}\n\n"
-            f"Technical specification:\n{spec}\n\n"
-            f"Generate black-and-white PlantUML for a {dtype} diagram from this codebase."
+        user = format_plantuml_user_prompt(
+            diagram_type=dtype,
+            specification=spec,
+            input_mode=input_mode,
+            source_text=src_req,
+            source_language=source_lang,
+            max_spec_chars=max_spec,
         )
     else:
-        user = (
-            f"Target diagram type: {dtype}\n\n"
-            f"Technical specification:\n{spec}\n\n"
-            f"Generate PlantUML for a {dtype} diagram."
+        user = format_plantuml_user_prompt(
+            diagram_type=dtype,
+            specification=spec,
+            input_mode="requirement",
+            max_spec_chars=max_spec,
         )
     return {
         "messages": [

@@ -142,6 +142,7 @@ _LANG_MAP = {
     "javascript": "javascript",
     "java": "java",
     "python": "python",
+    "c": "c",
     "c#": "csharp",
     "go": "go",
     "c++": "cpp",
@@ -151,6 +152,8 @@ _LANG_MAP = {
     "html": "html",
     "css": "css",
 }
+
+DEFAULT_FOCUS_LANGS = ("java", "python", "c")
 
 
 def _norm_lang(raw: str | None) -> str | None:
@@ -205,6 +208,83 @@ def adapter_stack_source(item: dict[str, Any]) -> dict[str, Any] | None:
 
 # Register stack_source adapter
 ADAPTERS["stack_source"] = adapter_stack_source
+
+
+def _plantuml_entities(code: str, n: int = 6) -> list[str]:
+    names = re.findall(r"(?m)^\s*(?:class|interface|enum|object)\s+[\"']?(\w+)", code, flags=re.I)
+    out: list[str] = []
+    for name in names:
+        if name and name not in out:
+            out.append(name)
+        if len(out) >= n:
+            break
+    return out
+
+
+def _minimal_code_from_plantuml(uml: str, lang: str) -> str:
+    """Synthesize a small code sketch from PlantUML class names (web row enrichment)."""
+    ents = _plantuml_entities(uml, 4)
+    if len(ents) < 2:
+        return ""
+    a, b = ents[0], ents[1]
+    c = ents[2] if len(ents) > 2 else f"{a}Link"
+    lang = (lang or "java").lower()
+    if lang == "python":
+        return (
+            f"class {a}:\n"
+            f"    def process(self):\n"
+            f"        return True\n\n"
+            f"class {b}({a}):\n"
+            f"    def validate(self):\n"
+            f"        pass\n\n"
+            f"class {c}:\n"
+            f"    def link(self, other: '{b}'):\n"
+            f"        self.ref = other\n"
+        )
+    if lang == "c":
+        return (
+            f"#include <stdio.h>\n\n"
+            f"typedef struct {a} {{\n"
+            f"    int id;\n"
+            f"}} {a};\n\n"
+            f"typedef struct {b} {{\n"
+            f"    {a} base;\n"
+            f"}} {b};\n\n"
+            f"typedef struct {c} {{\n"
+            f"    {b}* ref;\n"
+            f"}} {c};\n"
+        )
+    return (
+        f"package demo;\n"
+        f"public class {a} {{\n"
+        f"  public void process() {{}}\n"
+        f"}}\n"
+        f"public class {b} extends {a} {{\n"
+        f"  public void validate() {{}}\n"
+        f"}}\n"
+        f"public class {c} {{\n"
+        f"  private {b} ref;\n"
+        f"}}\n"
+    )
+
+
+def _enrich_stack_row(row: dict[str, Any]) -> dict[str, Any]:
+    """Replace repo-comment stubs with minimal code when language is Java/Python/C."""
+    lang = str(row.get("source_language") or "").lower()
+    if lang not in DEFAULT_FOCUS_LANGS:
+        return row
+    uml = str(row.get("uml_code") or "")
+    code = _minimal_code_from_plantuml(uml, lang)
+    if len(code) < 40:
+        return row
+    from app.services.code_analysis import structure_to_spec
+
+    dtype = str(row.get("diagram_type") or "class")
+    row = dict(row)
+    row["source_requirement"] = code
+    row["technical_spec"] = structure_to_spec(code, dtype)
+    row["input_mode"] = "source_code"
+    return row
 
 
 def _sanitize_hf_row(item: dict[str, Any]) -> dict[str, Any]:
@@ -340,6 +420,7 @@ def select_source_corpus(
     target: int,
     exclude_hashes: set[str],
     seed: int,
+    focus_langs: set[str] | None = None,
 ) -> pd.DataFrame:
     import random
 
@@ -348,6 +429,12 @@ def select_source_corpus(
         mask = ~pool["uml_code"].map(lambda c: _code_hash(str(c)) in exclude_hashes)
         pool = pool[mask].copy()
         print(f"After excluding existing training: {len(pool)} rows")
+
+    if focus_langs:
+        langs = {str(l).lower() for l in focus_langs}
+        lang_mask = pool["source_language"].astype(str).str.lower().isin(langs)
+        pool = pool[lang_mask].copy()
+        print(f"After language filter {sorted(langs)}: {len(pool)} rows")
     if len(pool) < target:
         print(f"WARNING: only {len(pool)} unique rows (requested {target})")
 
@@ -393,7 +480,63 @@ def select_source_corpus(
     if not selected:
         return pd.DataFrame()
     out = pd.concat(selected, ignore_index=True)
-    return out.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+    out = out.sample(frac=1.0, random_state=seed).reset_index(drop=True)
+    if focus_langs:
+        out = pd.DataFrame([_enrich_stack_row(r) for r in out.to_dict(orient="records")])
+    return out
+
+
+def top_up_focus_langs(
+    corpus: pd.DataFrame,
+    *,
+    target: int,
+    langs: list[str],
+    seed: int,
+) -> pd.DataFrame:
+    """Honest synthetic top-up for Java/Python/C when web pool is short."""
+    if len(corpus) >= target:
+        return corpus.iloc[:target].copy()
+    need = target - len(corpus)
+    print(f"Top-up: {need} synthetic {langs} code samples (web pool short after filter/dedup)")
+    from scripts.build_scenario_code_corpus import build_code_samples_for_langs
+
+    per_lang = max(1, need // max(1, len(langs)))
+    rows: list[dict[str, Any]] = []
+    for i, lang in enumerate(langs):
+        chunk = build_code_samples_for_langs(per_lang + (1 if i < need % len(langs) else 0), seed + i * 1000, [lang])
+        for r in chunk:
+            uid = r.get("id") or f"{lang}-{i}"
+            r["source_dataset"] = "synthetic_code_langs_focused"
+            r["uml_code"] = str(r["uml_code"]).replace(
+                "@startuml", f"@startuml\n' training-id:{uid}", 1
+            )
+        rows.extend(chunk)
+    topup_df = pd.DataFrame(rows)
+    for col in corpus.columns:
+        if col not in topup_df.columns:
+            topup_df[col] = None
+    for col in topup_df.columns:
+        if col not in corpus.columns:
+            corpus[col] = None
+    combined = pd.concat([corpus, topup_df[corpus.columns]], ignore_index=True)
+    combined = combined.drop_duplicates(subset=["uml_code"], keep="first")
+    if len(combined) < target:
+        extra = build_code_samples_for_langs(target - len(combined) + 500, seed + 777_000, langs)
+        for r in extra:
+            uid = r.get("id") or "x"
+            r["source_dataset"] = "synthetic_code_langs_focused"
+            r["uml_code"] = str(r["uml_code"]).replace(
+                "@startuml", f"@startuml\n' training-id:{uid}", 1
+            )
+        extra_df = pd.DataFrame(extra)
+        for col in combined.columns:
+            if col not in extra_df.columns:
+                extra_df[col] = None
+        combined = pd.concat([combined, extra_df[combined.columns]], ignore_index=True)
+        combined = combined.drop_duplicates(subset=["uml_code"], keep="first")
+    if len(combined) > target:
+        combined = combined.sample(n=target, random_state=seed).reset_index(drop=True)
+    return combined
 
 
 def merge_existing(
@@ -430,6 +573,17 @@ def main() -> None:
     ap.add_argument("--target", type=int, default=50000)
     ap.add_argument("--seed", type=int, default=42)
     ap.add_argument(
+        "--languages",
+        default="",
+        help="Comma-separated focus languages (e.g. java,python,c). Empty = all.",
+    )
+    ap.add_argument(
+        "--output",
+        type=Path,
+        default=None,
+        help="Output parquet path (default: uml_source_code_50k.parquet or _10k_jpc)",
+    )
+    ap.add_argument(
         "--exclude-parquet",
         action="append",
         default=[
@@ -457,6 +611,9 @@ def main() -> None:
     )
     args = ap.parse_args()
     skip_dl = args.skip_hf_download and not args.allow_hf_download
+    focus_langs: set[str] | None = None
+    if args.languages.strip():
+        focus_langs = {l.strip().lower() for l in args.languages.split(",") if l.strip()}
 
     train_dir = ROOT / "data" / "training"
     train_dir.mkdir(parents=True, exist_ok=True)
@@ -466,18 +623,32 @@ def main() -> None:
     print(f"Excluding {len(exclude_hashes)} existing uml_code hashes")
 
     pool = load_source_pool(skip_hf_download=skip_dl)
-    print("Pool by source:", dict(Counter(pool["source_dataset"]).most_common(8)))
-    print("Pool input_mode:", dict(Counter(pool.get("input_mode", pd.Series(["?"])))))
+    if focus_langs:
+        lang_mask = pool["source_language"].astype(str).str.lower().isin(focus_langs)
+        pool_focus = pool[lang_mask].copy()
+        print(f"Focus-language pool: {len(pool_focus)} / {len(pool)} rows")
+    else:
+        pool_focus = pool
+    print("Pool by source:", dict(Counter(pool_focus["source_dataset"]).most_common(8)))
+    print("Pool input_mode:", dict(Counter(pool_focus.get("input_mode", pd.Series(["?"])))))
 
     corpus = select_source_corpus(
-        pool,
+        pool_focus,
         target=args.target,
         exclude_hashes=exclude_hashes,
         seed=args.seed,
+        focus_langs=focus_langs,
     )
 
     # Honest synthetic code top-up when unique web pool is exhausted after dedup.
-    if len(corpus) < args.target:
+    if focus_langs:
+        corpus = top_up_focus_langs(
+            corpus,
+            target=args.target,
+            langs=sorted(focus_langs),
+            seed=args.seed + 99_000,
+        )
+    elif len(corpus) < args.target:
         need = args.target - len(corpus)
         print(f"Top-up: {need} synthetic multi-language code samples (web pool exhausted after dedup)")
         from scripts.build_scenario_code_corpus import build_code_samples, to_training_frame
@@ -502,7 +673,12 @@ def main() -> None:
             corpus = corpus.sample(n=args.target, random_state=args.seed).reset_index(drop=True)
         print(f"After top-up: {len(corpus)} rows")
 
-    out_sc = train_dir / "uml_source_code_50k.parquet"
+    if args.output:
+        out_sc = args.output if args.output.is_absolute() else ROOT / args.output
+    elif focus_langs:
+        out_sc = train_dir / "uml_source_code_10k_jpc.parquet"
+    else:
+        out_sc = train_dir / "uml_source_code_50k.parquet"
     corpus.to_parquet(out_sc, index=False)
     corpus.to_json(out_sc.with_suffix(".jsonl"), orient="records", lines=True, force_ascii=False)
 
@@ -514,8 +690,10 @@ def main() -> None:
         "selected_source_code_rows": len(corpus),
         "combined_rows": len(combined),
         "excluded_hashes": len(exclude_hashes),
+        "focus_languages": sorted(focus_langs) if focus_langs else None,
         "by_source": dict(Counter(corpus["source_dataset"])),
         "by_input_mode": dict(Counter(corpus.get("input_mode", pd.Series(["?"])))),
+        "by_language": dict(Counter(corpus.get("source_language", pd.Series(["?"])))),
         "by_language_top": dict(
             Counter(corpus.get("source_language", pd.Series(["?"]))).most_common(20)
         ),
@@ -529,6 +707,8 @@ def main() -> None:
             "Primary web source: the-stack-v2_PlantUML_full (GitHub repo .puml + gha_language).",
             "Deduped against existing 50k + supplement parquets by uml_code hash.",
             "Combined parquet merges with uml_training_supplement_merged for finetune JSONL.",
+            "Java/Python/C focus: stack rows enriched with minimal code sketches from PlantUML entities.",
+            "Synthetic top-up via build_code_samples_for_langs when web pool is short (documented).",
         ],
     }
     man_path = train_dir / "source_code_manifest.json"

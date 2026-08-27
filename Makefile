@@ -104,6 +104,16 @@ train-200k:
 	ADAPTER_PATH=models/uml-plantuml-lora-200k ITERS=20000 LOG=data/training/finetune_200k.log bash scripts/run_finetune_resilient.sh
 	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-200k && restart API"
 
+# ≥10k Java/Python/C source-code LoRA fine-tune (warm-start from 200k adapter)
+train-source10k:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/build_source_code_corpus.py --target 10000 --languages java,python,c
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_source_code_10k_jpc.parquet --valid-ratio 0.05 --test-ratio 0.05
+	mkdir -p models/uml-plantuml-lora-source10k
+	@test -f models/uml-plantuml-lora-source10k/adapters.safetensors || cp models/uml-plantuml-lora-200k/adapters.safetensors models/uml-plantuml-lora-source10k/ 2>/dev/null || true
+	ADAPTER_PATH=models/uml-plantuml-lora-source10k ITERS=4000 LOG=data/training/finetune_source10k.log bash scripts/run_finetune_resilient.sh
+	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-source10k && restart API"
+
 # Autonomous: wait for 100k → deploy → collect v2 → train 200k
 pipeline-after-100k:
 	nohup bash scripts/pipeline_after_100k.sh >> data/training/pipeline_after_100k.log 2>&1 &
