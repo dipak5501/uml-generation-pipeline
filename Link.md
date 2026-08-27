@@ -4,18 +4,18 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://cure-happened-construction-considers.trycloudflare.com](https://cure-happened-construction-considers.trycloudflare.com)
+**Live UI:** [https://vcr-calculations-sub-gossip.trycloudflare.com](https://vcr-calculations-sub-gossip.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://cure-happened-construction-considers.trycloudflare.com |
-| Public API (docs / exports) | https://efficiency-coral-recall-definitely.trycloudflare.com |
+| Public UI (browser, any network) | https://vcr-calculations-sub-gossip.trycloudflare.com |
+| Public API (docs / exports) | https://computed-soma-toner-architecture.trycloudflare.com |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-08-27 18:10 UTC
+Updated: 2026-08-27 19:07 UTC
 
 ## Authentication
 
@@ -30,3 +30,11 @@ Updated: 2026-08-27 18:10 UTC
 | Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |
 
 See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
+
+## Git auto-sync
+
+Safe changes push to [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) every ~45 min via LaunchAgent `com.uml.pipeline.git-sync`.
+
+- Manual: `bash scripts/git_auto_push.sh`
+- Install/reinstall: `bash scripts/install_git_sync.sh`
+- Agents: commit + push safe files after work (never `.env`, `data/`, `models/`). See [docs/git_sync.md](docs/git_sync.md).
