@@ -56,9 +56,17 @@ tunnel_procs_ok() {
     && pgrep -f "cloudflared tunnel --protocol http2 --url http://127.0.0.1:8000" >/dev/null 2>&1
 }
 
+tunnels_agent_loaded() {
+  local uid_num
+  uid_num="$(id -u)"
+  launchctl print "gui/${uid_num}/com.uml.pipeline.tunnels" >/dev/null 2>&1
+}
+
 http_ok() {
   local url="$1" path="${2:-/}"
   [ -n "$url" ] || return 1
+  # Strip whitespace / accidental multi-line URL file corruption
+  url="$(printf '%s' "$url" | tr -d '[:space:]')"
   curl -sf -o /dev/null --max-time 15 "${url%/}${path}"
 }
 
@@ -69,6 +77,10 @@ local_services_ok() {
 
 public_ok() {
   "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" check --quiet
+}
+
+sync_link_files() {
+  "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" sync-link >/dev/null 2>&1 || true
 }
 
 diagnose() {
@@ -103,18 +115,48 @@ notify_urls() {
 
 recreate_tunnels() {
   local reason="$1"
+  local uid_num ui api
+  uid_num="$(id -u)"
+
   if grep -q "429 Too Many Requests\|error code: 1015" /tmp/uml-tunnel-ui.log /tmp/uml-tunnel-api.log 2>/dev/null; then
-    log "Cloudflare rate limit — skipping recreate (retry in ~15 min)"
+    # Only skip when rate-limit lines are fresh (last 30 min of log mtime)
+    if find /tmp/uml-tunnel-ui.log /tmp/uml-tunnel-api.log -mmin -30 2>/dev/null | grep -q .; then
+      log "Cloudflare rate limit — skipping recreate (retry in ~15 min)"
+      return 1
+    fi
+  fi
+
+  # Prefer LaunchAgent supervisor so we do not fight KeepAlive with a second starter.
+  if tunnels_agent_loaded; then
+    log "Recreating via LaunchAgent com.uml.pipeline.tunnels ($reason)..."
+    launchctl kickstart -k "gui/${uid_num}/com.uml.pipeline.tunnels" 2>/dev/null \
+      || launchctl kill SIGTERM "gui/${uid_num}/com.uml.pipeline.tunnels" 2>/dev/null \
+      || true
+    # Wait for fresh URL files + healthy public endpoints
+    for _ in $(seq 1 90); do
+      ui="$(read_url_file "$ROOT/data/run/public_ui_url.txt")"
+      api="$(read_url_file "$ROOT/data/run/public_api_url.txt")"
+      if [ -n "$ui" ] && [ -n "$api" ] && [[ "$ui" != *api.trycloudflare.com* ]] && public_ok; then
+        sync_link_files
+        log "New UI:  $ui"
+        log "New API: $api"
+        notify_urls "$ui" "$api" "$reason"
+        return 0
+      fi
+      sleep 2
+    done
+    log "ERROR: LaunchAgent tunnels did not publish healthy URLs in time"
     return 1
   fi
-  log "Recreating public tunnels ($reason)..."
+
+  log "Recreating public tunnels via start_public_tunnels.sh ($reason)..."
   if ! bash "$ROOT/scripts/start_public_tunnels.sh"; then
     log "ERROR: start_public_tunnels.sh failed"
     return 1
   fi
-  local ui api
   ui="$(read_url_file "$ROOT/data/run/public_ui_url.txt")"
   api="$(read_url_file "$ROOT/data/run/public_api_url.txt")"
+  sync_link_files
   log "New UI:  $ui"
   log "New API: $api"
   notify_urls "$ui" "$api" "$reason"
@@ -127,7 +169,8 @@ check_and_fix() {
   fi
 
   if tunnel_procs_ok && public_ok; then
-    log "Public tunnels healthy"
+    sync_link_files
+    log "Public tunnels healthy (Link refreshed)"
     return 0
   fi
 

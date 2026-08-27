@@ -17,7 +17,113 @@ ROOT = Path(__file__).resolve().parent.parent
 STATE_FILE = ROOT / "data/run/last_notified_tunnels.json"
 UI_URL_FILE = ROOT / "data/run/public_ui_url.txt"
 API_URL_FILE = ROOT / "data/run/public_api_url.txt"
+LINK_FILE = ROOT / "Link"
+LINK_MD_FILE = ROOT / "Link.md"
 DEFAULT_NOTIFY_EMAIL = "dipak.yadav5501@gmail.com"
+
+
+def _clean_url(url: str) -> str:
+    """Normalize a public URL; reject multi-line / control-character garbage."""
+    cleaned = (url or "").strip().splitlines()[0].strip()
+    if any(ord(ch) < 32 for ch in cleaned):
+        raise ValueError(f"URL contains control characters: {cleaned!r}")
+    if not cleaned.startswith("https://") or "trycloudflare.com" not in cleaned:
+        raise ValueError(f"Unexpected public tunnel URL: {cleaned!r}")
+    if "api.trycloudflare.com" in cleaned:
+        raise ValueError(f"Bogus api.trycloudflare.com URL: {cleaned!r}")
+    return cleaned.rstrip("/")
+
+
+def write_link_files(ui_url: str, api_url: str) -> None:
+    """Keep repo-root Link + Link.md current (no secrets)."""
+    from datetime import datetime, timezone
+
+    ui = _clean_url(ui_url)
+    api = _clean_url(api_url)
+    env = load_env()
+    adapter = (env.get("FINETUNED_ADAPTER_PATH") or "").strip()
+    if not adapter:
+        for candidate in (
+            "models/uml-plantuml-lora-200k",
+            "models/uml-plantuml-lora-100k",
+            "models/uml-plantuml-lora",
+        ):
+            if (ROOT / candidate).exists():
+                adapter = candidate
+                break
+        else:
+            adapter = "models/uml-plantuml-lora"
+    updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+
+    LINK_FILE.write_text(
+        "\n".join(
+            [
+                "Open this URL from any device / any network (Mac Studio server):",
+                "",
+                ui,
+                "",
+                f"UI:  {ui}",
+                f"API: {api}",
+                "",
+                "Local (this Mac only):",
+                "  UI  http://127.0.0.1:8501",
+                "  API http://127.0.0.1:8000",
+                f"Adapter: {adapter}",
+                "",
+                f"Updated: {updated}",
+                "URLs change when Cloudflare quick tunnels restart.",
+                "Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
+
+    LINK_MD_FILE.write_text(
+        "\n".join(
+            [
+                "# Remote access — UML-Pipeline (Mac Studio server)",
+                "",
+                "This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yadav** "
+                "macOS account logged in (screen lock is fine; use Fast User Switch for other users — "
+                "**do not Log Out**).",
+                "",
+                "## Open from any device",
+                "",
+                f"**Live UI:** [{ui}]({ui})",
+                "",
+                "| Endpoint | URL |",
+                "|----------|-----|",
+                f"| Public UI (browser, any network) | {ui} |",
+                f"| Public API (docs / exports) | {api} |",
+                "| Local Streamlit (this Mac) | http://127.0.0.1:8501 |",
+                "| Local FastAPI (this Mac) | http://127.0.0.1:8000 |",
+                "",
+                "Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by "
+                "`scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: "
+                "`data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.",
+                "",
+                f"Updated: {updated}",
+                "",
+                "## Authentication",
+                "",
+                "`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). "
+                "Streamlit sends `Authorization: Bearer …` automatically.",
+                "",
+                "## Troubleshooting",
+                "",
+                "| Symptom | Fix |",
+                "|---------|-----|",
+                "| Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |",
+                "| Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |",
+                "| Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |",
+                "",
+                "See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)",
+                "",
+            ]
+        ),
+        encoding="utf-8",
+    )
 
 
 def load_env(path: Path | None = None) -> dict[str, str]:
@@ -51,33 +157,35 @@ def configured(env: dict[str, str] | None = None) -> bool:
 
 
 def update_env_urls(ui_url: str, api_url: str) -> None:
+    ui_url = _clean_url(ui_url)
+    api_url = _clean_url(api_url)
     p = ROOT / ".env"
-    if not p.is_file():
-        return
-    text = p.read_text(encoding="utf-8")
-    updates = {
-        "API_BASE_URL": "http://127.0.0.1:8000",
-        "PUBLIC_UI_URL": ui_url,
-        "PUBLIC_API_URL": api_url,
-    }
-    for key, value in updates.items():
-        pattern = rf"^{re.escape(key)}=.*$"
-        replacement = f"{key}={value}"
-        if re.search(pattern, text, flags=re.M):
-            text = re.sub(pattern, replacement, text, flags=re.M)
-        else:
-            text = text.rstrip() + f"\n{replacement}\n"
-    # Remove orphan bare trycloudflare lines (breaks `source .env`).
-    text = re.sub(
-        r"(?m)^https://[a-zA-Z0-9.-]+\.trycloudflare\.com\s*$",
-        "",
-        text,
-    )
-    text = re.sub(r"\n{3,}", "\n\n", text)
-    p.write_text(text, encoding="utf-8")
+    if p.is_file():
+        text = p.read_text(encoding="utf-8")
+        updates = {
+            "API_BASE_URL": "http://127.0.0.1:8000",
+            "PUBLIC_UI_URL": ui_url,
+            "PUBLIC_API_URL": api_url,
+        }
+        for key, value in updates.items():
+            pattern = rf"^{re.escape(key)}=.*$"
+            replacement = f"{key}={value}"
+            if re.search(pattern, text, flags=re.M):
+                text = re.sub(pattern, replacement, text, flags=re.M)
+            else:
+                text = text.rstrip() + f"\n{replacement}\n"
+        # Remove orphan bare trycloudflare lines (breaks `source .env`).
+        text = re.sub(
+            r"(?m)^https://[a-zA-Z0-9.-]+\.trycloudflare\.com\s*$",
+            "",
+            text,
+        )
+        text = re.sub(r"\n{3,}", "\n\n", text)
+        p.write_text(text, encoding="utf-8")
     UI_URL_FILE.parent.mkdir(parents=True, exist_ok=True)
     UI_URL_FILE.write_text(ui_url + "\n", encoding="utf-8")
     API_URL_FILE.write_text(api_url + "\n", encoding="utf-8")
+    write_link_files(ui_url, api_url)
 
 
 def fetch_ok(url: str, timeout: float = 15.0) -> bool:
@@ -90,13 +198,18 @@ def fetch_ok(url: str, timeout: float = 15.0) -> bool:
 
 
 def check_tunnels(ui_url: str | None = None, api_url: str | None = None) -> tuple[bool, str]:
-    ui = (ui_url or (UI_URL_FILE.read_text(encoding="utf-8").strip() if UI_URL_FILE.is_file() else "")).strip()
-    api = (api_url or (API_URL_FILE.read_text(encoding="utf-8").strip() if API_URL_FILE.is_file() else "")).strip()
+    try:
+        raw_ui = ui_url or (UI_URL_FILE.read_text(encoding="utf-8") if UI_URL_FILE.is_file() else "")
+        raw_api = api_url or (API_URL_FILE.read_text(encoding="utf-8") if API_URL_FILE.is_file() else "")
+        ui = _clean_url(raw_ui)
+        api = _clean_url(raw_api)
+    except ValueError as exc:
+        return False, str(exc)
     if not ui or not api:
         return False, "missing stored public URLs"
-    if not fetch_ok(ui.rstrip("/") + "/"):
+    if not fetch_ok(ui + "/"):
         return False, f"UI tunnel unreachable: {ui}"
-    if not fetch_ok(api.rstrip("/") + "/api/settings/health"):
+    if not fetch_ok(api + "/api/settings/health"):
         return False, f"API tunnel unreachable: {api}"
     return True, "ok"
 
@@ -164,16 +277,18 @@ def format_tunnel_body(ui_url: str, api_url: str, reason: str = "") -> str:
 
 
 def publish_urls(ui_url: str, api_url: str, reason: str = "", force_email: bool = False) -> bool:
-    """Update .env/url files and email if URLs changed. Returns True if email was sent."""
+    """Update .env/url/Link files and email if URLs changed. Returns True if email was sent."""
+    ui_url = _clean_url(ui_url)
+    api_url = _clean_url(api_url)
     update_env_urls(ui_url, api_url)
     env = load_env()
     changed = urls_changed(ui_url, api_url)
     if not configured(env):
-        print("SMTP not configured — .env updated, email skipped")
+        print("SMTP not configured — Link/.env updated, email skipped")
         save_last_notified(ui_url, api_url)
         return False
     if not changed and not force_email:
-        print("URLs unchanged — email skipped")
+        print("URLs unchanged — Link refreshed, email skipped")
         return False
     try:
         send_email(
@@ -216,6 +331,10 @@ def main() -> int:
     p_check = sub.add_parser("check", help="Health-check public tunnel URLs")
     p_check.add_argument("--quiet", action="store_true")
 
+    p_sync = sub.add_parser("sync-link", help="Rewrite Link + Link.md from stored URL files")
+    p_sync.add_argument("--ui", default="")
+    p_sync.add_argument("--api", default="")
+
     args = parser.parse_args()
     env = load_env()
 
@@ -229,7 +348,12 @@ def main() -> int:
                 return 0
             print(f"Tunnels unhealthy: {detail}", file=sys.stderr)
             return 1
-        if args.cmd == "publish":
+        if args.cmd == "sync-link":
+            ui = args.ui or (UI_URL_FILE.read_text(encoding="utf-8") if UI_URL_FILE.is_file() else "")
+            api = args.api or (API_URL_FILE.read_text(encoding="utf-8") if API_URL_FILE.is_file() else "")
+            write_link_files(ui, api)
+            print(f"Link synced UI={_clean_url(ui)} API={_clean_url(api)}")
+        elif args.cmd == "publish":
             sent = publish_urls(args.ui, args.api, args.reason, args.force_email)
             print("email_sent=yes" if sent else "email_sent=no")
         elif args.cmd == "urls":

@@ -48,14 +48,16 @@ extract_url() {
 
 start_one_tunnel() {
   local port="$1" log="$2" pidfile="$3" label="$4"
-  local attempt pid
+  local attempt pid url
   for attempt in 1 2 3 4 5; do
     : >"$log"
     cloudflared tunnel --protocol http2 --url "http://127.0.0.1:${port}" >"$log" 2>&1 &
     pid=$!
     echo "$pid" >"$pidfile"
-    if extract_url "$log" "${log}.url"; then
-      cat "${log}.url"
+    # Write URL to file once; do not double-echo into command substitution.
+    if extract_url "$log" "${log}.url" >/dev/null; then
+      url="$(tr -d '[:space:]' <"${log}.url")"
+      printf '%s\n' "$url"
       return 0
     fi
     kill "$pid" 2>/dev/null || true

@@ -1,10 +1,15 @@
-UML-Pipeline public demo (Cloudflare quick tunnel)
+Open this URL from any device / any network (Mac Studio server):
+
+https://cure-happened-construction-considers.trycloudflare.com
 
 UI:  https://cure-happened-construction-considers.trycloudflare.com
 API: https://efficiency-coral-recall-definitely.trycloudflare.com
 
-Local API: http://127.0.0.1:8000
-Adapter:   models/uml-plantuml-lora-200k
+Local (this Mac only):
+  UI  http://127.0.0.1:8501
+  API http://127.0.0.1:8000
+Adapter: models/uml-plantuml-lora-200k
 
-Updated: 2026-08-27 17:52 UTC
-Training: 200k LoRA complete — best_val=0.5650 final_val=0.8490 deployed=yes
+Updated: 2026-08-27 18:10 UTC
+URLs change when Cloudflare quick tunnels restart.
+Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
