@@ -12,9 +12,15 @@ from dotenv import load_dotenv
 
 load_dotenv()
 
+import os
 import requests
 
 API = "http://127.0.0.1:8000"
+
+
+def _auth_headers() -> dict[str, str]:
+    token = (os.getenv("API_ACCESS_TOKEN") or "").strip()
+    return {"Authorization": f"Bearer {token}"} if token else {}
 SAMPLE_CODE = '''class User:
     def authenticate(self, password: str) -> bool:
         return True
@@ -30,14 +36,17 @@ def main() -> int:
     health.raise_for_status()
     print("Health:", health.json().get("provider_summary") or health.json().get("provider"))
 
+    headers = _auth_headers()
     failures = 0
     for dtype in ["class", "object", "component", "package", "flowchart"]:
         r = requests.post(
             f"{API}/api/generate",
+            headers=headers,
             json={
                 "requirement": "Hospital appointments with patients, doctors, and clinics.",
                 "diagram_type": dtype,
                 "input_mode": "requirement",
+                "async_mode": False,
             },
             timeout=180,
         )
@@ -57,7 +66,8 @@ def main() -> int:
 
     r = requests.post(
         f"{API}/api/generate",
-        json={"requirement": SAMPLE_CODE, "diagram_type": "class", "input_mode": "source_code"},
+        headers=headers,
+        json={"requirement": SAMPLE_CODE, "diagram_type": "class", "input_mode": "source_code", "async_mode": False},
         timeout=180,
     )
     if r.status_code != 200:

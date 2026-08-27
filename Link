@@ -1,1 +1,10 @@
-https://rogers-reserved-step-demographic.trycloudflare.com
+UML-Pipeline public demo (Cloudflare quick tunnel)
+
+UI:  https://cure-happened-construction-considers.trycloudflare.com
+API: https://efficiency-coral-recall-definitely.trycloudflare.com
+
+Local API: http://127.0.0.1:8000
+Adapter:   models/uml-plantuml-lora-200k
+
+Updated: 2026-08-27 17:52 UTC
+Training: 200k LoRA complete — best_val=0.5650 final_val=0.8490 deployed=yes

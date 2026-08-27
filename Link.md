@@ -4,18 +4,18 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Current public UI URL
 
-**Live:** [https://rogers-reserved-step-demographic.trycloudflare.com](https://rogers-reserved-step-demographic.trycloudflare.com)
+**Live:** [https://cure-happened-construction-considers.trycloudflare.com](https://cure-happened-construction-considers.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://rogers-reserved-step-demographic.trycloudflare.com |
-| Public API (browser/docs only) | https://mapping-wise-incredible-source.trycloudflare.com |
+| Public UI (browser, any network) | https://cure-happened-construction-considers.trycloudflare.com |
+| Public API (browser/docs only) | https://efficiency-coral-recall-definitely.trycloudflare.com |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-08-26 23:25 UTC
+Updated: 2026-08-27 17:52 UTC
 
 ## Authentication
 
