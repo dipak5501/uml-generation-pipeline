@@ -10,6 +10,6 @@ Local (this Mac only):
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-200k
 
-Updated: 2026-08-27 19:07 UTC
+Updated: 2026-08-27 19:10 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
