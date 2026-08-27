@@ -18,9 +18,11 @@ Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `script
 
 Updated: 2026-08-27 22:42 UTC
 
-## Authentication
+## Authentication (required for remote access)
 
-`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). Streamlit sends `Authorization: Bearer …` automatically. Remote agent commands use the same token (or optional `REMOTE_AGENT_TOKEN`).
+**Auth is enabled** — `POST /api/agent/command` and task status endpoints require a Bearer token. The token lives only in **`.env` on this Mac Studio** (never commit, never paste into Link.md or chat).
+
+Set `API_ACCESS_TOKEN` in `.env`. Streamlit sends `Authorization: Bearer …` automatically. Remote agent commands use the same token (or optional `REMOTE_AGENT_TOKEN`).
 
 ## Remote command agent
 
@@ -28,7 +30,7 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://easter-replication-mug-dee.trycloudflare.com/api/agent/health` |
+| Agent health (`auth_required` flag; no token needed) | `https://easter-replication-mug-dee.trycloudflare.com/api/agent/health` |
 | Submit command (auth) | `POST https://easter-replication-mug-dee.trycloudflare.com/api/agent/command` |
 | Task status (auth) | `GET https://easter-replication-mug-dee.trycloudflare.com/api/agent/tasks/{task_id}` |
 
