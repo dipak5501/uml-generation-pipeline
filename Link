@@ -1,12 +1,9 @@
-UML-Pipeline public demo (Cloudflare quick tunnel)
+(no live URL — tunnels offline; Cloudflare rate limit as of 2026-08-26)
 
-UI:  https://portable-oxford-supreme-evident.trycloudflare.com
-API: https://youth-slide-indicating-marijuana.trycloudflare.com
+Open the public HTTPS link in any browser from any network. This Mac Studio is the always-on server (keep Dipak Yadav logged in; do not Log Out).
 
-Local API: http://127.0.0.1:8000
-Adapter:   models/uml-plantuml-lora-50k (→ 100k when training completes)
+Refresh URL after tunnels start:
+  bash scripts/macos_server_status.sh
 
-Note: Quick-tunnel URLs rotate on restart. Cloudflare may rate-limit (429) — retry:
+Restart tunnels:
   bash scripts/start_public_tunnels.sh
-
-Updated: 2026-08-26 22:45 UTC
