@@ -47,15 +47,15 @@ PY
 
 wait_for_100k() {
   log "Waiting for 100k LoRA training ($TARGET_ITERS iters) …"
-  while true; done="$(completed_iters)"; do
+  while true; do
+    done="$(completed_iters)"
     if [[ "$done" -ge "$TARGET_ITERS" ]]; then
       log "100k training complete at iter=$done"
       return 0
     fi
     if ! pgrep -f "finetune_plantuml.py.*uml-plantuml-lora-100k" >/dev/null 2>&1 \
        && ! pgrep -f "run_finetune_resilient.*100k" >/dev/null 2>&1; then
-      # Resilient script may be between restarts — check log age
-      if tail -1 "$ROOT/data/training/finetune_100k.log" 2>/dev/null | grep -q "Reached $TARGET_ITERS"; then
+      if tail -20 "$ROOT/data/training/finetune_100k.log" 2>/dev/null | grep -q "Reached $TARGET_ITERS"; then
         log "100k reached per log"
         return 0
       fi
