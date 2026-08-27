@@ -61,21 +61,38 @@ run_once() {
 completed_iters() {
   python3 - <<PY
 import json
+import re
 from pathlib import Path
+
 adapter = Path("$ADAPTER")
+log_path = Path("$LOG")
+meta_iters = ckpt_iters = log_iters = 0
+
 meta = adapter / "finetune_meta.json"
 if meta.is_file():
     try:
         d = json.loads(meta.read_text())
-        print(int(d.get("iters_completed") or d.get("iters") or 0))
-        raise SystemExit
+        meta_iters = int(d.get("iters_completed") or d.get("iters") or 0)
     except Exception:
-        pass
+        meta_iters = 0
+
 ckpts = sorted(adapter.glob("*_adapters.safetensors"))
 if ckpts:
-    print(int(ckpts[-1].name.split("_")[0]))
-else:
-    print(0)
+    ckpt_iters = int(ckpts[-1].name.split("_")[0])
+
+if log_path.is_file():
+    text = log_path.read_text(errors="replace")
+    attempts = text.split("---- attempt ")
+    last = attempts[-1] if attempts else text
+    resume_base = ckpt_iters
+    m = re.search(r"Resuming from .*?(\d+)_adapters", last)
+    if m:
+        resume_base = int(m.group(1))
+    run_iters = [int(x) for x in re.findall(r"Iter (\d+):", last)]
+    if run_iters:
+        log_iters = resume_base + max(run_iters)
+
+print(max(meta_iters, ckpt_iters, log_iters))
 PY
 }
 
