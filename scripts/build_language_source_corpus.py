@@ -284,19 +284,16 @@ def _collect_language(
 
 
 def _topup_synthetic(lang: str, need: int, seed: int, seen: set[str]) -> list[dict[str, Any]]:
-    from scripts.build_scenario_code_corpus import build_code_samples
+    from scripts.build_scenario_code_corpus import build_code_samples_for_langs
 
     rows: list[dict[str, Any]] = []
-    batch = max(need * 3, 256)
-    codes = build_code_samples(batch, seed)
+    codes = build_code_samples_for_langs(need, seed, langs=[lang])
     for sample in codes:
-        if sample.get("source_language") != lang:
-            continue
         code = str(sample.get("source_requirement") or "")
         h = _source_hash(code)
         if h in seen:
             continue
-        row = _row_from_code(code, lang, "synthetic_topup", sample.get("id", "syn"))
+        row = _row_from_code(code, lang, f"synthetic_topup_{lang}", sample.get("id", "syn"))
         if row:
             row["source_dataset"] = f"synthetic_topup_{lang}"
             seen.add(h)
