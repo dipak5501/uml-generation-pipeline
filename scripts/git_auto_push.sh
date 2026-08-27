@@ -42,6 +42,19 @@ if git diff --cached --quiet; then
   exit 0
 fi
 
+# Do not push broken CI — run the same quick gate as GitHub Actions.
+if command -v pytest >/dev/null 2>&1; then
+  log "Running CI test gate (pytest -q)..."
+  if ! MOCK_PROVIDERS=true PYTHONPATH="$ROOT" pytest -q; then
+    log "Tests failed; aborting auto-sync (fix locally before next push)."
+    git reset HEAD >/dev/null 2>&1 || true
+    exit 1
+  fi
+  log "Tests passed."
+else
+  log "pytest not found; skipping test gate."
+fi
+
 git commit -m "chore: sync local changes"
 HASH="$(git rev-parse HEAD)"
 log "Committed ${HASH:0:7}"
