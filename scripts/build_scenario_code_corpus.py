@@ -85,6 +85,14 @@ DIAGRAM_TYPES = ["class", "object", "component", "package", "flowchart"]
 CODE_TEMPLATES: list[tuple[str, str]] = [
     ("python", "class {A}:\n    def {ma}(self):\n        return True\n\nclass {B}({A}):\n    def {mb}(self):\n        pass\n\nclass {C}:\n    def link(self, other: '{B}'):\n        self.ref = other\n"),
     ("java", "package demo;\npublic class {A} {{\n  public void {ma}() {{}}\n}}\npublic class {B} extends {A} {{\n  public void {mb}() {{}}\n}}\npublic class {C} {{\n  private {B} ref;\n}}\n"),
+    (
+        "c",
+        "#include <stdio.h>\n#include <stdlib.h>\n\n"
+        "typedef struct {A} {{\n    int id;\n    char name[64];\n}} {A};\n\n"
+        "typedef struct {B} {{\n    {A} base;\n    void (*{mb})(struct {B}*);\n}} {B};\n\n"
+        "typedef struct {C} {{\n    {B}* ref;\n    int linked;\n}} {C};\n\n"
+        "void {ma}_{A}({A}* self) {{\n    if (self) self->id = 0;\n}}\n",
+    ),
     ("javascript", "class {A} {{\n  {ma}() {{ return true; }}\n}}\nclass {B} extends {A} {{\n  {mb}() {{}}\n}}\nclass {C} {{\n  constructor(ref) {{ this.ref = ref; }}\n}}\n"),
     ("typescript", "export class {A} {{\n  {ma}(): boolean {{ return true; }}\n}}\nexport class {B} extends {A} {{\n  {mb}(): void {{}}\n}}\nexport class {C} {{\n  constructor(public ref: {B}) {{}}\n}}\n"),
     ("rust", "struct {A} {{}}\nimpl {A} {{\n  fn {ma}(&self) -> bool {{ true }}\n}}\nstruct {B} {{ parent: {A} }}\nimpl {B} {{\n  fn {mb}(&self) {{}}\n}}\nstruct {C} {{ ref: {B} }}\n"),
