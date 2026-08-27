@@ -83,6 +83,18 @@ sync_link_files() {
   "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" sync-link >/dev/null 2>&1 || true
 }
 
+git_push_safe() {
+  bash "$ROOT/scripts/git_auto_push.sh" >/dev/null 2>&1 || true
+}
+
+link_needs_refresh() {
+  "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" link-stale >/dev/null 2>&1
+}
+
+urls_changed_on_disk() {
+  "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" urls-changed >/dev/null 2>&1
+}
+
 diagnose() {
   if ! local_services_ok; then
     echo "local API/UI not responding on :8000 / :8501"
@@ -138,6 +150,7 @@ recreate_tunnels() {
       api="$(read_url_file "$ROOT/data/run/public_api_url.txt")"
       if [ -n "$ui" ] && [ -n "$api" ] && [[ "$ui" != *api.trycloudflare.com* ]] && public_ok; then
         sync_link_files
+        git_push_safe
         log "New UI:  $ui"
         log "New API: $api"
         notify_urls "$ui" "$api" "$reason"
@@ -157,6 +170,7 @@ recreate_tunnels() {
   ui="$(read_url_file "$ROOT/data/run/public_ui_url.txt")"
   api="$(read_url_file "$ROOT/data/run/public_api_url.txt")"
   sync_link_files
+  git_push_safe
   log "New UI:  $ui"
   log "New API: $api"
   notify_urls "$ui" "$api" "$reason"
@@ -168,15 +182,24 @@ check_and_fix() {
     return 1
   fi
 
+  # Refresh Link whenever stored URLs differ from Link files (even if tunnels healthy)
+  if link_needs_refresh || urls_changed_on_disk; then
+    sync_link_files
+    git_push_safe
+  fi
+
   if tunnel_procs_ok && public_ok; then
     sync_link_files
-    log "Public tunnels healthy (Link refreshed)"
+    git_push_safe
+    log "Public tunnels healthy (Link + GitHub synced)"
     return 0
   fi
 
   local reason="Tunnel health check failed"
   if ! tunnel_procs_ok; then
     reason="cloudflared processes not running"
+  elif urls_changed_on_disk; then
+    reason="public tunnel URLs changed but HTTP check failed"
   elif ! public_ok; then
     reason="public URL HTTP check failed"
   fi

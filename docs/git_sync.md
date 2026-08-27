@@ -31,8 +31,19 @@ GIT_SYNC_INTERVAL_SEC=1800 bash scripts/install_git_sync.sh
 ## Manual sync
 
 ```bash
-bash scripts/git_auto_push.sh
+bash scripts/auto_sync_all.sh   # tunnels + Link + git push
+bash scripts/git_auto_push.sh   # git only
 ```
+
+## Full automation install
+
+```bash
+bash scripts/install_auto_sync.sh
+```
+
+Installs:
+- `com.uml.pipeline.tunnel-monitor` — every 4 min: health-check tunnels, refresh Link, push GitHub
+- `com.uml.pipeline.git-sync` — every 45 min: commit + push any safe drift
 
 ## Cursor / agent workflow
 

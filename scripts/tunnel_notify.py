@@ -120,6 +120,16 @@ def write_link_files(ui_url: str, api_url: str) -> None:
                 "",
                 "See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)",
                 "",
+                "## Git auto-sync",
+                "",
+                "Safe changes push to "
+                "[github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) "
+                "automatically (~45 min LaunchAgent + after every tunnel/Link update).",
+                "",
+                "- Manual full sync: `bash scripts/auto_sync_all.sh`",
+                "- Git only: `bash scripts/git_auto_push.sh`",
+                "- See [docs/git_sync.md](docs/git_sync.md)",
+                "",
             ]
         ),
         encoding="utf-8",
@@ -233,6 +243,36 @@ def urls_changed(ui_url: str, api_url: str) -> bool:
     return last.get("ui") != ui_url or last.get("api") != api_url
 
 
+def link_stale() -> bool:
+    """True if repo-root Link files do not contain the stored public URLs."""
+    if not UI_URL_FILE.is_file() or not API_URL_FILE.is_file():
+        return True
+    try:
+        ui = _clean_url(UI_URL_FILE.read_text(encoding="utf-8"))
+        api = _clean_url(API_URL_FILE.read_text(encoding="utf-8"))
+    except ValueError:
+        return True
+    for path in (LINK_FILE, LINK_MD_FILE):
+        if not path.is_file():
+            return True
+        text = path.read_text(encoding="utf-8")
+        if ui not in text or api not in text:
+            return True
+    return False
+
+
+def stored_urls_changed() -> bool:
+    """True if URL files differ from last notified/published state."""
+    if not UI_URL_FILE.is_file() or not API_URL_FILE.is_file():
+        return False
+    try:
+        ui = _clean_url(UI_URL_FILE.read_text(encoding="utf-8"))
+        api = _clean_url(API_URL_FILE.read_text(encoding="utf-8"))
+    except ValueError:
+        return True
+    return urls_changed(ui, api)
+
+
 def send_email(subject: str, body: str, env: dict[str, str] | None = None) -> None:
     c = smtp_config(env)
     if not c["user"] or not c["password"] or not c["notify"]:
@@ -335,6 +375,10 @@ def main() -> int:
     p_sync.add_argument("--ui", default="")
     p_sync.add_argument("--api", default="")
 
+    sub.add_parser("link-stale", help="Exit 0 if Link/Link.md need refresh from URL files")
+
+    sub.add_parser("urls-changed", help="Exit 0 if stored URLs differ from last publish")
+
     args = parser.parse_args()
     env = load_env()
 
@@ -348,6 +392,10 @@ def main() -> int:
                 return 0
             print(f"Tunnels unhealthy: {detail}", file=sys.stderr)
             return 1
+        if args.cmd == "link-stale":
+            return 0 if link_stale() else 1
+        if args.cmd == "urls-changed":
+            return 0 if stored_urls_changed() else 1
         if args.cmd == "sync-link":
             ui = args.ui or (UI_URL_FILE.read_text(encoding="utf-8") if UI_URL_FILE.is_file() else "")
             api = args.api or (API_URL_FILE.read_text(encoding="utf-8") if API_URL_FILE.is_file() else "")

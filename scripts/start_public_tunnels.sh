@@ -86,6 +86,8 @@ printf '%s\n' "$API_URL" >"$API_URL_FILE"
 "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" publish \
   --ui "$UI_URL" --api "$API_URL" --reason "manual tunnel start" || true
 
+bash "$ROOT/scripts/git_auto_push.sh" >/dev/null 2>&1 || true
+
 echo
 echo "============================================"
 echo "Browser UI (open this on any device):"

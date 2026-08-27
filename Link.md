@@ -15,7 +15,7 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-08-27 19:10 UTC
+Updated: 2026-08-27 19:12 UTC
 
 ## Authentication
 
@@ -30,3 +30,11 @@ Updated: 2026-08-27 19:10 UTC
 | Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |
 
 See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
+
+## Git auto-sync
+
+Safe changes push to [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) automatically (~45 min LaunchAgent + after every tunnel/Link update).
+
+- Manual full sync: `bash scripts/auto_sync_all.sh`
+- Git only: `bash scripts/git_auto_push.sh`
+- See [docs/git_sync.md](docs/git_sync.md)

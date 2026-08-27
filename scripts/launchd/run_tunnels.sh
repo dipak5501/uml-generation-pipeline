@@ -53,6 +53,8 @@ API_URL="$(extract_url "$API_LOG" "$API_URL_FILE")" || { kill "$UI_PID" "$API_PI
   --ui "$UI_URL" --api "$API_URL" \
   --reason "LaunchAgent tunnel supervisor restarted tunnels" 2>/dev/null || true
 
+bash "$ROOT/scripts/git_auto_push.sh" >/dev/null 2>&1 || true
+
 # Soft-restart UI so it reloads .env (localhost API_BASE_URL)
 UID_NUM="$(id -u)"
 launchctl kickstart -k "gui/${UID_NUM}/com.uml.pipeline.ui" 2>/dev/null \
