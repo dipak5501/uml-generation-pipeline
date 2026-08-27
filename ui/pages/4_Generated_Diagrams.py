@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.api_client import api_get, api_get_bytes, api_post
+from ui.api_client import api_auth_mismatch_message, api_get, api_get_bytes, api_post
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -165,6 +165,9 @@ if opened:
             st.markdown("**VLM scores**")
             st.dataframe(scores, use_container_width=True, hide_index=True)
         if opened.get("render_status") == "success":
+            _auth_warn = api_auth_mismatch_message()
+            if _auth_warn:
+                st.warning(_auth_warn)
             if st.button("Rescore with VLMs", key=f"gallery-rescore-{opened['id']}"):
                 try:
                     updated = api_post(f"/api/artifacts/{opened['id']}/rescore", {})

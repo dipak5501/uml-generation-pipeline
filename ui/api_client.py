@@ -3,9 +3,15 @@
 from __future__ import annotations
 
 import os
+from pathlib import Path
 from typing import Any
 
 import httpx
+from dotenv import load_dotenv
+
+_ROOT = Path(__file__).resolve().parent.parent
+# LaunchAgents source .env before Streamlit starts; this covers `streamlit run` too.
+load_dotenv(_ROOT / ".env", override=False)
 
 
 def _resolve_api_base() -> str:
@@ -29,11 +35,36 @@ def _auth_headers() -> dict[str, str]:
     token = (os.getenv("API_ACCESS_TOKEN") or "").strip()
     if not token:
         return {}
-    return {"Authorization": f"Bearer {token}"}
+    return {"Authorization": f"Bearer {token}", "X-API-Key": token}
+
+
+def api_auth_mismatch_message() -> str | None:
+    """Warn when the API expects a token but this UI process has none."""
+    if (os.getenv("API_ACCESS_TOKEN") or "").strip():
+        return None
+    try:
+        with httpx.Client(base_url=API_BASE, timeout=5.0) as client:
+            r = client.get("/api/settings/health")
+            if not r.is_success:
+                return None
+            msgs = r.json().get("messages") or []
+            if any("API_ACCESS_TOKEN configured" in str(m) for m in msgs):
+                return (
+                    "API requires API_ACCESS_TOKEN but Streamlit has none (or a different value). "
+                    "Set the same token in .env on this Mac, then restart API and UI."
+                )
+    except Exception:
+        return None
+    return None
 
 
 def _format_http_error(response: httpx.Response) -> str:
     """Turn FastAPI/httpx failures into short UI-facing messages."""
+    if response.status_code == 401:
+        return (
+            "401 Unauthorized — rescore needs API_ACCESS_TOKEN. "
+            "Set the same value in .env for API and Streamlit, then restart both services."
+        )
     try:
         data = response.json()
     except Exception:

@@ -2,7 +2,7 @@ import time
 
 import streamlit as st
 
-from ui.api_client import api_get, api_get_bytes, api_post
+from ui.api_client import api_auth_mismatch_message, api_get, api_get_bytes, api_post
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -268,6 +268,9 @@ with c2:
         "not scored" if _vlm_skipped(artifact) else f"{artifact['composite_score']:.3f}",
     )
     if artifact.get("render_status") == "success":
+        _auth_warn = api_auth_mismatch_message()
+        if _auth_warn:
+            st.warning(_auth_warn)
         if st.button("Rescore with VLMs", key=f"rescore-{artifact['id']}"):
             try:
                 updated = api_post(f"/api/artifacts/{artifact['id']}/rescore", {})
