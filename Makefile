@@ -130,7 +130,10 @@ pipeline-after-100k:
 	@echo "Supervisor PID $$! — tail -f data/training/pipeline_after_100k.log"
 
 test:
-	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true USE_FINETUNED_CODE=false pytest -q
+	@JDK=$$(find tools -path '*/jdk-*/Contents/Home' -type d 2>/dev/null | head -1); \
+	. .venv/bin/activate && \
+	JAVA_HOME="$${JAVA_HOME:-$$JDK}" \
+	PYTHONPATH=. MOCK_PROVIDERS=true USE_FINETUNED_CODE=false pytest -q
 
 smoke:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/smoke_test.py

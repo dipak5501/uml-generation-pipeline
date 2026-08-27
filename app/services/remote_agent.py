@@ -85,7 +85,12 @@ def _check_rate_limit(client_key: str, limit: int) -> None:
 
 
 def _run_script(rel_path: str, timeout: int = 600) -> tuple[int, str]:
-    script = ROOT / rel_path
+    script = (ROOT / rel_path).resolve()
+    root_resolved = ROOT.resolve()
+    try:
+        script.relative_to(root_resolved)
+    except ValueError as exc:
+        return 1, f"Script path outside project root: {rel_path}"
     if not script.is_file():
         return 1, f"Script not found: {rel_path}"
     proc = subprocess.run(

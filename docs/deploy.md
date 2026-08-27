@@ -32,12 +32,12 @@ Production `.env` essentials:
 MOCK_PROVIDERS=false
 USE_OLLAMA=true
 USE_FINETUNED_CODE=true
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 VLM_AYA_BACKEND=local
 OLLAMA_BASE_URL=http://127.0.0.1:11434
 OLLAMA_QWEN_BASE_URL=http://127.0.0.1:11435
 PLANTUML_PREFER_LOCAL=true
-API_ACCESS_TOKEN=<strong-secret>
+API_ACCESS_TOKEN=<strong-secret>   # required before public tunnels
 ```
 
 Install Aya weights (one-time): `bash scripts/setup_paper_aya_local.sh`
@@ -83,7 +83,25 @@ bash scripts/restart_api.sh
 
 Safe while LoRA training runs — only recycles the API process.
 
-### 5. Tunnel monitoring and email alerts
+### 5. Remote command agent (control server from another device)
+
+The API exposes an authenticated command agent at `/api/agent`. Public URL is tracked in repo root [`Link`](../Link) / [`Link.md`](../Link.md).
+
+```bash
+# On the Mac Studio — read token from .env (never commit or paste in chat)
+export TOKEN="$(grep '^API_ACCESS_TOKEN=' .env | cut -d= -f2-)"
+export AGENT="$(cat data/run/public_api_url.txt)/api/agent"
+
+curl -s "$AGENT/health" | python3 -m json.tool
+curl -s -X POST "$AGENT/command" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"server-status"}'
+```
+
+Rollback: point `.env` at a prior adapter (e.g. `models/uml-plantuml-lora-200k`) and `bash scripts/restart_api.sh`.
+
+### 6. Tunnel monitoring and email alerts
 
 ```bash
 # One-shot health check + tunnel restart if needed
@@ -96,7 +114,7 @@ bash scripts/install_tunnel_monitor.sh
 
 SMTP settings in `.env` for failure notifications (`NOTIFY_EMAIL`, `SMTP_*`). Do not commit credentials.
 
-### 6. Uninstall
+### 7. Uninstall
 
 ```bash
 bash scripts/uninstall_macos_user_server.sh

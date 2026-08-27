@@ -302,6 +302,22 @@ with c2:
             st.error(f"Image load failed: {exc}")
     else:
         st.error("Render failed — paper rule: composite score = 0. PlantUML still available.")
+        if artifact_input_mode == "source_code":
+            st.info(
+                "Source-code tips: paste a focused class, struct, or interface with named fields and "
+                "methods. Bare scripts without type declarations often fail render or score poorly."
+            )
+
+if (
+    artifact_input_mode == "source_code"
+    and render_ok
+    and not vlm_skipped
+    and composite < 3.0
+):
+    st.info(
+        "Score below 3.0: try a richer snippet (multiple classes, inheritance, or associations) "
+        "or switch diagram type to match the code structure."
+    )
 
 st.subheader("Per-model VLM scores")
 model_scores = artifact.get("model_scores") or []

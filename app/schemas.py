@@ -231,6 +231,8 @@ class HealthResponse(BaseModel):
     database_ok: bool
     plantuml_jar_present: bool
     java_available: bool
+    auth_required: bool = False
+    remote_agent_available: bool = True
     messages: list[str]
 
 

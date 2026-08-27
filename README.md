@@ -20,7 +20,7 @@ The primary deployment runs on an **Apple Mac Studio (M1 Ultra, 128 GB)** with *
 | API / UI | FastAPI `:8000` + Streamlit `:8501` |
 | Database | SQLite `data/uml_app.db` |
 | Spec LLM | Ollama `llama3.2:1b` |
-| PlantUML | MLX LoRA Qwen2.5-0.5B (`models/uml-plantuml-lora-50k`; **100k adapter training in progress**) |
+| PlantUML | MLX LoRA Qwen2.5-0.5B (`models/uml-plantuml-lora-sourcecode-30k`; warm-started from 200k) |
 | VLM #1 | Ollama **0.32** `:11435` → `qwen2.5vl:3b` |
 | VLM #2 | Ollama **0.24** `:11434` → `llama3.2-vision:11b` |
 | VLM #3 | Local Transformers **Aya-Vision-8B** (`VLM_AYA_BACKEND=local`) |
@@ -82,7 +82,7 @@ MOCK_PROVIDERS=false
 USE_OLLAMA=true
 USE_HF_INFERENCE=false
 USE_FINETUNED_CODE=true
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 VLM_AYA_BACKEND=local
 
 make run
@@ -108,14 +108,15 @@ Set `API_ACCESS_TOKEN` in `.env` before exposing tunnels. Streamlit attaches Bea
 |-------|---------|--------|
 | 8k starter | `make training-corpus` | `data/training/uml_training_8000.parquet` |
 | 50k HF/web | `make train-50k` | `models/uml-plantuml-lora-50k` (**complete**, 15k iters) |
-| 100k combined | `make train-100k` | `models/uml-plantuml-lora-100k` (**in progress**, target 18k iters) |
+| 200k combined | `make train-200k` | `models/uml-plantuml-lora-200k` |
+| 30k source-code (Java/Python/C) | `make train-source30k` | `models/uml-plantuml-lora-sourcecode-30k` (**production default**) |
 
-Corpus merges open Hugging Face UMLCode datasets with web PlantUML and a **50k source-code block** (`input_mode=source_code`). Details: [models/README.md](models/README.md), [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md#8-data-lake-and-training-design).
+Corpus merges open Hugging Face UMLCode datasets with web PlantUML, a **50k source-code block**, and a **30k per-language block** (10k Java, 10k Python, 10k C). Details: [models/README.md](models/README.md), [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md#8-data-lake-and-training-design).
 
 After training completes, point `.env` at the new adapter and restart the API:
 
 ```bash
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-100k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 bash scripts/restart_api.sh
 ```
 
@@ -162,6 +163,24 @@ Auth (when `API_ACCESS_TOKEN` set): `Authorization: Bearer <token>` or `X-API-Ke
 - `GET /api/analytics/summary` / `/distributions`  
 - `GET /api/export/dataset?fmt=jsonl|csv|parquet`  
 - `GET /api/settings/health`  
+- `GET /api/agent/health` — remote command agent (see [Link.md](Link.md))
+
+### Remote command agent
+
+Control the Mac Studio server from any device when away from the machine. The public URL is kept in repo root [`Link`](Link) / [`Link.md`](Link.md) (auto-updated when Cloudflare tunnels restart).
+
+```bash
+export AGENT="https://YOUR-TUNNEL.trycloudflare.com/api/agent"
+export TOKEN="your-api-access-token"   # from .env on the server — never commit
+
+curl -s "$AGENT/health" | python3 -m json.tool
+curl -s -X POST "$AGENT/command" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"health"}'
+```
+
+Allowlisted commands: `health`, `restart-api`, `restart-ui`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (requires `CURSOR_API_KEY`).
 
 ---
 

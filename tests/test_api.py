@@ -41,6 +41,8 @@ def test_health(client):
     body = r.json()
     assert body["mock_providers"] is True
     assert body["database_ok"] is True
+    assert body.get("auth_required") is False
+    assert body.get("remote_agent_available") is True
 
 
 def test_adaptation_status(client):

@@ -31,5 +31,8 @@ jobs:
       - name: Run tests
         env:
           MOCK_PROVIDERS: "true"
+          USE_FINETUNED_CODE: "false"
+          API_ACCESS_TOKEN: ""
           PYTHONPATH: .
+          JAVA_HOME: /usr/lib/jvm/java-21-openjdk-amd64
         run: pytest -q
