@@ -234,7 +234,7 @@ class Foo
     }
     code = plantuml_from_spec(spec, "object")
     assert "object alice : User" in code
-    assert "object o1 : Order" in code
+    assert 'object "o1 : Order" as o1' in code
     assert validate_diagram(code, "object").ok
 
 

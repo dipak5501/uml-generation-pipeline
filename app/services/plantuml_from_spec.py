@@ -163,20 +163,28 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
         for name in _entity_names(spec)[:4]:
             objects.append({"name": name[:1].lower() + name[1:] + "1", "type": name})
     aliases: list[str] = []
+    types: list[str] = []
     for obj in objects[:8]:
         typ = _safe_id(str(obj.get("type") or obj.get("name") or "Object"))
         raw_name = str(obj.get("name") or (typ[:1].lower() + typ[1:] + "1"))
         alias = _safe_id(raw_name)
         aliases.append(alias)
+        if typ not in types:
+            types.append(typ)
+    for typ in types:
+        lines.append(f"class {typ}")
+    for obj, alias in zip(objects[:8], aliases):
+        typ = _safe_id(str(obj.get("type") or obj.get("name") or "Object"))
+        raw_name = str(obj.get("name") or (typ[:1].lower() + typ[1:] + "1"))
         vals = obj.get("values") or obj.get("attributes") or []
-        # Prefer canonical PlantUML: object alias : Type
         if vals:
             lines.append(f"object {alias} : {typ} {{")
             for v in vals[:6]:
                 lines.append(f"  {_safe_label(v, max_len=40)}")
             lines.append("}")
         else:
-            lines.append(f"object {alias} : {typ}")
+            display = _safe_label(f"{raw_name} : {typ}", max_len=48)
+            lines.append(f'object "{display}" as {alias}')
     for rel in spec.get("relationships") or []:
         if not isinstance(rel, dict):
             continue
