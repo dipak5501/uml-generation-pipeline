@@ -7,6 +7,7 @@ import json
 import re
 import smtplib
 import ssl
+import subprocess
 import sys
 import urllib.error
 import urllib.request
@@ -34,12 +35,43 @@ def _clean_url(url: str) -> str:
     return cleaned.rstrip("/")
 
 
-def write_link_files(ui_url: str, api_url: str) -> None:
-    """Keep repo-root Link + Link.md current (no secrets)."""
+def _links_current(ui: str, api: str) -> bool:
+    """True when Link + Link.md already contain both public URLs."""
+    for path in (LINK_FILE, LINK_MD_FILE):
+        if not path.is_file():
+            return False
+        text = path.read_text(encoding="utf-8")
+        if ui not in text or api not in text:
+            return False
+    return True
+
+
+def git_push_link_update() -> None:
+    """Commit and push Link/Link.md (and other safe changes) to GitHub."""
+    script = ROOT / "scripts/git_auto_push.sh"
+    if not script.is_file():
+        return
+    try:
+        subprocess.run(
+            ["bash", str(script)],
+            cwd=ROOT,
+            capture_output=True,
+            text=True,
+            timeout=120,
+            check=False,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        print(f"git auto-push skipped: {exc}")
+
+
+def write_link_files(ui_url: str, api_url: str) -> bool:
+    """Keep repo-root Link + Link.md current (no secrets). Returns True if files changed."""
     from datetime import datetime, timezone
 
     ui = _clean_url(ui_url)
     api = _clean_url(api_url)
+    if _links_current(ui, api):
+        return False
     env = load_env()
     adapter = (env.get("FINETUNED_ADAPTER_PATH") or "").strip()
     if not adapter:
@@ -134,6 +166,7 @@ def write_link_files(ui_url: str, api_url: str) -> None:
         ),
         encoding="utf-8",
     )
+    return True
 
 
 def load_env(path: Path | None = None) -> dict[str, str]:
@@ -195,7 +228,8 @@ def update_env_urls(ui_url: str, api_url: str) -> None:
     UI_URL_FILE.parent.mkdir(parents=True, exist_ok=True)
     UI_URL_FILE.write_text(ui_url + "\n", encoding="utf-8")
     API_URL_FILE.write_text(api_url + "\n", encoding="utf-8")
-    write_link_files(ui_url, api_url)
+    if write_link_files(ui_url, api_url):
+        git_push_link_update()
 
 
 def fetch_ok(url: str, timeout: float = 15.0) -> bool:
@@ -399,7 +433,9 @@ def main() -> int:
         if args.cmd == "sync-link":
             ui = args.ui or (UI_URL_FILE.read_text(encoding="utf-8") if UI_URL_FILE.is_file() else "")
             api = args.api or (API_URL_FILE.read_text(encoding="utf-8") if API_URL_FILE.is_file() else "")
-            write_link_files(ui, api)
+            updated = write_link_files(ui, api)
+            if updated:
+                git_push_link_update()
             print(f"Link synced UI={_clean_url(ui)} API={_clean_url(api)}")
         elif args.cmd == "publish":
             sent = publish_urls(args.ui, args.api, args.reason, args.force_email)
