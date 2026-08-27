@@ -95,7 +95,10 @@ def main() -> None:
 
     resume_file = args.resume_adapter_file
     if resume_file is None and args.resume:
-        checkpoints = sorted(args.adapter_path.glob("*_adapters.safetensors"))
+        checkpoints = sorted(
+            args.adapter_path.glob("*_adapters.safetensors"),
+            key=lambda p: int(p.name.split("_")[0]) if p.name.split("_")[0].isdigit() else 0,
+        )
         if checkpoints:
             resume_file = checkpoints[-1]
             print(f"Resuming from {resume_file}")
