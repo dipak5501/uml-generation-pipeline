@@ -38,7 +38,7 @@ def main() -> int:
 
     headers = _auth_headers()
     failures = 0
-    for dtype in ["class", "object", "component", "package", "flowchart"]:
+    for dtype in ["class", "object", "component", "package"]:
         r = requests.post(
             f"{API}/api/generate",
             headers=headers,

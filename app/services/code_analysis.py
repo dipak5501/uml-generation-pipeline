@@ -64,7 +64,26 @@ class CodeStructure:
 
 
 def detect_language(code: str) -> str:
-    if re.search(r"^\s*def\s+\w+|^\s*class\s+\w+", code, re.M):
+    # C/C++ before JavaScript — ``const`` in C otherwise matches JS heuristics.
+    if re.search(r"^\s*#\s*include\s*[<\"]", code, re.M) or re.search(
+        r"\btypedef\s+struct\b", code
+    ):
+        if re.search(r"\bstd::|namespace\s+\w+|class\s+\w+\s*:\s*public", code):
+            return "cpp"
+        return "c"
+    # Java before Python — both use ``class``, but Java uses braces / JVM types.
+    if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
+        return "java"
+    if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
+        return "java"
+    if re.search(r"^\s*(public\s+)?class\s+\w+\s*\{", code, re.M) and re.search(
+        r"\b(boolean|void|String|int|double|float|long)\b", code
+    ):
+        return "java"
+    # Python: ``def`` or ``class Name:`` (colon syntax, not brace body).
+    if re.search(r"^\s*def\s+\w+", code, re.M):
+        return "python"
+    if re.search(r"^\s*class\s+\w+[^:{]*:", code, re.M):
         return "python"
     python_script = [
         r"^\s*#",
@@ -84,16 +103,6 @@ def detect_language(code: str) -> str:
         return "typescript"
     if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code):
         return "javascript"
-    if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
-        return "java"
-    if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
-        return "java"
-    if re.search(r"^\s*#\s*include\s*[<\"]", code, re.M) or re.search(
-        r"\btypedef\s+struct\b", code
-    ):
-        if re.search(r"\bstd::|namespace\s+\w+|class\s+\w+\s*:\s*public", code):
-            return "cpp"
-        return "c"
     if "fn " in code and ("impl " in code or "struct " in code):
         return "rust"
     if re.search(r"^\s*package\s+\w+|func\s+\(\w+\s+\*", code, re.M) or (

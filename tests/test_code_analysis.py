@@ -100,6 +100,18 @@ def test_detect_c_source_language():
     assert looks_like_source_code(SAMPLE_C)
 
 
+SAMPLE_JAVA = '''public class UserService {
+    public boolean authenticate(String password) { return true; }
+}
+class Order { public double total() { return 0.0; } }
+'''
+
+
+def test_detect_java_source_language():
+    assert detect_source_language(SAMPLE_JAVA, "source_code") == "java"
+    assert looks_like_source_code(SAMPLE_JAVA)
+
+
 def test_procedural_script_has_no_type_entities():
     from app.services.code_analysis import analyze_source_code
     from app.services.spec_json import structure_to_spec_json
