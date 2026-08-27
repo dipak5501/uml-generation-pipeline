@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://mind-said-shepherd-finishing.trycloudflare.com
+https://orange-fountain-especially-positive.trycloudflare.com
 
-UI:    https://mind-said-shepherd-finishing.trycloudflare.com
-API:   https://coordinated-buzz-numbers-rehab.trycloudflare.com
-Agent: https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent
+UI:    https://orange-fountain-especially-positive.trycloudflare.com
+API:   https://easter-replication-mug-dee.trycloudflare.com
+Agent: https://easter-replication-mug-dee.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-27 22:41 UTC
+Updated: 2026-08-27 22:42 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
