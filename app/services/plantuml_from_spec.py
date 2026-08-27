@@ -169,22 +169,21 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
         alias = _safe_id(raw_name)
         aliases.append(alias)
         vals = obj.get("values") or obj.get("attributes") or []
-        display = _safe_label(f"{raw_name} : {typ}", max_len=48)
+        # Prefer canonical PlantUML: object alias : Type
         if vals:
-            lines.append(f"object {alias} {{")
-            lines.append(f"  type = {typ}")
+            lines.append(f"object {alias} : {typ} {{")
             for v in vals[:6]:
                 lines.append(f"  {_safe_label(v, max_len=40)}")
             lines.append("}")
         else:
-            lines.append(f'object "{display}" as {alias}')
+            lines.append(f"object {alias} : {typ}")
     for rel in spec.get("relationships") or []:
         if not isinstance(rel, dict):
             continue
         src, tgt = rel.get("source"), rel.get("target")
         if not src or not tgt:
             continue
-        # map type names to first matching object alias
+
         def _alias_for(token: str) -> str | None:
             t = token.lower()
             for a in aliases:
@@ -209,32 +208,40 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
 
 def build_component_plantuml(spec: dict[str, Any]) -> str:
     lines = ["@startuml"]
-    comps: list[str] = []
+    comps: list[dict[str, Any]] = []
     for c in spec.get("components") or []:
         if isinstance(c, dict) and c.get("name"):
-            comps.append(str(c["name"]).strip())
-        elif isinstance(c, str):
-            comps.append(c.strip())
+            comps.append(c)
+        elif isinstance(c, str) and c.strip():
+            comps.append({"name": c.strip()})
     if not comps:
         for name in _entity_names(spec):
-            comps.append(name)
+            comps.append({"name": name})
     filtered = [
         c
         for c in comps
-        if c and not _GENERIC_NAME.match(c) and c.lower() not in {"svc", "api", "store", "service"}
+        if c.get("name")
+        and not _GENERIC_NAME.match(str(c["name"]))
+        and str(c["name"]).lower() not in {"svc", "api", "store", "service"}
     ]
     # Never emit an empty component diagram — keep original names if the filter wiped them.
-    comps = (filtered or [c for c in comps if c] or ["Application", "DomainService"])[:8]
+    comps = (filtered or [c for c in comps if c.get("name")] or [{"name": "Application"}, {"name": "DomainService"}])[:8]
     aliases: dict[str, str] = {}
-    for name in comps:
+    for c in comps:
+        name = str(c["name"]).strip()
         alias = _safe_id(name)
         aliases[name] = alias
         display = _safe_label(name, max_len=48)
         lines.append(f'[{display}] as {alias}')
-        iface = "I" + re.sub(r"(Service|Api|Store)$", "", _safe_id(name))
-        iface_alias = _safe_id(iface)
-        lines.append(f'() "{_safe_label(iface, max_len=40)}" as {iface_alias}')
-        lines.append(f"{alias} --> {iface_alias}")
+        # Only emit interfaces when the specification actually names them
+        ifaces = c.get("interfaces") if isinstance(c.get("interfaces"), list) else []
+        for iface in ifaces[:3]:
+            iface_name = _safe_label(str(iface), max_len=40)
+            if not iface_name or iface_name == "Item":
+                continue
+            iface_alias = _safe_id(iface_name)
+            lines.append(f'() "{iface_name}" as {iface_alias}')
+            lines.append(f"{alias} --> {iface_alias}")
     # dependencies from relationships
     for rel in spec.get("relationships") or []:
         if not isinstance(rel, dict):
@@ -248,7 +255,8 @@ def build_component_plantuml(spec: dict[str, Any]) -> str:
             label = _safe_label(str(rel.get("label") or "uses"), max_len=40) or "uses"
             lines.append(f"{sa} ..> {ta} : {label}")
     if len(comps) >= 2 and not any("..>" in ln for ln in lines):
-        lines.append(f"{aliases[comps[0]]} ..> {aliases[comps[1]]} : uses")
+        names = list(aliases.keys())
+        lines.append(f"{aliases[names[0]]} ..> {aliases[names[1]]} : uses")
     lines.append("@enduml")
     return "\n".join(lines) + "\n"
 
@@ -265,11 +273,23 @@ def build_package_plantuml(spec: dict[str, Any]) -> str:
             packages = [{"name": names[0], "contains": names}]
         else:
             packages = [{"name": "Core", "contains": ["Entity"]}]
+
+    # If many peer packages share no hierarchy, nest them under a single system shell
+    # so the diagram shows containment rather than a flat list of same-level peers.
+    nest_under_system = (
+        len(packages) >= 3
+        and all("." not in str(p["name"]) for p in packages)
+        and not any(p.get("parent") for p in packages)
+    )
+
     pkg_ids: list[str] = []
+    if nest_under_system:
+        lines.append("package System {")
     for pkg in packages[:8]:
         pname = _safe_id(str(pkg["name"]))
         pkg_ids.append(pname)
-        lines.append(f"package {pname} {{")
+        indent = "  " if nest_under_system else ""
+        lines.append(f"{indent}package {pname} {{")
         contains = [str(x) for x in (pkg.get("contains") or []) if str(x).strip()]
         if not contains:
             contains = [str(pkg["name"])]
@@ -277,10 +297,12 @@ def build_package_plantuml(spec: dict[str, Any]) -> str:
         for item in contains[:8]:
             if _GENERIC_NAME.match(item):
                 continue
-            lines.append(f"  class {_safe_id(item)}")
+            lines.append(f"{indent}  class {_safe_id(item)}")
             wrote = True
         if not wrote:
-            lines.append(f"  class {pname}")
+            lines.append(f"{indent}  class {pname}")
+        lines.append(f"{indent}}}")
+    if nest_under_system:
         lines.append("}")
     # package-level dependencies from relationships / sequential
     rels_added = 0
@@ -344,7 +366,7 @@ def plantuml_from_spec(spec: dict[str, Any], diagram_type: str | None = None) ->
         code = build_flowchart_plantuml(spec)
     else:
         code = build_class_plantuml(spec)
-    return sanitize_plantuml_output(code)
+    return sanitize_plantuml_output(code, diagram_type=dtype)
 
 
 def fidelity_report(code: str, spec: dict[str, Any], diagram_type: str) -> dict[str, Any]:
@@ -439,7 +461,7 @@ def ensure_faithful_plantuml(
         }
     report = fidelity_report(code, spec, diagram_type)
     if report["ok"] and report["recall"] >= min_recall:
-        return sanitize_plantuml_output(code), {**report, "source": "model"}
+        return sanitize_plantuml_output(code, diagram_type=diagram_type), {**report, "source": "model"}
     deterministic = plantuml_from_spec(spec, diagram_type)
     report2 = fidelity_report(deterministic, spec, diagram_type)
     return deterministic, {**report2, "source": "spec-builder", "replaced": True, "prior": report}

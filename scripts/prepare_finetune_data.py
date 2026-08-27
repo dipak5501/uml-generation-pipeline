@@ -22,6 +22,7 @@ import pandas as pd
 SYSTEM = (
     "You are a UML expert. Given a technical specification and a target diagram type, "
     "output ONLY valid PlantUML between @startuml and @enduml. "
+    "Black-and-white UML only — no skinparam colors, themes, or hex fills. "
     "No markdown fences or commentary."
 )
 
@@ -54,11 +55,24 @@ def row_to_messages(row: dict, max_spec: int, max_uml: int) -> dict | None:
         return None
     spec = _truncate(spec, max_spec)
     uml = _truncate(uml, max_uml)
-    user = (
-        f"Target diagram type: {dtype}\n\n"
-        f"Technical specification:\n{spec}\n\n"
-        f"Generate PlantUML for a {dtype} diagram."
-    )
+    input_mode = str(row.get("input_mode") or "requirement").strip().lower()
+    source_lang = str(row.get("source_language") or "").strip()
+    src_req = str(row.get("source_requirement") or "").strip()
+
+    if input_mode == "source_code" and src_req and len(src_req) >= 20:
+        lang_label = source_lang or "source"
+        user = (
+            f"Target diagram type: {dtype}\n\n"
+            f"Source code context ({lang_label}):\n{_truncate(src_req, max_spec // 2)}\n\n"
+            f"Technical specification:\n{spec}\n\n"
+            f"Generate black-and-white PlantUML for a {dtype} diagram from this codebase."
+        )
+    else:
+        user = (
+            f"Target diagram type: {dtype}\n\n"
+            f"Technical specification:\n{spec}\n\n"
+            f"Generate PlantUML for a {dtype} diagram."
+        )
     return {
         "messages": [
             {"role": "system", "content": SYSTEM},
@@ -73,7 +87,8 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("data/training/uml_training_8000.parquet"),
+        default=Path("data/training/uml_training_combined_100k.parquet"),
+        help="Training parquet (default: combined 100k+ corpus)",
     )
     parser.add_argument("--out-dir", type=Path, default=Path("data/finetune"))
     parser.add_argument("--seed", type=int, default=42)

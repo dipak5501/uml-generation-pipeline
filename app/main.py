@@ -22,6 +22,17 @@ async def lifespan(_: FastAPI):
     settings = get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
     init_db()
+    try:
+        from sqlmodel import Session
+
+        from app.db import get_engine
+        from app.services.job_maintenance import reap_stale_jobs
+
+        with Session(get_engine()) as session:
+            # All in-process workers die with the process — reap every incomplete job.
+            reap_stale_jobs(session, max_age_minutes=None)
+    except Exception:
+        logger.exception("Stale job reaper failed (non-fatal)")
     if not (settings.api_access_token or "").strip():
         logger.warning(
             "API_ACCESS_TOKEN is unset — API is open. Set a token before public deploy."

@@ -16,6 +16,7 @@ os.environ["DATABASE_URL"] = "sqlite://"
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("MOCK_PROVIDERS", "true")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
+    monkeypatch.setenv("API_ACCESS_TOKEN", "")
     # Reset cached settings + engine
     from app.settings import get_settings
     from app import db as dbmod

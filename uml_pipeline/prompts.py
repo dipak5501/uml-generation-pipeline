@@ -23,11 +23,32 @@ Include:
 Do NOT output PlantUML or code. Output only the structured technical specification in clear prose and bullet points."""
 
 PLANTUML_DIAGRAM_HINTS = {
-    "class": "Generate a UML Class Diagram in PlantUML. Include classes with attributes and methods, and correct relationship notation.",
-    "object": "Generate a UML Object Diagram in PlantUML. Use object instances with :Type syntax and links between instances.",
-    "component": "Generate a UML Component Diagram in PlantUML. Show components, interfaces, and dependencies.",
-    "package": "Generate a UML Package Diagram in PlantUML. Use package blocks, nesting, and dependencies (..>). Avoid treating dotted names as separate top-level packages.",
-    "flowchart": "Generate a PlantUML FLOWCHART (activity diagram). Use start/:Step;/if-endif/stop for the main process and decisions.",
+    "class": (
+        "Generate a UML Class Diagram in PlantUML. Include classes with attributes and methods, "
+        "and correct relationship notation (--|>, -->, *--, o--, ..>). Use domain names from the "
+        "specification — never Module1/EntityA placeholders."
+    ),
+    "object": (
+        "Generate a UML Object Diagram in PlantUML. Every instance MUST use `object name : Type` "
+        "(e.g. `object alice : User`). Link instances with -->. Do NOT emit class declarations. "
+        "Prefer concrete instance names (alice, order1) typed from the specification."
+    ),
+    "component": (
+        "Generate a UML Component Diagram in PlantUML. Show real modules as [Name] or "
+        "`component Name`, with interfaces only when the specification names them. "
+        "Use ..> for dependencies. Do not invent IXxx interfaces or generic Svc/Api labels."
+    ),
+    "package": (
+        "Generate a UML Package Diagram in PlantUML. Use nested `package Name { ... }` blocks "
+        "for containment (e.g. package api { package controllers { class X } }). "
+        "Dependencies between packages use ..>. Never emit flat peer packages like "
+        "`package com.app.core` and `package com.app.api` — nest under shared parents instead. "
+        "Put classes/interfaces inside packages; avoid empty package shells."
+    ),
+    "flowchart": (
+        "Generate a PlantUML FLOWCHART (activity diagram). Use start/:Step;/if-endif/stop "
+        "for the main process and decisions."
+    ),
 }
 
 PLANTUML_CODE_PROMPT = """You are a UML expert. Convert the technical specification into syntactically valid PlantUML.
@@ -39,6 +60,8 @@ Rules:
 2. Output ONLY valid PlantUML between @startuml and @enduml.
 3. No markdown fences or extra commentary outside the diagram.
 4. Keep the diagram readable; avoid unnecessary complexity.
+5. Use only names grounded in the specification (no Module1 / EntityA / Svc placeholders).
+6. Match the requested diagram type exactly — do not switch to class/sequence/etc.
 
 Technical specification:
 {specification}

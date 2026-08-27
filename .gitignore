@@ -14,6 +14,9 @@ thesis/
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.huggingface/
+.cache/
 .DS_Store
 data/
 output/

@@ -112,13 +112,11 @@ st.markdown(
 |-------------------|-------------|----------------|
 | `qwen25vl3b` (53.1) | **Qwen2.5-VL-3B-Instruct** | Ollama `qwen2.5vl:3b` on **:11435** (v0.32) |
 | `llama32vl11b` (50.7) | **LLaMA-3.2-11B-Vision-Instruct** | Ollama `llama3.2-vision:11b` on **:11434** (v0.24) |
-| `aya_vision_8b` (39.9) | **Aya-Vision-8B** | Not on Ollama → auto `llava:7b` stand-in on :11434 |
+| `aya_vision_8b` (39.9) | **Aya-Vision-8B** | **Local Transformers** when `VLM_AYA_BACKEND=local` (production); `llava:7b` only as stand-in |
 
-**Why two Ollama versions:** latest Ollama (0.32) cannot load `llama3.2-vision` (`mllama` unsupported). Ollama 0.24 can, but cannot run `qwen2.5vl`. `scripts/ensure_ollama_dual.sh` (called by `make run`) starts both. **Aya-Vision-8B** is Cohere and is not in the Ollama library.
+**Why two Ollama versions:** Qwen2.5-VL needs Ollama ≥0.32 (`:11435`); LLaMA-3.2-Vision needs 0.24 (`:11434`). LaunchAgents or `scripts/ensure_ollama_dual.sh` start both.
 
-**Why package/flowchart skip LoRA:** the fine-tuned adapter was trained mainly on class-style UML and often emits class diagrams or broken braces for those types. Validators reject class-as-flowchart and empty packages; repair + templates recover.
-
-The fine-tuned code stage uses an 8 000-row open UML corpus and a LoRA adapter on Qwen2.5-0.5B (`models/uml-plantuml-lora/`).
+**LoRA adapters:** production uses `models/uml-plantuml-lora-50k` (15k iters, complete). **`uml-plantuml-lora-100k` training in progress** (~18k iters target). See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) and `models/README.md`.
 """
 )
 
@@ -146,7 +144,7 @@ with d2:
 - Database: `data/uml_app.db` (SQLite)  
 - Diagram images: `data/artifacts/{id}/`  
 - Training corpus: `data/training/`  
-- LoRA adapters: `models/uml-plantuml-lora/`
+- LoRA adapters: `models/uml-plantuml-lora-50k` (production) · `uml-plantuml-lora-100k` (training)
 """
     )
 

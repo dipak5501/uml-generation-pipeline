@@ -48,6 +48,22 @@ stop_port() {
 stop_port 8000
 stop_port 8501
 
+# launchd KeepAlive can respawn the previous listener after stop_port, leaving
+# run_local with a new pidfile while the old process still owns the port.
+if lsof -ti tcp:8000 >/dev/null 2>&1 || lsof -ti tcp:8501 >/dev/null 2>&1; then
+  echo "Port 8000/8501 rebound after stop (likely launchd KeepAlive) — releasing agents…" >&2
+  if command -v launchctl >/dev/null 2>&1; then
+    _uid="$(id -u 2>/dev/null || true)"
+    if [ -n "${_uid}" ]; then
+      launchctl bootout "gui/${_uid}/com.uml.pipeline.api" 2>/dev/null || true
+      launchctl bootout "gui/${_uid}/com.uml.pipeline.ui" 2>/dev/null || true
+    fi
+  fi
+  sleep 1
+  stop_port 8000
+  stop_port 8501
+fi
+
 PY="$ROOT/.venv/bin/python"
 UVICORN="$ROOT/.venv/bin/uvicorn"
 STREAMLIT="$ROOT/.venv/bin/streamlit"
@@ -61,7 +77,8 @@ fi
 # their terminal ends (plain `nohup … &` still shares the process group).
 : >"$API_LOG"
 : >"$UI_LOG"
-"$PY" - "$PID_DIR/api.pid" "$API_LOG" "$UVICORN" app.main:app --host 127.0.0.1 --port 8000 <<'PY'
+# Bind 0.0.0.0 so LAN / Cloudflare / ngrok tunnels can reach the servers.
+"$PY" - "$PID_DIR/api.pid" "$API_LOG" "$UVICORN" app.main:app --host 0.0.0.0 --port 8000 <<'PY'
 import os, subprocess, sys
 pid_file, log_path, *cmd = sys.argv[1:]
 with open(log_path, "a") as log:
@@ -79,7 +96,7 @@ print(proc.pid)
 PY
 
 "$PY" - "$PID_DIR/ui.pid" "$UI_LOG" "$STREAMLIT" run ui/streamlit_app.py \
-  --server.port 8501 --server.address 127.0.0.1 --server.headless true <<'PY'
+  --server.port 8501 --server.address 0.0.0.0 --server.headless true <<'PY'
 import os, subprocess, sys
 pid_file, log_path, *cmd = sys.argv[1:]
 with open(log_path, "a") as log:
@@ -111,8 +128,10 @@ echo "API pid=$(cat "$PID_DIR/api.pid")  log=$API_LOG"
 echo "UI  pid=$(cat "$PID_DIR/ui.pid")  log=$UI_LOG"
 if [ "$ok" -eq 1 ]; then
   echo "READY"
-  echo "Open: http://127.0.0.1:8501"
-  echo "API:  http://127.0.0.1:8000/docs"
+  echo "Open (local): http://127.0.0.1:8501  (also bound on 0.0.0.0)"
+  echo "API (local):  http://127.0.0.1:8000/docs"
+  echo "Public browser access: bash scripts/start_public_tunnels.sh"
+  echo "Auto-recover + email:  bash scripts/monitor_public_tunnels.sh --once"
   exit 0
 fi
 

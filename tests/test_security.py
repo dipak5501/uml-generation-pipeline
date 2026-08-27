@@ -13,7 +13,8 @@ from fastapi.testclient import TestClient
 def client(tmp_path, monkeypatch):
     monkeypatch.setenv("MOCK_PROVIDERS", "true")
     monkeypatch.setenv("DATABASE_URL", f"sqlite:///{tmp_path / 'test.db'}")
-    monkeypatch.delenv("API_ACCESS_TOKEN", raising=False)
+    # Empty string overrides .env so open-mode tests stay auth-free.
+    monkeypatch.setenv("API_ACCESS_TOKEN", "")
     from app.settings import get_settings
     from app import db as dbmod
 
@@ -51,11 +52,19 @@ def locked_client(tmp_path, monkeypatch):
 
     get_settings.cache_clear()
     dbmod._engine = None
-    monkeypatch.delenv("API_ACCESS_TOKEN", raising=False)
+    monkeypatch.setenv("API_ACCESS_TOKEN", "")
 
 
 def test_samples_limit_capped(client):
     r = client.get("/api/samples", params={"limit": 999999})
+    assert r.status_code == 422
+
+
+def test_generate_rejects_whitespace_only_requirement(client):
+    r = client.post(
+        "/api/generate",
+        json={"requirement": "   ", "diagram_type": "class", "async_mode": False},
+    )
     assert r.status_code == 422
 
 
@@ -65,6 +74,22 @@ def test_generate_rejects_oversized_requirement(client):
         json={"requirement": "x" * 50_001, "diagram_type": "class"},
     )
     assert r.status_code == 422
+
+
+def test_generate_strips_requirement(client):
+    r = client.post(
+        "/api/generate",
+        json={
+            "requirement": "  Bookstore with carts and orders  ",
+            "diagram_type": "class",
+            "async_mode": False,
+            "skip_vlm": True,
+        },
+    )
+    assert r.status_code == 200, r.text
+    art = (r.json().get("artifact") or {})
+    assert art.get("source_requirement", "").startswith("Bookstore")
+    assert not art.get("source_requirement", "").startswith(" ")
 
 
 def test_batch_rejects_too_many_items(client):

@@ -77,9 +77,12 @@ _GENERIC_CLASS_NAMES = {
     "module2",
 }
 
-# Prefer LoRA for these when USE_FINETUNED_CODE=true (trained on real HF UMLCode data).
-# Prefer LoRA for the four paper UML types; fall back to grounded builder if needed.
-_LORA_PRIMARY_TYPES = frozenset({"class", "object", "component", "package"})
+# Prefer LoRA when USE_FINETUNED_CODE=true. Corpus now covers paper types plus
+# flowchart/sequence/usecase/state/deployment from open HF/web PlantUML sets.
+# Grounded spec-builder still wins early for package/component until LoRA proves itself.
+_LORA_PRIMARY_TYPES = frozenset(
+    {"class", "object", "component", "package", "flowchart", "sequence", "usecase", "state", "deployment"}
+)
 
 
 def _safe_template_plantuml(
@@ -292,7 +295,8 @@ def generate_plantuml_code(
     system = (
         COT_SYSTEM
         if settings.enable_cot
-        else "You output only valid PlantUML code between @startuml and @enduml."
+        else "You output only valid PlantUML code between @startuml and @enduml. "
+        "Black-and-white only: no skinparam colors, no themes, no hex fills."
     )
     if diagram_type == "package":
         system = (
@@ -348,7 +352,7 @@ def generate_plantuml_code(
             logger.warning("Fine-tuned code provider failed (%s); falling back", exc)
         if raw:
             used_cot = has_cot_block(raw) or settings.enable_cot
-            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw), diagram_type=diagram_type)
             validation = validate_diagram(code, diagram_type)
             model_name = str(getattr(provider, "model", "finetuned-mlx"))
             if not _finetuned_output_needs_fallback(
@@ -373,7 +377,7 @@ def generate_plantuml_code(
             fallback = build_base_code_provider(settings)
             try:
                 raw_fb = fallback.chat(system, prompt, temperature=0.2)
-                code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb))
+                code_fb = sanitize_plantuml_output(finalize_plantuml_output(raw_fb), diagram_type=diagram_type)
                 validation_fb = validate_diagram(code_fb, diagram_type)
                 if validation_fb.ok and not _finetuned_output_needs_fallback(
                     code_fb, specification, True, diagram_type
@@ -399,7 +403,7 @@ def generate_plantuml_code(
         try:
             raw = provider.chat(system, prompt, temperature=0.2)
             used_cot = has_cot_block(raw) or settings.enable_cot
-            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw), diagram_type=diagram_type)
             validation = validate_diagram(code, diagram_type)
             model_name = str(getattr(provider, "model", "mock"))
         except Exception as exc:
@@ -409,7 +413,7 @@ def generate_plantuml_code(
         try:
             raw = provider.chat(system, prompt, temperature=0.2)
             used_cot = has_cot_block(raw) or settings.enable_cot
-            code = sanitize_plantuml_output(finalize_plantuml_output(raw))
+            code = sanitize_plantuml_output(finalize_plantuml_output(raw), diagram_type=diagram_type)
             validation = validate_diagram(code, diagram_type)
             model_name = str(getattr(provider, "model", settings.code_model))
         except Exception as exc:

@@ -45,6 +45,21 @@ def artifact_detail(session: Session, artifact_id: int) -> ArtifactDetail | None
         return None
 
     scores = session.exec(select(ModelScore).where(ModelScore.artifact_id == artifact_id)).all()
+    # Hydrate raw_output via SQL in case the running process's ORM mapper was
+    # created before the column existed (stale LaunchAgent without restart).
+    raw_by_key: dict[str, str | None] = {}
+    try:
+        from sqlalchemy import text
+
+        rows = session.connection().execute(
+            text("SELECT model_key, raw_output FROM modelscore WHERE artifact_id = :aid"),
+            {"aid": artifact_id},
+        )
+        for model_key, raw in rows:
+            raw_by_key[str(model_key)] = raw
+    except Exception:
+        pass
+
     renders = session.exec(select(RenderAttempt).where(RenderAttempt.artifact_id == artifact_id)).all()
     repairs = session.exec(select(RepairAttempt).where(RepairAttempt.artifact_id == artifact_id)).all()
     reviews = session.exec(select(HumanReview).where(HumanReview.artifact_id == artifact_id)).all()
@@ -94,6 +109,7 @@ def artifact_detail(session: Session, artifact_id: int) -> ArtifactDetail | None
                 weight=s.weight,
                 available=s.available,
                 explanation=s.explanation,
+                raw_output=s.raw_output if s.raw_output is not None else raw_by_key.get(s.model_key),
             )
             for s in scores
         ],

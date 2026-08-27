@@ -7,7 +7,22 @@ from typing import Any
 
 import httpx
 
-API_BASE = os.getenv("API_BASE_URL", "http://127.0.0.1:8000")
+
+def _resolve_api_base() -> str:
+    """Streamlit→API must be reachable from this host (usually localhost).
+
+    Never use a trycloudflare hostname here: campus DNS often cannot resolve it
+    and yields Errno 8. Public tunnel URLs belong in PUBLIC_API_URL only.
+    """
+    raw = (os.getenv("API_BASE_URL") or "http://127.0.0.1:8000").strip().rstrip("/")
+    if "trycloudflare.com" in raw.lower() or not raw:
+        return "http://127.0.0.1:8000"
+    return raw
+
+
+API_BASE = _resolve_api_base()
+# Browser-facing links (exports/docs); optional; never used for server-side HTTP.
+PUBLIC_API_BASE = (os.getenv("PUBLIC_API_URL") or "").strip().rstrip("/")
 
 
 def _auth_headers() -> dict[str, str]:
@@ -17,10 +32,45 @@ def _auth_headers() -> dict[str, str]:
     return {"Authorization": f"Bearer {token}"}
 
 
+def _format_http_error(response: httpx.Response) -> str:
+    """Turn FastAPI/httpx failures into short UI-facing messages."""
+    try:
+        data = response.json()
+    except Exception:
+        text = (response.text or "").strip()
+        return f"{response.status_code}: {text[:300]}" if text else f"HTTP {response.status_code}"
+
+    detail = data.get("detail", data) if isinstance(data, dict) else data
+    if isinstance(detail, str):
+        return f"{response.status_code}: {detail}"
+    if isinstance(detail, list):
+        parts: list[str] = []
+        for item in detail:
+            if not isinstance(item, dict):
+                parts.append(str(item))
+                continue
+            loc = ".".join(str(x) for x in (item.get("loc") or ()) if x != "body")
+            msg = str(item.get("msg") or item)
+            parts.append(f"{loc}: {msg}" if loc else msg)
+        if parts:
+            return f"{response.status_code}: " + "; ".join(parts)
+    return f"{response.status_code}: {detail}"
+
+
+def _raise_for_status(response: httpx.Response) -> None:
+    if response.is_success:
+        return
+    raise httpx.HTTPStatusError(
+        _format_http_error(response),
+        request=response.request,
+        response=response,
+    )
+
+
 def api_get(path: str, **params) -> Any:
     with httpx.Client(base_url=API_BASE, timeout=120.0, headers=_auth_headers()) as client:
         r = client.get(path, params=params or None)
-        r.raise_for_status()
+        _raise_for_status(r)
         if "application/json" in r.headers.get("content-type", ""):
             return r.json()
         return r.content
@@ -29,12 +79,12 @@ def api_get(path: str, **params) -> Any:
 def api_post(path: str, payload: dict) -> Any:
     with httpx.Client(base_url=API_BASE, timeout=600.0, headers=_auth_headers()) as client:
         r = client.post(path, json=payload)
-        r.raise_for_status()
+        _raise_for_status(r)
         return r.json()
 
 
 def api_get_bytes(path: str) -> bytes:
     with httpx.Client(base_url=API_BASE, timeout=120.0, headers=_auth_headers()) as client:
         r = client.get(path)
-        r.raise_for_status()
+        _raise_for_status(r)
         return r.content

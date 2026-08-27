@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus finetune finetune-quick finetune-prepare train-real
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-prepare train-real train-50k train-100k
 
 install:
 	python3 -m venv .venv
@@ -33,6 +33,13 @@ dataset:
 training-corpus:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000
 
+training-corpus-50k:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 50000 --include-flowchart
+
+download-all-corpora:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_all_corpora.py
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_datasets.py --include-gated --skip-errors || true
+
 scenario-corpus:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/build_scenario_code_corpus.py --scenarios 1000 --codes 1000
 	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_training_supplement_merged.parquet --prefer-accepted
@@ -62,6 +69,30 @@ train-real:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 3000 --resume --skip-prepare
 	@echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"
 	@echo "Then restart: ./scripts/run_local.sh"
+
+# ≥50k web/HF train path (downloads + corpus + LoRA via Open MPI-safe runner)
+train-50k:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_all_corpora.py
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_datasets.py --include-gated --skip-errors || true
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 50000 --include-flowchart
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_scenario_code_corpus.py --scenarios 5000 --codes 5000
+	. .venv/bin/activate && PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_training_supplement_merged.parquet --prefer-accepted --valid-ratio 0.02 --test-ratio 0.02
+	bash scripts/run_finetune_resilient.sh
+	@echo "When training finishes: swap models/uml-plantuml-lora-50k → models/uml-plantuml-lora and restart API LaunchAgent"
+	@echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"
+
+# ≥100k combined train path (50k source-code web + existing supplement)
+train-100k:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_all_corpora.py --skip-full-stack
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/build_source_code_corpus.py --target 50000
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_training_combined_100k.parquet --prefer-accepted --valid-ratio 0.02 --test-ratio 0.02
+	mkdir -p models/uml-plantuml-lora-100k
+	@test -f models/uml-plantuml-lora-100k/adapters.safetensors || cp models/uml-plantuml-lora-50k/adapters.safetensors models/uml-plantuml-lora-100k/ 2>/dev/null || true
+	ADAPTER_PATH=models/uml-plantuml-lora-100k ITERS=18000 LOG=data/training/finetune_100k.log bash scripts/run_finetune_resilient.sh
+	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-100k && restart API"
+
 test:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true USE_FINETUNED_CODE=false pytest -q
 

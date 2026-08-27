@@ -105,6 +105,11 @@ class LLMClient:
             r = client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
             r.raise_for_status()
             text = r.json()["choices"][0]["message"]["content"].strip()
+        if not text or not score_response_parsed(text):
+            raise RuntimeError(
+                f"Vision model returned unparseable score output "
+                f"({len(text)} chars): {text[:240]!r}"
+            )
         score, explanation = parse_score_response(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
@@ -115,7 +120,8 @@ class LLMClient:
             "stream": False,
             # Unload after scoring so the next large VLM can fit in VRAM.
             "keep_alive": "0",
-            "options": {"temperature": 0, "num_predict": 256},
+            # Slight temp + longer budget: reduces rubber-stamp SCORE:5 under greedy.
+            "options": {"temperature": 0.2, "num_predict": 384},
             "messages": [
                 {
                     "role": "user",
@@ -156,6 +162,11 @@ class LLMClient:
             else:
                 if last_exc:
                     raise last_exc
+        if not text or not score_response_parsed(text):
+            raise RuntimeError(
+                f"Ollama vision model {self.model!r} returned unparseable score "
+                f"output ({len(text)} chars): {text[:240]!r}"
+            )
         score, explanation = parse_score_response(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
@@ -194,17 +205,72 @@ def _image_b64(image_path: Path, max_side: int = 1280) -> str:
     return base64.b64encode(raw).decode()
 
 
+_CRITERION_LABEL = r"(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE|OVERALL|RATING|FINAL)"
+_SCORE_LABEL = r"(?:SCORE|OVERALL(?:\s+SCORE)?|FINAL(?:\s+SCORE)?|RATING)"
+_PLACEHOLDER_RANGE = r"[<\[]\s*0\s*[-–—]\s*6\s*[>\]]"
+
+
 def parse_score_response(text: str) -> tuple[int, str | None]:
-    """Extract SCORE (0–6) and optional EXPLANATION from a VLM reply."""
+    """Extract overall SCORE (0–6) and optional EXPLANATION from a VLM reply.
+
+    Prefers an explicit ``SCORE:`` / ``OVERALL:`` line over criterion labels
+    (``SEMANTIC:``, ``STRUCTURAL:``, …) so multi-axis replies do not leak the
+    first criterion into the composite score. Also accepts markdown bold,
+    ``5/6`` forms, and ignores instructional placeholders like ``<0-6>``.
+    Unparseable text returns score ``0`` (callers should treat empty raw
+    output as unavailable separately).
+    """
     score: int | None = None
     explanation: str | None = None
+    scrubbed = re.sub(r"\*+", "", text or "")
 
-    m_score = re.search(r"(?im)^\s*SCORE\s*[:\-]\s*([0-6])\b", text)
-    if m_score:
-        score = int(m_score.group(1))
+    # Drop instructional placeholders such as SCORE: <0-6> or SEMANTIC: [0-6].
+    scrubbed_for_score = re.sub(
+        rf"(?im)\b(?:SCORE|SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE|OVERALL|RATING|FINAL)\s*[:\-]\s*{_PLACEHOLDER_RANGE}",
+        "",
+        scrubbed,
+    )
+
+    # 1) Prefer overall SCORE / OVERALL / RATING / FINAL (last wins if repeated).
+    overall_hits = list(
+        re.finditer(
+            rf"(?im)\b{_SCORE_LABEL}\s*[:\-]\s*([0-6])(?:\s*/\s*6)?\b",
+            scrubbed_for_score,
+        )
+    )
+    # Exclude criterion-only lines that matched via OVERALL SCORE already handled;
+    # if label was SEMANTIC-only it won't match _SCORE_LABEL.
+    if overall_hits:
+        score = int(overall_hits[-1].group(1))
+
+    # 2) Average criterion lines when present and no overall SCORE.
+    if score is None:
+        crit_vals = [
+            int(m.group(1))
+            for m in re.finditer(
+                rf"(?im)\b(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE)\s*[:\-]\s*([0-6])\b",
+                scrubbed_for_score,
+            )
+        ]
+        if len(crit_vals) >= 2:
+            score = int(round(sum(crit_vals) / len(crit_vals)))
+            score = max(0, min(6, score))
+        elif len(crit_vals) == 1:
+            # Legacy single-label SEMANTIC: N (or one criterion only).
+            score = crit_vals[0]
+
+    # 3) Forms like "score 5/6" or "rated 4 out of 6".
+    if score is None:
+        m_frac = re.search(
+            r"(?im)\b(?:score|rated|rating)\s*(?:is\s*|of\s*|:\s*)?([0-6])\s*(?:/\s*6|out\s+of\s+6)\b",
+            scrubbed_for_score,
+        )
+        if m_frac:
+            score = int(m_frac.group(1))
+
     m_exp = re.search(
-        r"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:SCORE|EXPLANATION)\s*[:\-]|\Z)",
-        text,
+        rf"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:{_SCORE_LABEL}|{_CRITERION_LABEL}|EXPLANATION)\s*[:\-]|\Z)",
+        scrubbed,
     )
     if m_exp:
         explanation = " ".join(m_exp.group(1).strip().split())
@@ -212,7 +278,11 @@ def parse_score_response(text: str) -> tuple[int, str | None]:
             explanation = None
 
     if score is None:
-        for token in text.replace(".", " ").split():
+        # Last-resort: first bare 0–6 digit not inside a leftover placeholder.
+        fallback_text = re.sub(_PLACEHOLDER_RANGE, " ", scrubbed_for_score)
+        # Strip criterion labels' digits so "SEMANTIC: 5" leftovers don't dominate
+        # when they were already considered above; still allow prose "scores 4".
+        for token in re.split(r"[^\d]+", fallback_text):
             if token.isdigit():
                 val = int(token)
                 if 0 <= val <= 6:
@@ -222,14 +292,37 @@ def parse_score_response(text: str) -> tuple[int, str | None]:
         score = 0
 
     if explanation is None:
-        # Fall back to non-score prose so the UI still shows something useful.
-        cleaned = re.sub(r"(?im)^\s*SCORE\s*[:\-]\s*[0-6]\s*$", "", text).strip()
+        cleaned = re.sub(
+            rf"(?im)^\s*(?:{_SCORE_LABEL}|{_CRITERION_LABEL})\s*[:\-]\s*[0-6](?:\s*/\s*6)?\s*$",
+            "",
+            scrubbed_for_score,
+        ).strip()
         cleaned = re.sub(r"(?im)^\s*EXPLANATION\s*[:\-]\s*", "", cleaned).strip()
         cleaned = " ".join(cleaned.split())
         if cleaned and cleaned != str(score):
             explanation = cleaned[:800] or None
 
     return score, explanation
+
+
+def score_response_parsed(text: str) -> bool:
+    """True when the reply contains an explicit overall or criterion score label."""
+    scrubbed = re.sub(r"\*+", "", text or "")
+    if re.search(rf"(?im)\b{_SCORE_LABEL}\s*[:\-]\s*[0-6]\b", scrubbed):
+        return True
+    if re.search(rf"(?im)\bSEMANTIC\s*[:\-]\s*[0-6]\b", scrubbed):
+        return True
+    if re.search(
+        rf"(?im)\b(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE)\s*[:\-]\s*[0-6]\b",
+        scrubbed,
+    ):
+        return True
+    if re.search(
+        r"(?im)\b(?:score|rated|rating)\s*(?:is\s*|of\s*|:\s*)?[0-6]\s*(?:/\s*6|out\s+of\s+6)\b",
+        scrubbed,
+    ):
+        return True
+    return False
 
 
 def _parse_score(text: str) -> int:

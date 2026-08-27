@@ -305,6 +305,12 @@ def main() -> None:
     ap.add_argument("--scenarios", type=int, default=1000)
     ap.add_argument("--codes", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--min-merged",
+        type=int,
+        default=0,
+        help="If set, grow scenarios/codes until merged rows reach this size (honest synthetic top-up)",
+    )
     args = ap.parse_args()
 
     scenarios = build_scenarios(args.scenarios, args.seed)
@@ -312,10 +318,14 @@ def main() -> None:
 
     train_dir = ROOT / "data" / "training"
     eval_dir = ROOT / "data" / "eval"
+    # Keep classic filenames for compatibility; also write sized copies when N≠1000
     write_jsonl(train_dir / "scenarios_1000.jsonl", scenarios)
     write_jsonl(train_dir / "code_langs_1000.jsonl", codes)
-    write_jsonl(eval_dir / "scenarios_1000.jsonl", scenarios)
-    write_jsonl(eval_dir / "code_langs_1000.jsonl", codes)
+    write_jsonl(eval_dir / "scenarios_1000.jsonl", scenarios[: min(1000, len(scenarios))])
+    write_jsonl(eval_dir / "code_langs_1000.jsonl", codes[: min(1000, len(codes))])
+    if args.scenarios != 1000 or args.codes != 1000:
+        write_jsonl(train_dir / f"scenarios_{args.scenarios}.jsonl", scenarios)
+        write_jsonl(train_dir / f"code_langs_{args.codes}.jsonl", codes)
 
     df_new = pd.concat(
         [to_training_frame(scenarios), to_training_frame(codes)], ignore_index=True
@@ -334,6 +344,36 @@ def main() -> None:
     else:
         df_all = df_new
 
+    # Optional synthetic expansion to hit --min-merged (documented in manifest)
+    synthetic_topup = 0
+    if args.min_merged and len(df_all) < args.min_merged:
+        need = args.min_merged - len(df_all)
+        # Split need across more scenarios + codes with a shifted seed (new unique templates)
+        extra_sc = need // 2 + need % 2
+        extra_cd = need // 2
+        more_sc = build_scenarios(extra_sc, args.seed + 10_000)
+        more_cd = build_code_samples(extra_cd, args.seed + 20_000)
+        # Retag source so top-up is auditable
+        for r in more_sc:
+            r["source_dataset"] = "synthetic_scenarios_topup"
+        for r in more_cd:
+            r["source_dataset"] = "synthetic_code_langs_topup"
+        df_extra = pd.concat(
+            [to_training_frame(more_sc), to_training_frame(more_cd)], ignore_index=True
+        )
+        for col in df_all.columns:
+            if col not in df_extra.columns:
+                df_extra[col] = None
+        df_all = pd.concat([df_all, df_extra[df_all.columns]], ignore_index=True)
+        synthetic_topup = len(df_extra)
+        scenarios = scenarios + more_sc
+        codes = codes + more_cd
+
+    # Dedup on uml_code+technical_spec to avoid exact clones
+    before = len(df_all)
+    df_all = df_all.drop_duplicates(subset=["uml_code", "technical_spec"], keep="first")
+    dedup_dropped = before - len(df_all)
+
     out_parquet = train_dir / "uml_training_supplement_merged.parquet"
     out_jsonl = train_dir / "uml_training_supplement_merged.jsonl"
     df_all.to_parquet(out_parquet, index=False)
@@ -349,6 +389,14 @@ def main() -> None:
         "human_languages": human,
         "human_language_count": len(human),
         "merged_rows": int(len(df_all)),
+        "synthetic_topup_rows": int(synthetic_topup),
+        "dedup_dropped": int(dedup_dropped),
+        "min_merged_requested": int(args.min_merged or 0),
+        "notes": [
+            "Primary rows come from HF uml_training_8000.parquet when present.",
+            "scenario/code rows are synthetic templates for diversification.",
+            "synthetic_topup_rows > 0 means extra synthetic fill was used to reach --min-merged.",
+        ],
         "outputs": {
             "scenarios": str(train_dir / "scenarios_1000.jsonl"),
             "codes": str(train_dir / "code_langs_1000.jsonl"),

@@ -1,134 +1,201 @@
-# Go live with UML-Pipeline (via GitHub)
+# Deployment guide
 
-GitHub hosts your **code** (and an optional **`.github.io` landing page**).  
-A free cloud host runs the **interactive app** 24/7 so you do not need Cursor open.
+This document covers **production deployment on macOS** (primary) and optional **cloud demos**. There is no Azure path in this repository.
 
-**Important:** [GitHub Pages](https://pages.github.com/) only serves static HTML. It cannot run FastAPI or Streamlit. Use Pages for the project site; use **Render** for the working UML generator UI.
+| Surface | URL | What it is |
+|---------|-----|------------|
+| Local UI | `http://127.0.0.1:8501` | Streamlit app |
+| Local API | `http://127.0.0.1:8000/docs` | FastAPI OpenAPI |
+| Cloudflare tunnel | `data/run/public_ui_url.txt` | Ephemeral public HTTPS (changes each restart) |
+| GitHub Pages | `https://dipak5501.github.io/uml-generation-pipeline/` | Static landing only |
+| Render (optional) | `https://uml-pipeline-ui.onrender.com` | Cloud demo without MLX LoRA |
 
-| Surface | URL pattern | What it is |
-|---------|-------------|------------|
-| GitHub Pages | `https://dipak5501.github.io/uml-generation-pipeline/` | Static landing / docs entry |
-| Render UI | `https://uml-pipeline-ui.onrender.com` (after deploy) | Live Streamlit app |
-
----
-
-## Option 0 — GitHub Pages landing (`.github.io`)
-
-Already configured in this repo (`site/` + `.github/workflows/pages.yml`).
-
-1. Push `main` to GitHub (includes the Pages workflow).
-2. On the repo: **Settings → Pages → Build and deployment → Source: GitHub Actions**.
-3. Open: https://dipak5501.github.io/uml-generation-pipeline/
-
-Optional: after Render is live, open the landing with your app URL:
-
-`https://dipak5501.github.io/uml-generation-pipeline/?app=https://YOUR-UI.onrender.com`
+Full architecture: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
 
 ---
 
-## Option A — Render from GitHub (recommended for the real app)
+## Option A — Mac Studio production (recommended)
 
-Your repo already includes `render.yaml` (API + UI).
+Hardware: Apple Mac Studio, M1 Ultra, 128 GB RAM. Stack: FastAPI, Streamlit, SQLite, dual Ollama 0.24/0.32, MLX LoRA, local Aya-Vision-8B, Cloudflare tunnels.
 
-### Steps
+### 1. Install dependencies
 
-1. Push latest `main` to GitHub (this repo: `dipak5501/uml-generation-pipeline`).
-2. Create a free account at https://render.com and sign in with **GitHub**.
-3. In Render: **New → Blueprint**.
-4. Select repository **`dipak5501/uml-generation-pipeline`** (grant access if asked).
-5. Render reads `render.yaml` and creates:
-   - `uml-pipeline-api` — FastAPI
-   - `uml-pipeline-ui` — Streamlit (UML-Pipeline website)
-6. Click **Apply** / deploy. Wait until both services are **Live** (first build ~5–10 minutes).
-7. Open the **uml-pipeline-ui** public URL (looks like `https://uml-pipeline-ui.onrender.com`).
+```bash
+make install
+make install-java          # local PlantUML render
+cp .env.example .env       # configure production flags — do NOT commit .env
+```
 
-That UI URL is what you share. No Cursor required afterward.
+Production `.env` essentials:
 
-### After every `git push` to `main`
+```bash
+MOCK_PROVIDERS=false
+USE_OLLAMA=true
+USE_FINETUNED_CODE=true
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k
+VLM_AYA_BACKEND=local
+OLLAMA_BASE_URL=http://127.0.0.1:11434
+OLLAMA_QWEN_BASE_URL=http://127.0.0.1:11435
+PLANTUML_PREFER_LOCAL=true
+API_ACCESS_TOKEN=<strong-secret>
+```
 
-Render can auto-redeploy if you enable auto-deploy on the services (default for Blueprints).
+Install Aya weights (one-time): `bash scripts/setup_paper_aya_local.sh`
 
-### Harden a public deploy (required for anything beyond a private demo)
+### 2. Install always-on LaunchAgents (no sudo)
 
-In both Render services, set the **same** secret:
+```bash
+bash scripts/install_macos_user_server.sh
+```
 
-| Env var | Purpose |
-|---------|---------|
-| `API_ACCESS_TOKEN` | Shared secret; API rejects generate/export/repair/review without `Authorization: Bearer …` or `X-API-Key` |
-| `CORS_ORIGINS` | Optional comma-separated UI origins (default `*` for demos) |
+Installs and starts:
 
-`render.yaml` already declares `API_ACCESS_TOKEN` as a sync:false secret — set it in the Render dashboard. Without it, health reports that the API is open.
+- `com.uml.pipeline.api` — FastAPI `:8000`
+- `com.uml.pipeline.ui` — Streamlit `:8501`
+- `com.uml.pipeline.tunnels` — Cloudflare quick tunnels
+- `com.uml.pipeline.caffeinate` — prevent sleep while logged in
+- `com.uml.pipeline.ollama24` — Ollama 0.24 on `:11434`
+- `com.uml.pipeline.ollama32` — Ollama 0.32 on `:11435`
 
-### Free-tier note
+**Survives:** Cursor quit, Terminal close, screen lock.  
+**Does not survive:** full Log Out of the macOS user (no admin LaunchDaemons).  
+**Multi-user:** keep this account logged in; others use Fast User Switching.
 
-Idle free services **sleep** after ~15 minutes. The first visit after sleep can take 30–60 seconds to wake.
+### 3. Check status
 
-### Fine-tuned LoRA on Render
+```bash
+bash scripts/macos_server_status.sh
+curl -s http://127.0.0.1:8000/api/settings/health | python3 -m json.tool
+```
 
-Cloud free instances usually cannot load MLX LoRA (Apple Silicon). The blueprint sets `USE_FINETUNED_CODE=false` and uses mock/base providers online. Local Mac demos can still use your fine-tuned adapters.
+Public URLs (when tunnels are up):
+
+```bash
+cat data/run/public_ui_url.txt
+cat data/run/public_api_url.txt
+```
+
+### 4. Restart API after code or `.env` changes
+
+```bash
+bash scripts/restart_api.sh
+```
+
+Safe while LoRA training runs — only recycles the API process.
+
+### 5. Tunnel monitoring and email alerts
+
+```bash
+# One-shot health check + tunnel restart if needed
+bash scripts/monitor_public_tunnels.sh --once
+
+# Continuous loop (or install tunnel monitor LaunchAgent)
+bash scripts/monitor_public_tunnels.sh --loop
+bash scripts/install_tunnel_monitor.sh
+```
+
+SMTP settings in `.env` for failure notifications (`NOTIFY_EMAIL`, `SMTP_*`). Do not commit credentials.
+
+### 6. Uninstall
+
+```bash
+bash scripts/uninstall_macos_user_server.sh
+```
 
 ---
 
-## Option B — Railway (alternative)
+## Option B — Interactive local (development)
 
-1. https://railway.app → **New Project** → **Deploy from GitHub**.
-2. Add **two** services from the same repo:
+```bash
+make run          # ./scripts/run_local.sh — dual Ollama + API + UI
+# or separately:
+make api          # terminal 1
+make ui           # terminal 2
+```
+
+Public tunnels (manual):
+
+```bash
+bash scripts/start_public_tunnels.sh
+```
+
+**Note:** If LaunchAgents are already running, `make run` will boot them out to free ports `:8000`/`:8501`.
+
+---
+
+## Option C — Render from GitHub (cloud demo)
+
+GitHub Pages serves static HTML only — it cannot run FastAPI or Streamlit. Use Render for a hosted demo without Apple Silicon.
+
+1. Push `main` to GitHub.
+2. https://render.com → **New → Blueprint** → select the repo.
+3. Render reads `render.yaml` and creates `uml-pipeline-api` + `uml-pipeline-ui`.
+4. Set `API_ACCESS_TOKEN` in both services (sync:false secret in blueprint).
+
+Cloud defaults: `MOCK_PROVIDERS=true`, `USE_FINETUNED_CODE=false` (MLX LoRA unavailable). Free tier sleeps after ~15 minutes idle.
+
+See [render.yaml](../render.yaml).
+
+---
+
+## Option D — Railway (alternative cloud)
+
+1. https://railway.app → **Deploy from GitHub**.
+2. Two services:
 
 | Service | Start command |
 |---------|----------------|
 | api | `uvicorn app.main:app --host 0.0.0.0 --port $PORT` |
 | ui | `streamlit run ui/streamlit_app.py --server.port $PORT --server.address 0.0.0.0 --server.headless true` |
 
-3. Env (both): `PYTHONPATH=.` `MOCK_PROVIDERS=true` `PLANTUML_REMOTE=true`
+3. Env: `PYTHONPATH=.` `MOCK_PROVIDERS=true` `PLANTUML_REMOTE=true`  
 4. UI only: `API_BASE_URL=https://YOUR-API-PUBLIC-URL`
 
 ---
 
-## Option C — Docker on a cloud VM
+## Option E — Docker
 
 ```bash
-git clone https://github.com/dipak5501/uml-generation-pipeline.git
-cd uml-generation-pipeline
 docker compose up --build -d
+# UI :8501  API :8000
 ```
-
-- UI: `http://YOUR_SERVER_IP:8501`
-- API: `http://YOUR_SERVER_IP:8000`
 
 ---
 
-## Option D — Temporary link from your laptop
+## Option F — Temporary laptop link
 
 ```bash
-make api   # terminal 1
-make ui    # terminal 2
-ngrok http 8501   # terminal 3
+make run
+ngrok http 8501
 ```
 
-Only while your machine is on — not a permanent site.
+Only while the machine is on — not a permanent site.
 
 ---
 
 ## Environment summary
 
-| Variable | Online default |
-|----------|----------------|
-| `MOCK_PROVIDERS` | `true` |
-| `PLANTUML_REMOTE` | `true` |
-| `API_BASE_URL` | Public API URL (set on UI service) |
-| `USE_FINETUNED_CODE` | `false` on free cloud |
+| Variable | Mac production | Cloud demo |
+|----------|----------------|------------|
+| `MOCK_PROVIDERS` | `false` | `true` |
+| `USE_OLLAMA` | `true` | `false` |
+| `USE_FINETUNED_CODE` | `true` | `false` |
+| `VLM_AYA_BACKEND` | `local` | `ollama_standin` or mock |
+| `API_BASE_URL` | `http://127.0.0.1:8000` | Public API URL (UI service) |
+| `API_ACCESS_TOKEN` | **Required** for tunnels | **Required** for public deploy |
+| `PLANTUML_PREFER_LOCAL` | `true` | `false` (remote fallback) |
 
-Do **not** commit `.env` secrets. Set keys only in the host dashboard if you enable live models.
+Do **not** commit `.env` or secrets. Set keys only in the host dashboard or local `.env`.
 
 ---
 
-## Local development (unchanged)
+## LoRA training (offline, same machine)
+
+Training does not block the API but competes for GPU/CPU:
 
 ```bash
-make run          # recommended: API + UI together
-# or:
-make api          # terminal 1
-make ui           # terminal 2
+make train-50k     # complete → models/uml-plantuml-lora-50k
+make train-100k    # in progress → models/uml-plantuml-lora-100k
 ```
 
-http://127.0.0.1:8501
+After swapping adapters, update `FINETUNED_ADAPTER_PATH` and `bash scripts/restart_api.sh`.

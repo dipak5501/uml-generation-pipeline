@@ -9,4 +9,6 @@
 7. **Private reasoning:** CoT/private reasoning from models is stripped and never shown in UI or standard logs; only structured interpretation, PlantUML, validation, and repair meta are persisted.
 8. **Human rubric:** Semantic correctness, structural completeness, syntactic accuracy, overall coherence — each 1–5 (or 0–6 aligned with VLM scale via config); default 1–5 for human forms.
 9. **Default project:** A single “UML-Pipeline” project is auto-created on first run.
-10. **Python version:** Target is 3.11+, but the local environment may run 3.9. Route annotations use `Optional[...]` where FastAPI evaluates types at runtime; `eval_type_backport` is included for remaining `|` syntax compatibility.
+10. **Python version:** Target is 3.11+; local production venv may run 3.13.
+11. **Production host:** Primary deployment is Mac Studio M1 Ultra (128 GB), dual Ollama 0.24/0.32, MLX LoRA, local Aya, Cloudflare tunnels, user LaunchAgents — not Azure.
+12. **LoRA training:** 50k adapter complete; 100k adapter training may be in progress — check `data/training/finetune_100k.log` before restarting training jobs.

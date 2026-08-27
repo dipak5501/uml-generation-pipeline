@@ -41,6 +41,14 @@ class GenerateRequest(BaseModel):
     # Skip the 3-VLM ensemble (Qwen/LLaMA/Aya). Diagram + acceptance still run.
     skip_vlm: bool = False
 
+    @field_validator("requirement", mode="before")
+    @classmethod
+    def _strip_requirement(cls, value: object) -> object:
+        # Reject whitespace-only bodies that would otherwise pass min_length=3.
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
 
 class BatchGenerateRequest(BaseModel):
     requirement: Optional[str] = Field(default=None, max_length=MAX_REQUIREMENT_CHARS)
@@ -105,6 +113,7 @@ class ModelScoreOut(BaseModel):
     weight: float
     available: bool
     explanation: Optional[str] = None
+    raw_output: Optional[str] = None
 
 
 class RepairAttemptOut(BaseModel):

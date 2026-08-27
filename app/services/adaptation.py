@@ -173,12 +173,21 @@ def choose_generator(
     settings = settings or get_settings()
     memory = memory or AdaptationMemory()
     dtype = (diagram_type or "class").lower()
-    lora_ok = bool(settings.use_finetuned_code) and dtype in {"class", "object", "component", "package"}
+    lora_ok = bool(settings.use_finetuned_code) and dtype in {
+        "class",
+        "object",
+        "component",
+        "package",
+        "flowchart",
+        "sequence",
+        "usecase",
+        "state",
+        "deployment",
+    }
     lora = memory.rate("generators", dtype, "lora")
     spec = memory.rate("generators", dtype, "spec-builder")
 
-    # LoRA was trained mainly on class diagrams; component/package stay grounded
-    # until LoRA has a proven win rate on that type.
+    # Component/package stay grounded until LoRA has a proven win rate on that type.
     if dtype in {"component", "package"} and lora.n < 8:
         return (
             "spec-builder",

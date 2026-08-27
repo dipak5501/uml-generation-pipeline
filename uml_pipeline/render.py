@@ -140,6 +140,8 @@ def find_dot_executable() -> str | None:
         Path("/usr/local/bin/dot"),
         Path("/opt/local/bin/dot"),
         Path(REPO_ROOT / "tools" / "graphviz" / "bin" / "dot"),
+        Path.home() / "micromamba" / "envs" / "uml-openmpi" / "bin" / "dot",
+        Path.home() / "micromamba" / "envs" / "uml-mpi" / "bin" / "dot",
     ):
         candidates.append(path)
     which = subprocess.run(["/usr/bin/which", "dot"], capture_output=True, text=True)
@@ -189,6 +191,9 @@ def _looks_like_graphviz_error_png(img_path: Path) -> bool:
 
 def _ensure_renderable_layout(code: str, *, has_dot: bool) -> str:
     """When Graphviz is missing, force PlantUML's built-in Smetana layout."""
+    from app.services.plantuml_validate import apply_publication_plantuml_style
+
+    code = apply_publication_plantuml_style(code)
     if has_dot:
         return code
     low = code.lower()

@@ -55,8 +55,11 @@ def _close_braces(code: str) -> str:
     return sanitize_plantuml_output(text)
 
 
-def strategy_sanitize_syntax(code: str, **_: Any) -> str:
-    return _close_braces(sanitize_plantuml_output(ensure_plantuml_bounds(code)))
+def strategy_sanitize_syntax(code: str, **kwargs: Any) -> str:
+    dtype = str(kwargs.get("diagram_type") or "")
+    return _close_braces(
+        sanitize_plantuml_output(ensure_plantuml_bounds(code), diagram_type=dtype or None)
+    )
 
 
 def strategy_spec_rebuild(
@@ -94,17 +97,19 @@ def strategy_inject_missing(
         elif diagram_type == "component":
             lines.append(f"[{name}] as {name}")
         elif diagram_type == "object":
-            lines.append(f'object "{name}1 : {name}" as {name}1')
+            lines.append(f"object {name}1 : {name}")
         else:
             lines.append(f"class {name}")
     if len(missing) >= 2:
         a, b = missing[0], missing[1]
         if diagram_type == "package":
             lines.append(f"{a} ..> {b}")
+        elif diagram_type == "object":
+            lines.append(f"{a}1 --> {b}1")
         else:
             lines.append(f"{a} --> {b}")
     injected = text.replace("@enduml", "\n".join(lines) + "\n@enduml", 1)
-    return sanitize_plantuml_output(injected)
+    return sanitize_plantuml_output(injected, diagram_type=diagram_type)
 
 
 def strategy_strip_hallucinations(
@@ -181,6 +186,13 @@ def strategy_fix_package_hierarchy(
     diagram_type: str,
     **_: Any,
 ) -> str:
+    from app.services.plantuml_validate import repair_package_nesting
+
+    # Prefer deterministic nesting repair when dotted peer packages are present
+    nested = repair_package_nesting(ensure_plantuml_bounds(code))
+    nested = sanitize_plantuml_output(nested, diagram_type="package")
+    if validate_diagram(nested, "package").ok:
+        return nested
     return _spec_rebuild(spec_json, specification, "package" if diagram_type == "package" else diagram_type)
 
 

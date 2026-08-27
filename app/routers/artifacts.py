@@ -160,7 +160,7 @@ def get_image(artifact_id: int, session: Session = Depends(get_session)):
     settings = get_settings()
     a = session.get(UMLArtifact, artifact_id)
     if not a:
-        raise HTTPException(404, "Image not available")
+        raise HTTPException(404, "Artifact not found")
     path = resolve_artifact_image(a.image_path, settings.artifact_dir)
     if path is None:
         raise HTTPException(404, "Image not available")

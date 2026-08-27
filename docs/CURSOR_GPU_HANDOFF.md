@@ -1,6 +1,6 @@
 # Cursor handoff — GPU machine (do everything from scratch)
 
-Use this on a **new computer with a GPU**, signed into the **same Cursor account**.  
+Use this on a **new computer with a GPU**, signed into the **same Cursor account**.
 This chat history does **not** follow you. Open the repo in Cursor and paste the **Prompt for the new Cursor** at the bottom.
 
 Repo: https://github.com/dipak5501/uml-generation-pipeline  
