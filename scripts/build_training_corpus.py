@@ -401,11 +401,13 @@ def normalize_row(row: dict[str, Any], *, source: str, diagram_type: str) -> dic
         majority, votes, _ = majority_vote_accept({k: 0 for k in WEIGHTS}, tau=4.0)
         dataset_ok = False
 
+    spec = str(row.get("input") or row.get("technical_spec") or "")
+    src_req = str(row.get("source_requirement") or spec)
     return {
         "id": _code_hash(str(row.get("uml_code", "")))[:12],
         "diagram_type": diagram_type,
-        "source_requirement": str(row.get("input") or ""),
-        "technical_spec": str(row.get("input") or ""),
+        "source_requirement": src_req,
+        "technical_spec": spec,
         "uml_code": str(row.get("uml_code") or ""),
         "reasoning_private": str(row.get("reasoning") or ""),
         "qwen25vl3b": scores["qwen25vl3b"],

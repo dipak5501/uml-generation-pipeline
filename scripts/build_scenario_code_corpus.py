@@ -212,6 +212,9 @@ def build_scenarios(n: int, seed: int) -> list[dict]:
         domain = DOMAINS[i % len(DOMAINS)]
         ents = ENTITIES[domain]
         a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
         dtype = DIAGRAM_TYPES[i % len(DIAGRAM_TYPES)]
         lang, tmpl = HUMAN_LANGS[i % len(HUMAN_LANGS)]
         req = tmpl.format(domain=domain, a=a, b=b, c=c)
@@ -262,6 +265,9 @@ def build_code_samples_for_langs(
         domain = DOMAINS[i % len(DOMAINS)]
         ents = ENTITIES[domain]
         a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
         ma, mb = "process", "validate"
         code = tmpl.format(
             A=a, B=b, C=c, ma=ma, mb=mb, Ma=ma.capitalize(), Mb=mb.capitalize()
@@ -299,6 +305,9 @@ def build_code_samples(n: int, seed: int) -> list[dict]:
         domain = DOMAINS[i % len(DOMAINS)]
         ents = ENTITIES[domain]
         a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
         ma, mb = "process", "validate"
         code = tmpl.format(
             A=a, B=b, C=c, ma=ma, mb=mb, Ma=ma.capitalize(), Mb=mb.capitalize()
