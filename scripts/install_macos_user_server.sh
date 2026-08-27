@@ -79,6 +79,7 @@ echo "Waiting for API/UI..."
 ok=0
 for _ in $(seq 1 45); do
   if curl -sf http://127.0.0.1:8000/api/settings/health >/dev/null \
+     && curl -sf http://127.0.0.1:8000/api/agent/health >/dev/null \
      && curl -sf http://127.0.0.1:8501/ >/dev/null; then
     ok=1
     break

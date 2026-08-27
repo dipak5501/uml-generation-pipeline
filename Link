@@ -1,15 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://vcr-calculations-sub-gossip.trycloudflare.com
+https://mind-said-shepherd-finishing.trycloudflare.com
 
-UI:  https://vcr-calculations-sub-gossip.trycloudflare.com
-API: https://computed-soma-toner-architecture.trycloudflare.com
+UI:    https://mind-said-shepherd-finishing.trycloudflare.com
+API:   https://coordinated-buzz-numbers-rehab.trycloudflare.com
+Agent: https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
-Adapter: models/uml-plantuml-lora-200k
+Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-27 19:12 UTC
+Updated: 2026-08-27 22:41 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

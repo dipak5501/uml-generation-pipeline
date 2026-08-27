@@ -180,6 +180,32 @@ def looks_like_source_code(text: str) -> bool:
     return signals >= 2
 
 
+def _extract_c_structs(code: str, struct: CodeStructure) -> None:
+    """Recover typedef/struct type names from C/C++ source."""
+    for m in re.finditer(
+        r"typedef\s+struct\s+(\w+)?\s*\{[^}]*\}\s*(\w+)\s*;",
+        code,
+        re.S,
+    ):
+        alias, tag = m.group(2), m.group(1)
+        name = alias or tag
+        if name and name not in struct.classes:
+            struct.classes.append(name)
+    for m in re.finditer(r"(?<!typedef\s)struct\s+(\w+)\s*\{", code):
+        name = m.group(1)
+        if name not in struct.classes:
+            struct.classes.append(name)
+
+
+def _guess_c_function_owner(fn_name: str, classes: list[str]) -> str | None:
+    low = fn_name.lower()
+    for cls in classes:
+        stem = cls.lower()
+        if low == stem or low.startswith(stem + "_"):
+            return cls
+    return None
+
+
 def analyze_source_code(code: str) -> CodeStructure:
     lang = detect_language(code)
     struct = CodeStructure(language=lang)
@@ -243,6 +269,22 @@ def analyze_source_code(code: str) -> CodeStructure:
             name = m.group(1)
             if name not in {"if", "for", "while", "switch", "catch"} and name not in struct.functions:
                 struct.functions.append(name)
+        if lang in ("c", "cpp"):
+            _extract_c_structs(code, struct)
+            for m in re.finditer(
+                r"(?m)^(?:static\s+)?(?:const\s+)?(?:struct\s+)?([\w\s*]+?)\s+(\w+)\s*\([^;]*\)\s*(?:\{|;)",
+                code,
+            ):
+                fn = m.group(2)
+                if fn in {"if", "for", "while", "switch", "main"}:
+                    continue
+                if fn not in struct.functions:
+                    struct.functions.append(fn)
+                owner = _guess_c_function_owner(fn, struct.classes)
+                if owner:
+                    struct.methods.setdefault(owner, [])
+                    if fn not in struct.methods[owner]:
+                        struct.methods[owner].append(fn)
 
     # de-dupe
     struct.classes = list(dict.fromkeys(struct.classes))

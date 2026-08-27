@@ -8,6 +8,7 @@ from pathlib import Path
 import pytest
 
 from app.services.acceptance import evaluate_acceptance
+from app.services.code_analysis import detect_source_language, resolve_input_mode
 from app.services.plantuml_from_spec import plantuml_from_spec
 from app.services.plantuml_validate import validate_diagram
 from app.services.repair import repair_plantuml
@@ -18,11 +19,48 @@ from app.settings import Settings, get_settings
 from uml_pipeline.render import check_plantuml_syntax, render_plantuml
 
 GOLDEN = Path(__file__).parent / "golden" / "cases.json"
+SOURCE_GOLDEN = Path(__file__).parent / "golden" / "source_code_cases.json"
 
 
 def _generate(requirement: str, diagram_type: str) -> tuple[str, dict]:
     spec, _, _ = ensure_valid_spec(requirement, diagram_type, source_text=requirement)
     return plantuml_from_spec(spec, diagram_type), spec
+
+
+def _generate_source(source: str, diagram_type: str) -> tuple[str, dict]:
+    spec, _, _ = ensure_valid_spec(
+        "{}",
+        diagram_type,
+        source_text=source,
+        input_mode="source_code",
+    )
+    return plantuml_from_spec(spec, diagram_type), spec
+
+
+def _assert_expected_in_plantuml(case_id: str, plantuml: str, expected: dict) -> None:
+    for name in (
+        expected.get("classes")
+        or expected.get("types")
+        or expected.get("packages")
+        or expected.get("components")
+        or []
+    ):
+        assert name.lower() in plantuml.lower(), f"{case_id} missing {name}"
+    for rel in expected.get("inheritance") or []:
+        assert rel in plantuml, f"{case_id} missing {rel}"
+
+
+@pytest.fixture(scope="session")
+def plantuml_render_available() -> bool:
+    """Probe local PlantUML compile/render once per session."""
+    settings = Settings(mock_providers=True)
+    probe = "@startuml\nclass Probe\n@enduml\n"
+    ok, _ = check_plantuml_syntax(
+        probe,
+        settings.plantuml_jar,
+        work_dir=Path(__file__).parent / "golden" / "_probe",
+    )
+    return ok
 
 
 def test_extracts_lowercase_domain_nouns():
@@ -121,32 +159,89 @@ def test_adaptive_missing_element_rebuilds_from_spec():
 
 
 @pytest.mark.parametrize("case", json.loads(GOLDEN.read_text(encoding="utf-8")))
-def test_golden_cases_accept(case, tmp_path):
+def test_golden_cases_accept(case, tmp_path, plantuml_render_available):
     plantuml, spec = _generate(case["requirement"], case["diagram_type"])
     syntax = validate_diagram(plantuml, case["diagram_type"])
     assert syntax.ok, syntax.messages
 
     settings = get_settings()
-    compile_ok, compile_err = check_plantuml_syntax(plantuml, settings.plantuml_jar, work_dir=tmp_path)
-    assert compile_ok, compile_err
+    if plantuml_render_available:
+        compile_ok, compile_err = check_plantuml_syntax(plantuml, settings.plantuml_jar, work_dir=tmp_path)
+        assert compile_ok, compile_err
 
-    img, err = render_plantuml(plantuml, tmp_path, settings.plantuml_jar, fmt="png")
-    assert img is not None, err
+        img, err = render_plantuml(plantuml, tmp_path, settings.plantuml_jar, fmt="png")
+        assert img is not None, err
+        render_ok = True
+    else:
+        render_ok = False
 
     report = evaluate_acceptance(
         requirement=case["requirement"],
         plantuml=plantuml,
         diagram_type=case["diagram_type"],
         spec=spec,
-        render_ok=True,
+        render_ok=render_ok,
+        run_compile=plantuml_render_available,
     )
-    expected = case["expected"]
-    for name in expected.get("classes") or expected.get("types") or expected.get("packages") or expected.get("components") or []:
-        assert name.lower() in plantuml.lower(), f"{case['id']} missing {name}"
-    for rel in expected.get("inheritance") or []:
-        assert rel in plantuml, f"{case['id']} missing {rel}"
+    _assert_expected_in_plantuml(case["id"], plantuml, case["expected"])
     assert report.syntax_ok, report.to_dict()
-    assert report.compile_ok is not False, report.to_dict()
+    if plantuml_render_available:
+        assert report.compile_ok is not False, report.to_dict()
+    assert report.uml_rules_ok, report.to_dict()
+    assert report.semantic_ok, report.to_dict()
+    assert report.accepted, report.to_dict()
+
+
+@pytest.mark.parametrize("case", json.loads(SOURCE_GOLDEN.read_text(encoding="utf-8")))
+def test_golden_source_code_cases(case, tmp_path, plantuml_render_available):
+    source = case["source"]
+    diagram_type = case["diagram_type"]
+
+    assert resolve_input_mode(source, "requirement") == "source_code"
+    assert resolve_input_mode(source, "source_code") == "source_code"
+    lang = detect_source_language(source, "source_code")
+    assert lang == case["language"], f"{case['id']}: expected {case['language']}, got {lang}"
+
+    plantuml, spec = _generate_source(source, diagram_type)
+    assert plantuml.strip(), f"{case['id']}: empty PlantUML"
+    assert "@startuml" in plantuml.lower() and "@enduml" in plantuml.lower()
+
+    syntax = validate_diagram(plantuml, diagram_type)
+    assert syntax.ok, syntax.messages
+
+    settings = get_settings()
+    if plantuml_render_available:
+        compile_ok, compile_err = check_plantuml_syntax(plantuml, settings.plantuml_jar, work_dir=tmp_path)
+        assert compile_ok, compile_err
+
+        img, err = render_plantuml(plantuml, tmp_path, settings.plantuml_jar, fmt="png")
+        assert img is not None, err
+        render_ok = True
+    else:
+        render_ok = False
+
+    _assert_expected_in_plantuml(case["id"], plantuml, case["expected"])
+
+    for ent in spec.get("entities") or []:
+        name = ent.get("name") if isinstance(ent, dict) else None
+        if not name:
+            continue
+        for key in ("classes", "types"):
+            expected_names = case["expected"].get(key) or []
+            if name in expected_names:
+                assert name.lower() in plantuml.lower(), f"{case['id']}: spec entity {name} missing in diagram"
+
+    report = evaluate_acceptance(
+        requirement=source,
+        plantuml=plantuml,
+        diagram_type=diagram_type,
+        spec=spec,
+        render_ok=render_ok,
+        run_compile=plantuml_render_available,
+    )
+    assert report.syntax_ok, report.to_dict()
+    if plantuml_render_available:
+        assert report.compile_ok is not False, report.to_dict()
     assert report.uml_rules_ok, report.to_dict()
     assert report.semantic_ok, report.to_dict()
     assert report.accepted, report.to_dict()

@@ -4,22 +4,48 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://vcr-calculations-sub-gossip.trycloudflare.com](https://vcr-calculations-sub-gossip.trycloudflare.com)
+**Live UI:** [https://mind-said-shepherd-finishing.trycloudflare.com](https://mind-said-shepherd-finishing.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://vcr-calculations-sub-gossip.trycloudflare.com |
-| Public API (docs / exports) | https://computed-soma-toner-architecture.trycloudflare.com |
+| Public UI (browser, any network) | https://mind-said-shepherd-finishing.trycloudflare.com |
+| Public API (docs / exports) | https://coordinated-buzz-numbers-rehab.trycloudflare.com |
+| Remote command agent | https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-08-27 19:12 UTC
+Updated: 2026-08-27 22:41 UTC
 
 ## Authentication
 
-`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). Streamlit sends `Authorization: Bearer …` automatically.
+`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). Streamlit sends `Authorization: Bearer …` automatically. Remote agent commands use the same token (or optional `REMOTE_AGENT_TOKEN`).
+
+## Remote command agent
+
+Control this Mac Studio from any device (phone, laptop, another network).
+
+| Endpoint | URL |
+|----------|-----|
+| Agent health (open) | `https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent/tasks/{task_id}` |
+
+**Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
+
+**Example from phone/laptop:**
+
+```bash
+export TOKEN="your-token-from-env"
+curl -s "https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://coordinated-buzz-numbers-rehab.trycloudflare.com/api/agent/command" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"health"}'
+```
+
+Allowlisted commands: `health`, `restart-api`, `restart-ui`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
 
 ## Troubleshooting
 

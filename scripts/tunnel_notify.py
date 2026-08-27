@@ -64,6 +64,39 @@ def git_push_link_update() -> None:
         print(f"git auto-push skipped: {exc}")
 
 
+def _agent_section(api_url: str) -> list[str]:
+    agent = f"{api_url.rstrip('/')}/api/agent"
+    return [
+        "## Remote command agent",
+        "",
+        "Control this Mac Studio from any device (phone, laptop, another network).",
+        "",
+        "| Endpoint | URL |",
+        "|----------|-----|",
+        f"| Agent health (open) | `{agent}/health` |",
+        f"| Submit command (auth) | `POST {agent}/command` |",
+        f"| Task status (auth) | `GET {agent}/tasks/{{task_id}}` |",
+        "",
+        "**Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` "
+        "(or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).",
+        "",
+        "**Example from phone/laptop:**",
+        "",
+        "```bash",
+        'export TOKEN="your-token-from-env"',
+        f'curl -s "{agent}/health" | python3 -m json.tool',
+        f'curl -s -X POST "{agent}/command" \\',
+        '  -H "Authorization: Bearer $TOKEN" \\',
+        '  -H "Content-Type: application/json" \\',
+        '  -d \'{"command":"health"}\'',
+        "```",
+        "",
+        "Allowlisted commands: `health`, `restart-api`, `restart-ui`, `smoke-test`, "
+        "`generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).",
+        "",
+    ]
+
+
 def write_link_files(ui_url: str, api_url: str) -> bool:
     """Keep repo-root Link + Link.md current (no secrets). Returns True if files changed."""
     from datetime import datetime, timezone
@@ -86,6 +119,7 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
         else:
             adapter = "models/uml-plantuml-lora"
     updated = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M UTC")
+    agent = f"{api.rstrip('/')}/api/agent"
 
     LINK_FILE.write_text(
         "\n".join(
@@ -94,8 +128,9 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
                 "",
                 ui,
                 "",
-                f"UI:  {ui}",
-                f"API: {api}",
+                f"UI:    {ui}",
+                f"API:   {api}",
+                f"Agent: {agent}",
                 "",
                 "Local (this Mac only):",
                 "  UI  http://127.0.0.1:8501",
@@ -111,61 +146,64 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
         encoding="utf-8",
     )
 
-    LINK_MD_FILE.write_text(
-        "\n".join(
-            [
-                "# Remote access — UML-Pipeline (Mac Studio server)",
-                "",
-                "This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yadav** "
-                "macOS account logged in (screen lock is fine; use Fast User Switch for other users — "
-                "**do not Log Out**).",
-                "",
-                "## Open from any device",
-                "",
-                f"**Live UI:** [{ui}]({ui})",
-                "",
-                "| Endpoint | URL |",
-                "|----------|-----|",
-                f"| Public UI (browser, any network) | {ui} |",
-                f"| Public API (docs / exports) | {api} |",
-                "| Local Streamlit (this Mac) | http://127.0.0.1:8501 |",
-                "| Local FastAPI (this Mac) | http://127.0.0.1:8000 |",
-                "",
-                "Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by "
-                "`scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: "
-                "`data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.",
-                "",
-                f"Updated: {updated}",
-                "",
-                "## Authentication",
-                "",
-                "`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). "
-                "Streamlit sends `Authorization: Bearer …` automatically.",
-                "",
-                "## Troubleshooting",
-                "",
-                "| Symptom | Fix |",
-                "|---------|-----|",
-                "| Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |",
-                "| Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |",
-                "| Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |",
-                "",
-                "See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)",
-                "",
-                "## Git auto-sync",
-                "",
-                "Safe changes push to "
-                "[github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) "
-                "automatically (~45 min LaunchAgent + after every tunnel/Link update).",
-                "",
-                "- Manual full sync: `bash scripts/auto_sync_all.sh`",
-                "- Git only: `bash scripts/git_auto_push.sh`",
-                "- See [docs/git_sync.md](docs/git_sync.md)",
-                "",
-            ]
-        ),
-        encoding="utf-8",
+    link_md_lines = [
+        "# Remote access — UML-Pipeline (Mac Studio server)",
+        "",
+        "This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yadav** "
+        "macOS account logged in (screen lock is fine; use Fast User Switch for other users — "
+        "**do not Log Out**).",
+        "",
+        "## Open from any device",
+        "",
+        f"**Live UI:** [{ui}]({ui})",
+        "",
+        "| Endpoint | URL |",
+        "|----------|-----|",
+        f"| Public UI (browser, any network) | {ui} |",
+        f"| Public API (docs / exports) | {api} |",
+        f"| Remote command agent | {agent} |",
+        "| Local Streamlit (this Mac) | http://127.0.0.1:8501 |",
+        "| Local FastAPI (this Mac) | http://127.0.0.1:8000 |",
+        "",
+        "Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by "
+        "`scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: "
+        "`data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.",
+        "",
+        f"Updated: {updated}",
+        "",
+        "## Authentication",
+        "",
+        "`API_ACCESS_TOKEN` must be set in **`.env` on this Mac** (never commit). "
+        "Streamlit sends `Authorization: Bearer …` automatically. "
+        "Remote agent commands use the same token (or optional `REMOTE_AGENT_TOKEN`).",
+        "",
+    ]
+    link_md_lines.extend(_agent_section(api))
+    link_md_lines.extend(
+        [
+            "## Troubleshooting",
+            "",
+            "| Symptom | Fix |",
+            "|---------|-----|",
+            "| Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |",
+            "| Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |",
+            "| Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |",
+            "",
+            "See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)",
+            "",
+            "## Git auto-sync",
+            "",
+            "Safe changes push to "
+            "[github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) "
+            "automatically (~45 min LaunchAgent + after every tunnel/Link update).",
+            "",
+            "- Manual full sync: `bash scripts/auto_sync_all.sh`",
+            "- Git only: `bash scripts/git_auto_push.sh`",
+            "- See [docs/git_sync.md](docs/git_sync.md)",
+            "",
+        ]
     )
+    LINK_MD_FILE.write_text("\n".join(link_md_lines), encoding="utf-8")
     return True
 
 

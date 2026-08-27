@@ -232,3 +232,41 @@ class HealthResponse(BaseModel):
     plantuml_jar_present: bool
     java_available: bool
     messages: list[str]
+
+
+class AgentCommandRequest(BaseModel):
+    command: str = Field(
+        description="Allowlisted command: health, restart-api, restart-ui, smoke-test, "
+        "generate, training-status, server-status, agent-prompt"
+    )
+    args: dict = Field(default_factory=dict, description="Command-specific arguments")
+
+
+class AgentCommandResponse(BaseModel):
+    task_id: str
+    command: str
+    status: str
+
+
+class AgentTaskResponse(BaseModel):
+    task_id: str
+    command: str
+    status: str
+    created_at: str
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    result: Optional[dict] = None
+    output: str = ""
+    error: Optional[str] = None
+
+
+class AgentHealthResponse(BaseModel):
+    status: str
+    agent: str
+    version: str
+    auth_required: bool
+    cursor_sdk_available: bool
+    cursor_agent_enabled: bool
+    allowed_commands: list[str]
+    active_tasks: int
+    rate_limit_per_minute: int

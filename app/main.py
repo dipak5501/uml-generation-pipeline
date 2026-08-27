@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import analytics, artifacts, generate, human_review
+from app.routers import agent, analytics, artifacts, generate, human_review
 from app.security import cors_allow_origins
 from app.settings import get_settings
 
@@ -61,6 +61,7 @@ app.include_router(generate.router)
 app.include_router(artifacts.router)
 app.include_router(human_review.router)
 app.include_router(analytics.router)
+app.include_router(agent.router)
 
 
 @app.get("/")
@@ -69,4 +70,5 @@ def root():
         "name": get_settings().app_name,
         "docs": "/docs",
         "health": "/api/settings/health",
+        "remote_agent": "/api/agent/health",
     }

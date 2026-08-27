@@ -21,6 +21,7 @@ done
 
 echo "--- local HTTP ---"
 curl -sf -o /dev/null -w "api:%{http_code}\n" http://127.0.0.1:8000/api/settings/health || echo "api:down"
+curl -sf -o /dev/null -w "agent:%{http_code}\n" http://127.0.0.1:8000/api/agent/health || echo "agent:down"
 curl -sf -o /dev/null -w "ui:%{http_code}\n" http://127.0.0.1:8501/ || echo "ui:down"
 echo "--- ollama ---"
 curl -sf http://127.0.0.1:11434/api/version 2>/dev/null || echo "11434:down"
