@@ -1,9 +1,1 @@
-(no live URL — tunnels offline; Cloudflare rate limit as of 2026-08-26)
-
-Open the public HTTPS link in any browser from any network. This Mac Studio is the always-on server (keep Dipak Yadav logged in; do not Log Out).
-
-Refresh URL after tunnels start:
-  bash scripts/macos_server_status.sh
-
-Restart tunnels:
-  bash scripts/start_public_tunnels.sh
+https://rogers-reserved-step-demographic.trycloudflare.com

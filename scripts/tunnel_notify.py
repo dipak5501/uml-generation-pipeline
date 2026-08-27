@@ -67,6 +67,13 @@ def update_env_urls(ui_url: str, api_url: str) -> None:
             text = re.sub(pattern, replacement, text, flags=re.M)
         else:
             text = text.rstrip() + f"\n{replacement}\n"
+    # Remove orphan bare trycloudflare lines (breaks `source .env`).
+    text = re.sub(
+        r"(?m)^https://[a-zA-Z0-9.-]+\.trycloudflare\.com\s*$",
+        "",
+        text,
+    )
+    text = re.sub(r"\n{3,}", "\n\n", text)
     p.write_text(text, encoding="utf-8")
     UI_URL_FILE.parent.mkdir(parents=True, exist_ok=True)
     UI_URL_FILE.write_text(ui_url + "\n", encoding="utf-8")
