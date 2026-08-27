@@ -208,18 +208,18 @@ def _collect_language(
     rng: random.Random,
 ) -> list[dict[str, Any]]:
     if lang == "c":
-        # codeparrot .c streaming is sparse and often flaky; seed with synthetic,
-        # then replace/augment with any real .c files we can stream quickly.
-        rows = _topup_synthetic("c", target, rng.randint(1, 99999), seen)
-        print(f"  c: {len(rows)} synthetic baseline", flush=True)
+        rows: list[dict[str, Any]] = []
+        real_target = min(target, max(target // 2, 2000))
+        print(f"  c: streaming codeparrot .c (target {real_target} real) …", flush=True)
         try:
-            extra_target = min(3000, target // 3)
             stream = _stream_codeparrot(".c", "c")
             attempts = 0
-            added = 0
-            while added < extra_target and attempts < extra_target * 400:
+            max_attempts = real_target * 3000
+            while len(rows) < real_target and attempts < max_attempts:
                 code, source = next(stream)
                 attempts += 1
+                if attempts % 5000 == 0:
+                    print(f"  c: {len(rows)}/{real_target} real (attempts={attempts})", flush=True)
                 h = _source_hash(code)
                 if h in seen:
                     continue
@@ -227,15 +227,15 @@ def _collect_language(
                 if not row:
                     continue
                 seen.add(h)
-                if added < len(rows):
-                    rows[added] = row
-                else:
-                    rows.append(row)
-                added += 1
-                if added % 200 == 0:
-                    print(f"  c: replaced {added} with codeparrot real samples", flush=True)
+                seen.add(_code_hash(str(row.get("uml_code") or "")))
+                rows.append(row)
         except Exception as exc:
-            print(f"  c: codeparrot supplement skipped ({type(exc).__name__})", flush=True)
+            print(f"  c: codeparrot stream ended ({type(exc).__name__}: {exc})", flush=True)
+        print(f"  c: {len(rows)} real samples from codeparrot", flush=True)
+        if len(rows) < target:
+            need = target - len(rows)
+            print(f"  c: synthetic top-up for {need} rows …", flush=True)
+            rows.extend(_topup_synthetic("c", need, rng.randint(1, 99999), seen))
         return rows[:target]
 
     streams: list[tuple[str, Iterator[tuple[str, str]]]] = []
@@ -287,20 +287,25 @@ def _topup_synthetic(lang: str, need: int, seed: int, seen: set[str]) -> list[di
     from scripts.build_scenario_code_corpus import build_code_samples_for_langs
 
     rows: list[dict[str, Any]] = []
-    codes = build_code_samples_for_langs(need, seed, langs=[lang])
-    for sample in codes:
-        code = str(sample.get("source_requirement") or "")
-        h = _source_hash(code)
-        if h in seen:
-            continue
-        row = _row_from_code(code, lang, f"synthetic_topup_{lang}", sample.get("id", "syn"))
-        if row:
-            row["source_dataset"] = f"synthetic_topup_{lang}"
-            seen.add(h)
-            rows.append(row)
-        if len(rows) >= need:
-            break
-    return rows
+    batch_seed = seed
+    # C has only two templates; rotate seeds until we have enough unique rows.
+    while len(rows) < need and batch_seed < seed + max(need * 5, 50000):
+        codes = build_code_samples_for_langs(min(need * 2, 20000), batch_seed, langs=[lang])
+        for sample in codes:
+            code = str(sample.get("source_requirement") or "")
+            h = _source_hash(code)
+            if h in seen:
+                continue
+            row = _row_from_code(code, lang, f"synthetic_topup_{lang}", sample.get("id", "syn"))
+            if row:
+                row["source_dataset"] = f"synthetic_topup_{lang}"
+                seen.add(h)
+                seen.add(_code_hash(str(row.get("uml_code") or "")))
+                rows.append(row)
+            if len(rows) >= need:
+                break
+        batch_seed += 97
+    return rows[:need]
 
 
 def main() -> None:
@@ -324,6 +329,17 @@ def main() -> None:
         help="Skip merging with --merge-existing base corpus",
     )
     ap.add_argument(
+        "--merge-cap",
+        type=int,
+        default=200000,
+        help="Max rows from --merge-existing base parquet",
+    )
+    ap.add_argument(
+        "--force",
+        action="store_true",
+        help="Rebuild even when per-language checkpoint parquet exists",
+    )
+    ap.add_argument(
         "--out",
         type=Path,
         default=Path("data/training/uml_source_code_30k_jpc.parquet"),
@@ -337,6 +353,21 @@ def main() -> None:
     train_dir.mkdir(parents=True, exist_ok=True)
 
     for lang in langs:
+        ckpt = train_dir / f"uml_source_code_{lang}_{args.per_language}.parquet"
+        if ckpt.is_file() and not args.force:
+            existing = pd.read_parquet(ckpt)
+            if len(existing) >= args.per_language:
+                part = existing.head(args.per_language).to_dict("records")
+                for row in part:
+                    code = str(row.get("source_requirement") or "")
+                    if code:
+                        seen.add(_source_hash(code))
+                    uml = str(row.get("uml_code") or "")
+                    if uml:
+                        seen.add(_code_hash(uml))
+                all_rows.extend(part)
+                print(f"  {lang}: loaded {len(part)} from checkpoint {ckpt}", flush=True)
+                continue
         print(f"Collecting {args.per_language} {lang} samples from public HF corpora …", flush=True)
         part = _collect_language(lang, args.per_language, seen, rng)
         if len(part) < args.per_language and lang != "c":
