@@ -207,6 +207,37 @@ def _collect_language(
     seen: set[str],
     rng: random.Random,
 ) -> list[dict[str, Any]]:
+    if lang == "c":
+        # codeparrot .c streaming is sparse and often flaky; seed with synthetic,
+        # then replace/augment with any real .c files we can stream quickly.
+        rows = _topup_synthetic("c", target, rng.randint(1, 99999), seen)
+        print(f"  c: {len(rows)} synthetic baseline", flush=True)
+        try:
+            extra_target = min(3000, target // 3)
+            stream = _stream_codeparrot(".c", "c")
+            attempts = 0
+            added = 0
+            while added < extra_target and attempts < extra_target * 400:
+                code, source = next(stream)
+                attempts += 1
+                h = _source_hash(code)
+                if h in seen:
+                    continue
+                row = _row_from_code(code, "c", source, f"codeparrot-{attempts}")
+                if not row:
+                    continue
+                seen.add(h)
+                if added < len(rows):
+                    rows[added] = row
+                else:
+                    rows.append(row)
+                added += 1
+                if added % 200 == 0:
+                    print(f"  c: replaced {added} with codeparrot real samples", flush=True)
+        except Exception as exc:
+            print(f"  c: codeparrot supplement skipped ({type(exc).__name__})", flush=True)
+        return rows[:target]
+
     streams: list[tuple[str, Iterator[tuple[str, str]]]] = []
     if lang == "java":
         streams = [("code-search-net", _stream_codesearchnet("java"))]
@@ -216,7 +247,7 @@ def _collect_language(
             ("semeru", _stream_semeru_python()),
         ]
     elif lang == "c":
-        streams = [("codeparrot", _stream_codeparrot(".c", "c"))]
+        raise ValueError("c handled above")
     else:
         raise ValueError(f"Unsupported language: {lang}")
 
@@ -305,22 +336,27 @@ def main() -> None:
     rng = random.Random(args.seed)
     seen: set[str] = set()
     all_rows: list[dict[str, Any]] = []
+    train_dir = args.out.parent
+    train_dir.mkdir(parents=True, exist_ok=True)
 
     for lang in langs:
-        print(f"Collecting {args.per_language} {lang} samples from public HF corpora …")
+        print(f"Collecting {args.per_language} {lang} samples from public HF corpora …", flush=True)
         part = _collect_language(lang, args.per_language, seen, rng)
-        if len(part) < args.per_language:
+        if len(part) < args.per_language and lang != "c":
             need = args.per_language - len(part)
-            print(f"  Top-up {lang}: {need} synthetic (public pool exhausted)")
+            print(f"  Top-up {lang}: {need} synthetic (public pool exhausted)", flush=True)
             part.extend(_topup_synthetic(lang, need, args.seed + hash(lang) % 9999, seen))
-        print(f"  {lang}: {len(part)} rows")
+        print(f"  {lang}: {len(part)} rows", flush=True)
         all_rows.extend(part[: args.per_language])
+        # checkpoint per language
+        ckpt = train_dir / f"uml_source_code_{lang}_{args.per_language}.parquet"
+        pd.DataFrame(part[: args.per_language]).to_parquet(ckpt, index=False)
+        print(f"  checkpoint → {ckpt}", flush=True)
 
     df = pd.DataFrame(all_rows)
     df = df.drop_duplicates(subset=["source_requirement"], keep="first")
 
     combined_path = args.out
-    train_dir = combined_path.parent
     train_dir.mkdir(parents=True, exist_ok=True)
 
     if args.merge_existing.is_file() and not args.no_merge:
