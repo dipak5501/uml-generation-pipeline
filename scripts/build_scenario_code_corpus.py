@@ -101,6 +101,14 @@ CODE_TEMPLATES: list[tuple[str, str]] = [
     ("kotlin", "open class {A} {{ fun {ma}(): Boolean = true }}\nclass {B} : {A}() {{ fun {mb}() {{}} }}\nclass {C}(val ref: {B})\n"),
     ("swift", "class {A} {{ func {ma}() -> Bool {{ return true }} }}\nclass {B}: {A} {{ func {mb}() {{}} }}\nclass {C} {{ var ref: {B}? }}\n"),
     ("cpp", "class {A} {{ public: void {ma}(); }};\nclass {B} : public {A} {{ public: void {mb}(); }};\nclass {C} {{ {B}* ref; }};\n"),
+    (
+        "c",
+        "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct {A} {{\n    int id;\n    char name[64];\n}} {A};\n\n"
+        "typedef struct {B} {{\n    {A} base;\n    double value;\n}} {B};\n\n"
+        "typedef struct {C} {{\n    {B}* ref;\n    int count;\n}} {C};\n\n"
+        "void {ma}({A}* self) {{ self->id = 1; }}\n"
+        "int {mb}({B}* self) {{ return self ? (int)self->value : 0; }}\n",
+    ),
     ("ruby", "class {A}\n  def {ma}; true; end\nend\nclass {B} < {A}\n  def {mb}; end\nend\nclass {C}\n  attr_accessor :ref\nend\n"),
     ("php", "<?php\nclass {A} {{ public function {ma}() {{ return true; }} }}\nclass {B} extends {A} {{ public function {mb}() {{}} }}\nclass {C} {{ public ${B} $ref; }}\n"),
     ("scala", "class {A} {{ def {ma}(): Boolean = true }}\nclass {B} extends {A} {{ def {mb}(): Unit = () }}\nclass {C}(val ref: {B})\n"),

@@ -209,15 +209,11 @@ def _collect_language(
 ) -> list[dict[str, Any]]:
     streams: list[tuple[str, Iterator[tuple[str, str]]]] = []
     if lang == "java":
-        streams = [
-            ("code-search-net", _stream_codesearchnet("java")),
-            ("codeparrot", _stream_codeparrot(".java", "java")),
-        ]
+        streams = [("code-search-net", _stream_codesearchnet("java"))]
     elif lang == "python":
         streams = [
             ("code-search-net", _stream_codesearchnet("python")),
             ("semeru", _stream_semeru_python()),
-            ("codeparrot", _stream_codeparrot(".py", "python")),
         ]
     elif lang == "c":
         streams = [("codeparrot", _stream_codeparrot(".c", "c"))]
@@ -227,17 +223,22 @@ def _collect_language(
     rows: list[dict[str, Any]] = []
     stream_idx = 0
     attempts = 0
-    max_attempts = target * 400
+    max_attempts = target * (800 if lang == "c" else 250)
+    print(f"  scanning public streams for {lang} (max_attempts={max_attempts}) …", flush=True)
     while len(rows) < target and attempts < max_attempts:
+        if not streams:
+            break
         name, stream = streams[stream_idx % len(streams)]
         try:
             code, source = next(stream)
         except StopIteration:
             stream_idx += 1
-            if stream_idx >= len(streams) * 3:
+            if stream_idx >= len(streams):
                 break
             continue
         attempts += 1
+        if attempts % 1000 == 0:
+            print(f"  {lang}: {len(rows)}/{target} kept ({name}, attempts={attempts})", flush=True)
         h = _source_hash(code)
         if h in seen:
             continue
@@ -247,8 +248,6 @@ def _collect_language(
         seen.add(h)
         seen.add(_code_hash(str(row.get("uml_code") or "")))
         rows.append(row)
-        if len(rows) % 500 == 0:
-            print(f"  {lang}: {len(rows)}/{target} ({name}, attempts={attempts})")
         stream_idx += 1
     return rows
 
@@ -354,13 +353,15 @@ def main() -> None:
         "by_language": dict(by_lang),
         "by_source": dict(by_source),
         "public_sources": {
-            "java": ["code-search-net/code_search_net (java)", "codeparrot/codeparrot-clean-train (.java)"],
+            "java": ["code-search-net/code_search_net (java config)"],
             "python": [
-                "code-search-net/code_search_net (python)",
+                "code-search-net/code_search_net (python config)",
                 "semeru/code-text-python",
-                "codeparrot/codeparrot-clean-train (.py)",
             ],
-            "c": ["codeparrot/codeparrot-clean-train (.c)"],
+            "c": [
+                "codeparrot/codeparrot-clean-train (.c paths)",
+                "synthetic_topup_c (struct/function patterns when stream exhausted)",
+            ],
         },
         "outputs": {
             "language_corpus": str(args.out),
