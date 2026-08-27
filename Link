@@ -1,0 +1,12 @@
+UML-Pipeline public demo (Cloudflare quick tunnel)
+
+UI:  https://portable-oxford-supreme-evident.trycloudflare.com
+API: https://youth-slide-indicating-marijuana.trycloudflare.com
+
+Local API: http://127.0.0.1:8000
+Adapter:   models/uml-plantuml-lora-50k (→ 100k when training completes)
+
+Note: Quick-tunnel URLs rotate on restart. Cloudflare may rate-limit (429) — retry:
+  bash scripts/start_public_tunnels.sh
+
+Updated: 2026-08-26 22:45 UTC

@@ -93,6 +93,22 @@ train-100k:
 	ADAPTER_PATH=models/uml-plantuml-lora-100k ITERS=18000 LOG=data/training/finetune_100k.log bash scripts/run_finetune_resilient.sh
 	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-100k && restart API"
 
+# ≥200k combined train path (100k v2 web/synthetic + existing 102k combined)
+train-200k:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	. .venv/bin/activate && PYTHONPATH=. python scripts/download_all_corpora.py --skip-full-stack
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/build_corpus_v2_100k.py --target 100000
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/prepare_finetune_data.py --input data/training/uml_training_combined_200k.parquet --prefer-accepted --valid-ratio 0.02 --test-ratio 0.02
+	mkdir -p models/uml-plantuml-lora-200k
+	@test -f models/uml-plantuml-lora-200k/adapters.safetensors || cp models/uml-plantuml-lora-100k/adapters.safetensors models/uml-plantuml-lora-200k/ 2>/dev/null || true
+	ADAPTER_PATH=models/uml-plantuml-lora-200k ITERS=20000 LOG=data/training/finetune_200k.log bash scripts/run_finetune_resilient.sh
+	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-200k && restart API"
+
+# Autonomous: wait for 100k → deploy → collect v2 → train 200k
+pipeline-after-100k:
+	nohup bash scripts/pipeline_after_100k.sh >> data/training/pipeline_after_100k.log 2>&1 &
+	@echo "Supervisor PID $$! — tail -f data/training/pipeline_after_100k.log"
+
 test:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true USE_FINETUNED_CODE=false pytest -q
 
