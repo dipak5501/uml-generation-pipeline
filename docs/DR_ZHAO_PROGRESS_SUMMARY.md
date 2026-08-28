@@ -185,3 +185,6 @@ The thesis implementation is **functionally complete** as an end-to-end applicat
 
 *Full technical report: [`docs/DR_ZHAO_THESIS_PROGRESS_REPORT.md`](DR_ZHAO_THESIS_PROGRESS_REPORT.md)*  
 *Evidence matrix: [`docs/IMPLEMENTATION_EVIDENCE_MATRIX.md`](IMPLEMENTATION_EVIDENCE_MATRIX.md)*
+
+**PDF copies (same folder):** `DR_ZHAO_PROGRESS_SUMMARY.pdf`, `DR_ZHAO_THESIS_PROGRESS_REPORT.pdf`, `OVERLEAF_PAPER_HANDOFF.pdf`, `IMPLEMENTATION_EVIDENCE_MATRIX.pdf`  
+Regenerate: `bash scripts/generate_dr_zhao_pdfs.sh`

@@ -51,8 +51,12 @@ Legend: **VERIFIED** = confirmed in source code and/or on-disk artifacts; **PART
 | Hugging Face Inference Providers | HF provider | `app/providers/factory.py` | `HuggingFaceProvider` | VERIFIED (code) |
 | OpenAI-compatible API fallback | OpenAI provider | `app/providers/factory.py` | `OpenAIProvider` | VERIFIED (code) |
 | Training corpus builders (8k–200k) | Scripts + training dir | `scripts/build_training_corpus.py` | N/A | VERIFIED (code + `data/training/`) |
+| **50k LoRA training corpus** | **50,000 rows** | `data/training/manifest.json` | `make train-50k` | **VERIFIED** (15k iters, adapter complete) |
+| **100k LoRA training corpus** | **~102,445 rows; 131,153 train JSONL** | `data/data_lake_inventory.json` | `make train-100k` | **VERIFIED** (18k iters complete) |
+| **200k LoRA training corpus** | **~224k rows; 202,445+ JSONL** | `data/training/200k_final_metrics.json` | `make train-200k` | **VERIFIED** (20k iters, val loss 0.565) |
+| **30k source-code LoRA (production)** | **30,000 Java/Python/C** | `data/training/finetune_sourcecode_30k.log` | `make train-source30k` | **VERIFIED** (6k iters, warm-start from 200k) |
 | MLX LoRA fine-tune scripts | Scripts + adapter dirs | `scripts/finetune_plantuml.py` | N/A | VERIFIED (model dirs present) |
-| Imported HF benchmark dataset (8000 rows) | Parquet manifest | `data/uml_design_dataset.parquet` | `data/manifest.json` | VERIFIED |
+| Imported HF **evaluation** dataset (8000 rows, not training) | Parquet manifest | `data/uml_design_dataset.parquet` | `data/manifest.json` | VERIFIED |
 | VLM scores on imported dataset (3000 rows) | Parquet column stats | `data/uml_design_dataset.parquet` | N/A | VERIFIED (object/component/package only) |
 | Golden acceptance regression (6/6) | Report file | `reports/acceptance_eval.md` | `tests/test_acceptance.py` | VERIFIED |
 | Benchmark acceptance (200/200) | Report file | `reports/acceptance_eval.md` | `scripts/eval_acceptance.py` | VERIFIED |
