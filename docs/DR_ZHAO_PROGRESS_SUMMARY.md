@@ -34,7 +34,25 @@ A **complete full-stack application** is implemented and running:
 - **363** successful renders (77.2%); **311** dataset-accepted (66.2%)
 - Mean composite score **S = 3.81** (range 0–6)
 - **153** automated tests passing (mock mode)
-- **8000-row** imported Hugging Face benchmark parquet (`data/uml_design_dataset.parquet`); **3000** rows with VLM scores
+- **8000-row** imported Hugging Face **evaluation/benchmark** parquet (`data/uml_design_dataset.parquet`); **3000** rows with VLM scores
+
+### LoRA training corpora (MLX fine-tuning — verified from `data/training/`, `models/`, logs)
+
+Training progressed in staged corpus builds; the **8k starter** was only the initial HF corpus — subsequent runs scaled to **50k, 100k, 200k**, then a **30k source-code** specialization pass (production adapter).
+
+| Training stage | Corpus size | Finetune train lines | LoRA iters | Adapter checkpoint | Status |
+|----------------|-------------|----------------------|------------|-------------------|--------|
+| Starter | ~8k HF UML pairs | — | ~2–3k | `models/uml-plantuml-lora` | Legacy / dev |
+| **50k** | **50,000** unique HF/web rows | **61,395** | **15,000** | `models/uml-plantuml-lora-50k` | **Complete** |
+| **100k** | **~102,445** merged (50k HF + 50k source-code) | **131,153** | **18,000** | `models/uml-plantuml-lora-100k` | **Complete** |
+| **200k** | **~224k** combined (+ v2 web top-up) | **202,445+** JSONL rows | **20,000** | `models/uml-plantuml-lora-200k` | **Complete** (val loss 0.565 best) |
+| 10k source (interim) | 10,000 Java/Python/C | — | 4,000 | `models/uml-plantuml-lora-source10k` | Superseded |
+| **30k source (production)** | **30,000** (10k Java + 10k Python + 10k C) | warm-started from **200k** adapter | **6,000** | `models/uml-plantuml-lora-sourcecode-30k` | **Production default** |
+
+**Base model (all stages):** `mlx-community/Qwen2.5-0.5B-Instruct-4bit`  
+**Evidence:** `models/README.md`, `data/data_lake_inventory.json`, `data/training/finetune_100k.log`, `data/training/finetune_200k.log`, `data/training/finetune_sourcecode_30k.log`, `data/training/200k_final_metrics.json`
+
+> **Note:** The 8k figure refers to the **starter corpus** and a separate **8k-row HF evaluation import** — not the scale of LoRA training. The fine-tuning pipeline was trained on corpora up to **~224k rows**, with the current production adapter fine-tuned on an additional **30k source-code** block on top of the **200k** checkpoint.
 
 ---
 
@@ -119,11 +137,12 @@ From `reports/acceptance_eval.md`:
 - Benchmark (200 cases): **200/200** accepted  
 - Negative controls: **5/5** correctly rejected  
 
-### Imported benchmark parquet (8000 rows)
+### Imported benchmark parquet (8000 rows — evaluation, not training)
 
 - 5000 class + 1000 each object/component/package (Hugging Face UMLCode datasets)  
 - **3000 rows** have VLM scores (1000 per non-class type); class rows are unscored in this file  
-- Mean composite on scored rows: **3.76**
+- Mean composite on scored rows: **3.76**  
+- Distinct from LoRA training corpora (50k / 100k / 200k / 30k source-code above)
 
 ### Paper claims NOT reproduced locally
 

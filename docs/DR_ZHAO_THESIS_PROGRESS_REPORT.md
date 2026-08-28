@@ -22,7 +22,7 @@ This report documents the implementation status of the thesis project **"Automat
 
 **Verified local results (SQLite, 2026-08-28):** 470 persisted artifacts; 363 successful renders (77.2%); mean composite score 3.81; 311 dataset-accepted entries (66.2%). Class, component, and package diagrams achieve ~91–93% render success; **object diagrams lag at 29.5% render success**, representing the primary technical risk area.
 
-A **Streamlit demonstration application** (8 pages) and **FastAPI backend** are implemented, tested (153 pytest cases), and documented for 24/7 deployment on an Apple Mac Studio. An imported **8000-row Hugging Face benchmark parquet** and deterministic **acceptance evaluation (200/200 benchmark pass)** provide additional evidence.
+A **Streamlit demonstration application** (8 pages) and **FastAPI backend** are implemented, tested (153 pytest cases), and documented for 24/7 deployment on an Apple Mac Studio. **MLX LoRA fine-tuning** was completed on staged corpora scaling from an **8k starter** through **50k**, **100k**, and **200k** training rows, culminating in a **30k Java/Python/C source-code** adapter used in production. An imported **8000-row Hugging Face evaluation parquet** (benchmark reference, separate from training) and deterministic **acceptance evaluation (200/200 benchmark pass)** provide additional evidence.
 
 **Gaps for publication:** human evaluation data (0 reviews in database), paper-scale n=8000 live generation run, and correlation statistics reported in the LaTeX draft are **not verified from the current repository state**.
 
@@ -235,8 +235,27 @@ See Section 9.
 
 - **Legacy CLI:** `uml_pipeline/pipeline.py` → `run_generation_batch()`
 - **Application batch:** `POST /api/generate/batch` — sample requirements × diagram types.
-- **Import:** `scripts/download_datasets.py` → `data/uml_design_dataset.parquet` (8000 rows).
+- **Import (evaluation benchmark):** `scripts/download_datasets.py` → `data/uml_design_dataset.parquet` (8000 rows from Hugging Face UMLCode — **not** the LoRA training set).
 - **Export:** `/api/export/dataset` filters `dataset_accepted` artifacts.
+
+### 8.12.1 LoRA Training Corpora and Fine-Tuning Runs (Verified)
+
+Stage-2 PlantUML generation uses a **MLX LoRA adapter** fine-tuned on progressively larger corpora. The **8k starter** (`make training-corpus`) was the initial development corpus; production training scaled through **50k → 100k → 200k**, then a **30k per-language source-code** specialization.
+
+| Stage | Corpus rows | Finetune train JSONL lines | LoRA iterations | Adapter path | Completion evidence |
+|-------|-------------|------------------------------|-----------------|--------------|---------------------|
+| Starter | ~8k HF UML | — | ~2–3k | `models/uml-plantuml-lora` | Legacy |
+| **50k** | **50,000** | **61,395** | **15,000** | `models/uml-plantuml-lora-50k` | `finetune_50k.log`, manifest |
+| **100k** | **~102,445** combined | **131,153** | **18,000** | `models/uml-plantuml-lora-100k` | `finetune_100k.log`, `data_lake_inventory.json` |
+| **200k** | **~224k** combined | **202,445+** JSONL | **20,000** | `models/uml-plantuml-lora-200k` | `200k_final_metrics.json` (best val loss **0.565**) |
+| 10k source | 10,000 J/P/C | — | 4,000 | `models/uml-plantuml-lora-source10k` | `source10k_train_report.json` |
+| **30k source** | **30,000** (10k × Java/Python/C) | warm-start from 200k | **6,000** | `models/uml-plantuml-lora-sourcecode-30k` | `finetune_sourcecode_30k.log` — **production** |
+
+**Corpus composition (100k merge):** 50k open Hugging Face / web PlantUML rows + 50k source-code block (The Stack v2 web snippets, multi-language synthetic code, HF instruction pairs). See `data/data_lake_inventory.json` and `models/README.md`.
+
+**Commands:** `make train-50k`, `make train-100k`, `make train-200k`, `make train-source30k` (Makefile).
+
+**Distinction:** The **8000-row** `uml_design_dataset.parquet` is an imported **evaluation/benchmark** dataset with optional pre-scored VLM columns (3000 scored rows). It must not be conflated with the **100k+ training corpora** used for LoRA fine-tuning.
 
 ### 8.13 Streamlit Application
 

@@ -28,6 +28,7 @@
 - Dual acceptance signal: weighted composite score **S** and majority-vote gate **A** (threshold τ=4, ≥2 of 3 models); dataset inclusion requires render success, **A=1**, and **S≥3**.
 - Render failure forces **S=0** regardless of VLM output.
 - Full artifact traces persisted (requirement, spec, PlantUML, image, per-model scores, repair history) in SQLite with export to JSONL/CSV/Parquet.
+- **MLX LoRA fine-tuning** on staged corpora: **50k → 100k (~102k rows) → 200k (~224k rows) → 30k source-code** (Java/Python/C); production adapter `uml-plantuml-lora-sourcecode-30k` (6k iters, warm-started from 200k).
 - FastAPI + Streamlit demonstration application deployed on local Apple Silicon hardware with documented production configuration.
 
 **Do NOT assert without new experiments:**
@@ -127,7 +128,8 @@ Use diagram from `docs/SYSTEM_DESIGN.md` (Mermaid + ASCII). Layers:
 | Test suite | 153 pytest tests, mock providers | Yes |
 | Acceptance benchmark | 200 NL samples × 4 types, deterministic gates | Yes (`acceptance_eval.md`) |
 | Live generation DB | 470 artifacts, mixed requirement/code input | Yes |
-| HF import dataset | 8000 rows from UMLCode HF repos | Yes (parquet) |
+| LoRA fine-tuning (50k/100k/200k/30k source) | Scripts, logs, adapters | AVAILABLE |
+| HF evaluation import (8000 rows, not training) | `data/uml_design_dataset.parquet` | AVAILABLE |
 | Paper-scale live run | 8000 generated + scored on production stack | NOT VERIFIED locally |
 
 ---
