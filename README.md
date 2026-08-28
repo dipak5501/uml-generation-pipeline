@@ -3,7 +3,9 @@
 **Author:** [Dipak Yadav](https://github.com/dipak5501)  
 **Repository:** [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
-End-to-end application that turns plain-English software requirements **or source code** into design-phase UML diagrams (**Class, Object, Component, Package, Flowchart**), renders them as **black-and-white** PlantUML PNGs, scores them with a multimodal VLM ensemble (weighted composite **S** + majority-vote gate **A**), and supports human evaluation, analytics, and dataset export.
+End-to-end application that turns plain-English software requirements **or source code** (Java, Python, C) into design-phase UML diagrams (**Class, Object, Component, Package**), renders them as **black-and-white** PlantUML PNGs, scores them with a multimodal VLM ensemble (weighted composite **S** + majority-vote gate **A**), and supports human evaluation, analytics, and dataset export.
+
+> **Note:** The API and UI accept four diagram types (`class`, `object`, `component`, `package`). Flowchart/activity diagrams appear in training corpora and legacy docs but are **not** exposed on `/api/generate`.
 
 This repository implements the system described in **Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design** (Dipak Yadav, Yutong Zhao).
 
@@ -11,9 +13,9 @@ This repository implements the system described in **Automated UML Dataset Gener
 
 ---
 
-## Production stack (Mac Studio)
+## Production stack (Math dept Mac Studio)
 
-The primary deployment runs on an **Apple Mac Studio (M1 Ultra, 128 GB)** with **no Azure dependency**:
+The primary deployment runs **24/7** on the **Math department Mac Studio (M1 Ultra, 128 GB)** via macOS user LaunchAgents — **no Azure dependency**:
 
 | Component | Production default |
 |-----------|-------------------|
@@ -107,9 +109,11 @@ Set `API_ACCESS_TOKEN` in `.env` before exposing tunnels. Streamlit attaches Bea
 | Stage | Command | Output |
 |-------|---------|--------|
 | 8k starter | `make training-corpus` | `data/training/uml_training_8000.parquet` |
-| 50k HF/web | `make train-50k` | `models/uml-plantuml-lora-50k` (**complete**, 15k iters) |
-| 200k combined | `make train-200k` | `models/uml-plantuml-lora-200k` |
-| 30k source-code (Java/Python/C) | `make train-source30k` | `models/uml-plantuml-lora-sourcecode-30k` (**production default**) |
+| 50k HF/web | `make train-50k` | `models/uml-plantuml-lora-50k` (15k iters; superseded) |
+| 100k merged | `make train-100k` | `models/uml-plantuml-lora-100k` (18k iters; superseded) |
+| 200k combined | `make train-200k` | `models/uml-plantuml-lora-200k` (20k iters; superseded) |
+| 10k source-code (interim) | — | `models/uml-plantuml-lora-source10k` (superseded) |
+| **30k source-code (Java/Python/C)** | `make train-source30k` | `models/uml-plantuml-lora-sourcecode-30k` (**production**, 6k iters, warm-started from 200k) |
 
 Corpus merges open Hugging Face UMLCode datasets with web PlantUML, a **50k source-code block**, and a **30k per-language block** (10k Java, 10k Python, 10k C). Details: [models/README.md](models/README.md), [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md#8-data-lake-and-training-design).
 
@@ -191,7 +195,7 @@ app/           FastAPI + SQLModel services, provider factory, orchestration
 ui/            Streamlit multipage UI
 uml_pipeline/  Research pipeline (render, scoring, LLM client)
 prompts/       Versioned prompt templates
-models/        MLX LoRA adapters (50k complete, 100k in progress)
+models/        MLX LoRA adapters (production: sourcecode-30k; prior: 50k/100k/200k/source10k)
 data/          SQLite, artifacts, training corpora, tunnel state
 scripts/       Deploy, training, tunnels, LaunchAgents
 docs/          SYSTEM_DESIGN.md, deploy, demo flow, gap analysis
@@ -227,9 +231,11 @@ Check health: `GET /api/settings/health`
 
 ```bash
 make demo          # mock single artifact
-make test          # pytest
-make smoke         # live API smoke
+make test          # pytest (153 tests, MOCK_PROVIDERS=true)
+make smoke         # live API smoke (9/9 pass; composite scores 4.72–6.00)
 ```
+
+**Golden fixtures:** 21 cases (6 NL + 15 source-code) under `tests/golden/`. Reviewer bundle: `reports/REVIEWER_PROGRESS_REPORT.md`, `reports/reviewer_gpu_package.zip`.
 
 ---
 

@@ -32,7 +32,7 @@ Prerequisites: dual Ollama, MLX LoRA adapter, local Aya, Java JDK.
 MOCK_PROVIDERS=false
 USE_OLLAMA=true
 USE_FINETUNED_CODE=true
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 VLM_AYA_BACKEND=local
 API_ACCESS_TOKEN=<secret>
 
@@ -46,7 +46,7 @@ bash scripts/install_macos_user_server.sh
 2. **Single Generation** — choose input mode:
    - **Requirement:** paste e.g. *"Online bookstore with customers, orders, and inventory."*
    - **Source code:** paste a Python/Java class; language auto-detected  
-3. Select diagram type (class / object / component / package / flowchart)  
+3. Select diagram type (class / object / component / package)  
 4. Generate (async) — job runs in background; poll until complete  
 5. Review artifact trace:
    - Stage 1 structured spec (JSON)  
@@ -105,7 +105,7 @@ Poll `GET /api/jobs/{id}` until `status=completed`. Export via `GET /api/export/
 |---------|-------|-----|
 | S = 0, no image | Java missing or PlantUML error | `make install-java`; check `/api/settings/health` |
 | Only 1–2 VLM scores | Ollama down or Aya not loaded | `macos_server_status.sh`; run `setup_paper_aya_local.sh` |
-| Package/flowchart broken | LoRA emits class-style UML | Expected — app skips LoRA for some types; uses repair + templates |
+| Package diagrams weak | LoRA may emit class-style UML | Repair loop + typed templates; rollback to prior adapter if needed |
 | UI "API offline" | API not running or wrong `API_BASE_URL` | Keep `API_BASE_URL=http://127.0.0.1:8000`; restart API |
 | 401 on generate | Token mismatch | Same `API_ACCESS_TOKEN` in `.env` for API and UI |
 

@@ -10,5 +10,5 @@
 8. **Human rubric:** Semantic correctness, structural completeness, syntactic accuracy, overall coherence — each 1–5 (or 0–6 aligned with VLM scale via config); default 1–5 for human forms.
 9. **Default project:** A single “UML-Pipeline” project is auto-created on first run.
 10. **Python version:** Target is 3.11+; local production venv may run 3.13.
-11. **Production host:** Primary deployment is Mac Studio M1 Ultra (128 GB), dual Ollama 0.24/0.32, MLX LoRA, local Aya, Cloudflare tunnels, user LaunchAgents — not Azure.
-12. **LoRA training:** 50k adapter complete; 100k adapter training may be in progress — check `data/training/finetune_100k.log` before restarting training jobs.
+11. **Production host:** Primary deployment is Math department Mac Studio M1 Ultra (128 GB), 24/7 via user LaunchAgents — dual Ollama (:11434/:11435), MLX LoRA (`sourcecode-30k`), local Aya, Cloudflare tunnels — not Azure.
+12. **LoRA adapters:** Production default `models/uml-plantuml-lora-sourcecode-30k` (30k Java/Python/C, 6k iters). Prior adapters (50k, 100k, 200k, source10k) are superseded but kept for rollback.

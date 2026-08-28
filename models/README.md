@@ -11,24 +11,18 @@ Full data design: [docs/SYSTEM_DESIGN.md](../docs/SYSTEM_DESIGN.md#8-data-lake-a
 | Path | Corpus | Iters | Status |
 |------|--------|-------|--------|
 | `models/uml-plantuml-lora` | ~8k–10k HF UML | ~2–3k | Legacy / dev |
-| `models/uml-plantuml-lora-50k` | 50k HF/web PlantUML + supplements | **15,000** | **Complete** (val loss ~1.23) |
-| `models/uml-plantuml-lora-100k` | 102k merged (50k HF + 50k source-code) | **~4,500 / 18,000** | **Training in progress** (Aug 2026) |
+| `models/uml-plantuml-lora-50k` | 50k HF/web PlantUML + supplements | 15,000 | Complete |
+| `models/uml-plantuml-lora-100k` | 102k merged (50k HF + 50k source-code) | 18,000 | Complete |
+| `models/uml-plantuml-lora-200k` | 224k combined + v2 web top-up | 20,000 | Complete |
+| `models/uml-plantuml-lora-source10k` | 10k Java/Python/C (interim) | 4,000 | Superseded |
+| `models/uml-plantuml-lora-sourcecode-30k` | 30k Java/Python/C (10k each) + 200k base merge | 6,000 | **Production default** |
 
 Base model (all adapters): `mlx-community/Qwen2.5-0.5B-Instruct-4bit`
 
-Warm-start: 100k run copies initial weights from `uml-plantuml-lora-50k`.
-
-Monitor training:
+Production `.env`:
 
 ```bash
-tail -f data/training/finetune_100k.log
-```
-
-When 100k training finishes:
-
-```bash
-# .env
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-100k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 bash scripts/restart_api.sh
 ```
 
@@ -130,6 +124,9 @@ make train-50k
 
 # 100k path (may take days; resilient to interruptions)
 make train-100k
+
+# 30k per-language source-code (Java/Python/C 10k each) — production default
+make train-source30k
 ```
 
 Resilient runner (Open MPI-safe, auto-resume): `scripts/run_finetune_resilient.sh`
@@ -147,7 +144,7 @@ USE_FINETUNED_CODE=true
 MOCK_PROVIDERS=false          # or true — LoRA still used for PlantUML when enabled
 USE_OLLAMA=true               # spec + VLMs stay on Ollama
 FINETUNED_BASE_MODEL=mlx-community/Qwen2.5-0.5B-Instruct-4bit
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k   # → -100k when ready
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k   # production Mac Studio default
 FINETUNED_MAX_TOKENS=1536     # 512 truncates complex class/package diagrams
 ```
 
@@ -159,9 +156,9 @@ bash scripts/restart_api.sh
 ./scripts/run_local.sh
 ```
 
-Only the **PlantUML code** stage uses the LoRA adapter. When enabled, generation prefers LoRA for class/object/component/package/flowchart (and extended types in corpus), then falls back to the grounded spec-builder if validation or fidelity checks fail.
+Only the **PlantUML code** stage uses the LoRA adapter. When enabled, generation prefers LoRA for class/object/component/package (API types), then falls back to the grounded spec-builder if validation or fidelity checks fail.
 
-Package and flowchart may still route to base Ollama or typed templates when LoRA output fails diagram-type validators.
+Package diagrams may still route to base Ollama or typed templates when LoRA output fails diagram-type validators.
 
 ---
 

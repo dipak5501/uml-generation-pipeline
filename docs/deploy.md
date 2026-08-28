@@ -16,7 +16,7 @@ Full architecture: [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
 
 ## Option A — Mac Studio production (recommended)
 
-Hardware: Apple Mac Studio, M1 Ultra, 128 GB RAM. Stack: FastAPI, Streamlit, SQLite, dual Ollama 0.24/0.32, MLX LoRA, local Aya-Vision-8B, Cloudflare tunnels.
+Hardware: Math department **Apple Mac Studio**, M1 Ultra, 128 GB RAM, **24/7** via LaunchAgents. Stack: FastAPI, Streamlit, SQLite, dual Ollama (:11434 llama3.2-vision, :11435 qwen2.5vl), MLX LoRA (`sourcecode-30k`), local Aya-Vision-8B, Cloudflare tunnels.
 
 ### 1. Install dependencies
 
@@ -212,8 +212,10 @@ Do **not** commit `.env` or secrets. Set keys only in the host dashboard or loca
 Training does not block the API but competes for GPU/CPU:
 
 ```bash
-make train-50k     # complete → models/uml-plantuml-lora-50k
-make train-100k    # in progress → models/uml-plantuml-lora-100k
+make train-50k          # → models/uml-plantuml-lora-50k (superseded)
+make train-100k         # → models/uml-plantuml-lora-100k (superseded)
+make train-200k         # → models/uml-plantuml-lora-200k (superseded)
+make train-source30k    # → models/uml-plantuml-lora-sourcecode-30k (production)
 ```
 
 After swapping adapters, update `FINETUNED_ADAPTER_PATH` and `bash scripts/restart_api.sh`.

@@ -1,6 +1,6 @@
 # UML-Pipeline — System Design
 
-**Last updated:** 2026-08-26  
+**Last updated:** 2026-08-28  
 **Paper:** *Automated UML Dataset Generation from Natural-Language Requirements with Multimodal Verification for Software Design* (Dipak Yadav, Yutong Zhao)  
 **Repository:** [github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline)
 
@@ -10,7 +10,9 @@ This document describes the **production architecture** of UML-Pipeline as deplo
 
 ## 1. Executive summary
 
-UML-Pipeline is a full-stack application that converts natural-language software requirements **or source code** into design-phase UML diagrams (class, object, component, package, flowchart), renders them as black-and-white PNGs via PlantUML, scores them with a three-model vision ensemble, and persists complete artifact traces in SQLite for review, analytics, and dataset export.
+UML-Pipeline is a full-stack application that converts natural-language software requirements **or source code** (Java, Python, C) into design-phase UML diagrams (class, object, component, package), renders them as black-and-white PNGs via PlantUML, scores them with a three-model vision ensemble, and persists complete artifact traces in SQLite for review, analytics, and dataset export.
+
+> **Diagram types:** The API (`app/schemas.py`) exposes four types: `class`, `object`, `component`, `package`. Flowchart/activity diagrams exist in training corpora and internal validators but are not accepted on `/api/generate`.
 
 | Layer | Technology |
 |-------|------------|
@@ -27,14 +29,14 @@ UML-Pipeline is a full-stack application that converts natural-language software
 
 ## 2. Hardware and runtime environment
 
-Production host (measured 2026-08-26):
+Production host (Math department Mac Studio, measured 2026-08-28):
 
 | Item | Value |
 |------|-------|
 | Machine | Apple Mac Studio |
 | SoC | M1 Ultra |
 | RAM | 128 GB unified memory |
-| OS | macOS (arm64) |
+| OS | macOS (arm64), 24/7 via user LaunchAgents |
 | Python | 3.11+ (local venv at `.venv/`) |
 
 The unified memory footprint allows concurrent operation of: dual Ollama servers, local Aya-Vision-8B (Transformers/MPS), MLX LoRA inference, FastAPI, Streamlit, and long-running LoRA training jobs.
@@ -251,7 +253,10 @@ When `API_ACCESS_TOKEN` is set:
 | GET | `/api/settings/health` | Provider, Java, DB, adapter status |
 | GET | `/api/adaptation/status` | Adaptation memory snapshot |
 
-Generate request fields include `input_mode` (`requirement` | `source_code`), `diagram_type`, `skip_vlm`, and `async_mode` (default `true` for UI responsiveness).
+| GET | `/api/agent/health` | Remote command agent health |
+| POST | `/api/agent/command` | Remote server control (auth required) |
+
+Generate request fields include `input_mode` (`requirement` | `source_code`), `diagram_type` (`class` | `object` | `component` | `package`), `skip_vlm`, and `async_mode` (default `true` for UI responsiveness).
 
 ---
 
@@ -291,9 +296,10 @@ data/
 │   ├── uml_training_supplement_merged.parquet   # ~54k rows (50k HF + supplements)
 │   ├── uml_source_code_50k.parquet              # source-code block
 │   ├── uml_training_combined_100k.parquet       # 50k HF + 50k source-code merge
+│   ├── uml_source_code_30k.parquet              # 30k Java/Python/C (10k each)
 │   ├── source_code_manifest.json
 │   ├── finetune_50k.log
-│   └── finetune_100k.log                        # active training log
+│   └── finetune_source30k.log                   # production adapter training log
 ├── raw_hf/                    # Downloaded Hugging Face mirrors
 ├── run/                       # PID files, public tunnel URLs, LaunchAgent state
 └── eval/                      # Batch evaluation reports
@@ -308,7 +314,8 @@ Open Hugging Face **UMLCode** datasets (nguyenvanviet class/object/component/pac
 | Initial 8k | ~8,000 | Paper-scale starter (`make training-corpus`) |
 | 50k HF/web | 50,000 | `make train-50k` path |
 | 50k source-code | 50,000 | Web stack + multi-lang code top-up + HF instruction pairs |
-| Combined 100k | ~102,445 | Merged for current LoRA generation |
+| Combined 100k | ~102,445 | Merged for LoRA 100k adapter (superseded) |
+| Source-code 30k | 30,000 | 10k Java + 10k Python + 10k C (`make train-source30k`) |
 
 ### Finetune JSONL structure
 
@@ -336,16 +343,21 @@ Splits: `data/finetune/train.jsonl`, `valid.jsonl`, `test.jsonl`. With 100k corp
 | Adapter path | Status | Iters | Base model |
 |--------------|--------|-------|------------|
 | `models/uml-plantuml-lora` | Legacy 8k/10k | ~2–3k | Qwen2.5-0.5B 4-bit |
-| `models/uml-plantuml-lora-50k` | **Complete** | 15,000 | Qwen2.5-0.5B 4-bit |
-| `models/uml-plantuml-lora-100k` | **In progress** | ~4,500 / 18,000 target | Warm-started from 50k |
+| `models/uml-plantuml-lora-50k` | Superseded | 15,000 | Qwen2.5-0.5B 4-bit |
+| `models/uml-plantuml-lora-100k` | Superseded | 18,000 | Qwen2.5-0.5B 4-bit |
+| `models/uml-plantuml-lora-200k` | Superseded | 20,000 | Qwen2.5-0.5B 4-bit |
+| `models/uml-plantuml-lora-source10k` | Superseded (interim) | 4,000 | Qwen2.5-0.5B 4-bit |
+| `models/uml-plantuml-lora-sourcecode-30k` | **Production default** | 6,000 | Qwen2.5-0.5B 4-bit (warm-started from 200k) |
 
-**As of 2026-08-26:** 100k training is actively running (`data/training/finetune_100k.log`, iter ~4,400+, val loss ~1.1). Do not restart training unless intentional. When complete, set `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-100k` and restart the API LaunchAgent.
+**Production:** `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k` — 30k Java/Python/C corpus (10k each), 6,000 training iterations. Prior adapters (50k, 100k, 200k, source10k) remain on disk for rollback.
 
 Training commands:
 
 ```bash
-make train-50k    # download → 50k corpus → LoRA → models/uml-plantuml-lora-50k
-make train-100k   # source-code 50k + combined parquet → 18k iters → lora-100k
+make train-50k         # → models/uml-plantuml-lora-50k
+make train-100k        # → models/uml-plantuml-lora-100k
+make train-200k        # → models/uml-plantuml-lora-200k
+make train-source30k   # → models/uml-plantuml-lora-sourcecode-30k (production)
 ```
 
 Resilient runner: `scripts/run_finetune_resilient.sh` (Open MPI-safe, auto-resume).
@@ -422,7 +434,7 @@ Production-oriented `.env` excerpt:
 MOCK_PROVIDERS=false
 USE_OLLAMA=true
 USE_FINETUNED_CODE=true
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-50k   # swap to -100k when training completes
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
 FINETUNED_MAX_TOKENS=1536
 VLM_AYA_BACKEND=local
 OLLAMA_BASE_URL=http://127.0.0.1:11434
@@ -444,5 +456,18 @@ MIN_COMPOSITE_FOR_DATASET=3.0
 | [demo_flow.md](demo_flow.md) | End-to-end user walkthrough |
 | [implementation_plan.md](implementation_plan.md) | Original build plan (mostly complete) |
 | [gap_analysis.md](gap_analysis.md) | Historical gaps (largely closed) |
-| [models/README.md](../models/README.md) | LoRA training paths |
+| [models/README.md](../models/README.md) | LoRA adapter inventory |
+| [reports/REVIEWER_PROGRESS_REPORT.md](../reports/REVIEWER_PROGRESS_REPORT.md) | Reviewer progress report |
 | [reports/PUBLICATION_TECHNICAL_REPORT.md](../reports/PUBLICATION_TECHNICAL_REPORT.md) | Publication-oriented technical report |
+
+---
+
+## 12. Evaluation and test status (2026-08-28)
+
+| Suite | Result |
+|-------|--------|
+| `MOCK_PROVIDERS=true pytest -q` | **153 passed** |
+| Golden fixtures | **21** (6 NL + 15 source-code) |
+| Live API smoke (`make smoke`) | **9/9** pass; composite scores **4.72–6.00** |
+
+Reviewer bundle: `reports/reviewer_gpu_package.zip` (includes sample golden JSON under `SAMPLE_DATA/`).

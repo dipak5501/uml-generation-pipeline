@@ -103,7 +103,9 @@ st.markdown(
 |----------|---------|
 | `MOCK_PROVIDERS` | `true` = offline mock (default); `false` = live models |
 | `USE_OLLAMA` | Local Ollama (free) for spec / VLM / code fallback |
-| `USE_FINETUNED_CODE` | Local MLX LoRA for class/object/component PlantUML |
+| `USE_FINETUNED_CODE` | Local MLX LoRA for PlantUML (`uml-plantuml-lora-sourcecode-30k` in production) |
+| `FINETUNED_ADAPTER_PATH` | LoRA adapter directory (production: `models/uml-plantuml-lora-sourcecode-30k`) |
+| `API_ACCESS_TOKEN` | Required for public deploy / remote agent (`/api/agent`) |
 | `USE_HF_INFERENCE` | Hugging Face Inference Providers (paid/credits for many models) |
 | `HF_TOKEN` | Hugging Face token (only if using HF) |
 | `SPEC_MODEL` | Spec LLM (default `meta-llama/Llama-3.2-1B-Instruct` → Ollama `llama3.2:1b`) |
@@ -113,7 +115,7 @@ st.markdown(
 | `OPENAI_API_KEY` / `OPENAI_BASE_URL` | Other OpenAI-compatible APIs |
 | `DATABASE_URL` | SQLite (default) or Postgres URL |
 
-**Recommended local free setup:** `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_FINETUNED_CODE=true`, `USE_HF_INFERENCE=false`.  
-Start with `make run` (or `./scripts/run_local.sh`). Package/flowchart skip LoRA and use Ollama + typed templates.
+**Recommended local free setup:** `MOCK_PROVIDERS=false`, `USE_OLLAMA=true`, `USE_FINETUNED_CODE=true`, `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k`, `USE_HF_INFERENCE=false`, `VLM_AYA_BACKEND=local`.  
+Start with `make run` (or `./scripts/run_local.sh`). Set `API_ACCESS_TOKEN` before public Cloudflare tunnels.
 """
 )

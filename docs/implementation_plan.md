@@ -1,6 +1,6 @@
 # Implementation Plan
 
-**Status:** Implemented (2026-08-26). This document records original architecture decisions and maps them to the current codebase. For production deployment details, see [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
+**Status:** Implemented (2026-08-28). This document records original architecture decisions and maps them to the current codebase. For production deployment details, see [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md).
 
 ---
 
@@ -17,7 +17,7 @@
 | Core pipeline | `uml_pipeline/` + `app/services/orchestration.py` | Reuse render, scoring, prompts |
 | Prompt store | `prompts/` files + registry | Version without code changes |
 | Migrations | SQLModel `create_all` on startup | Thesis simplicity |
-| Production host | Mac Studio M1 Ultra + LaunchAgents | No Azure; dual Ollama + MLX LoRA |
+| Production host | Math dept Mac Studio M1 Ultra + LaunchAgents (24/7) | No Azure; dual Ollama + MLX LoRA |
 
 ```
 Requirement / Source Code → Spec Generator → PlantUML Generator (LoRA)
@@ -40,7 +40,7 @@ Requirement / Source Code → Spec Generator → PlantUML Generator (LoRA)
 | M4 | Streamlit UI (8 pages incl. System Design) | ✅ |
 | M5 | Human review + analytics + export | ✅ |
 | M6 | Tests, Docker, Makefile, README, demo data | ✅ |
-| M7 | MLX LoRA 50k training + 100k in progress | 🔄 100k training running |
+| M7 | MLX LoRA training (50k → 100k → 200k → sourcecode-30k) | ✅ production: `uml-plantuml-lora-sourcecode-30k` |
 | M8 | macOS LaunchAgents + Cloudflare tunnels | ✅ |
 
 ---
@@ -60,8 +60,10 @@ app/
 ui/
   streamlit_app.py + pages/ (8 pages)
 models/
-  uml-plantuml-lora-50k/    complete (15k iters)
-  uml-plantuml-lora-100k/   training in progress
+  uml-plantuml-lora-50k/           superseded (15k iters)
+  uml-plantuml-lora-100k/          superseded (18k iters)
+  uml-plantuml-lora-200k/          superseded (20k iters)
+  uml-plantuml-lora-sourcecode-30k/  production (6k iters)
 data/
   uml_app.db, artifacts/, training/, finetune/, run/
 scripts/
@@ -150,11 +152,11 @@ Weights: Qwen2.5-VL-3B = 53.1, LLaMA-3.2-11B-Vision = 50.7, Aya-Vision-8B = 39.9
 ## Testing (implemented)
 
 ```bash
-make test     # pytest, MOCK_PROVIDERS=true
-make smoke    # live API smoke script
+make test     # pytest — 153 tests, MOCK_PROVIDERS=true
+make smoke    # live API smoke — 9/9 pass
 ```
 
-Coverage: scoring, validators, repair, API routes, security, e2e mock generation.
+Coverage: scoring, validators, repair, API routes, security, e2e mock generation, 21 golden fixtures (6 NL + 15 source).
 
 ---
 

@@ -2,8 +2,8 @@
 # https://github.com/dipak5501/uml-generation-pipeline
 #
 # Structural defaults only. Runtime provider/model paths live in .env
-# (see .env.example). Production: Mac Studio M1 Ultra, dual Ollama 0.24/0.32,
-# MLX LoRA (50k complete, 100k in progress), local Aya-Vision-8B.
+# (see .env.example). Production: Math dept Mac Studio M1 Ultra (24/7 LaunchAgents),
+# dual Ollama :11434/:11435, MLX LoRA sourcecode-30k, local Aya-Vision-8B.
 # Architecture: docs/SYSTEM_DESIGN.md
 
 author:
