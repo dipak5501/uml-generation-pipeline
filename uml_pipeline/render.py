@@ -27,6 +27,13 @@ def find_java_executable() -> str | None:
     for path in sorted(tools.glob("**/bin/java")):
         candidates.append(path)
 
+    for jvm_home in (
+        "/usr/lib/jvm/java-21-openjdk-amd64",
+        "/usr/lib/jvm/java-17-openjdk-amd64",
+        "/usr/lib/jvm/java-21-openjdk",
+    ):
+        candidates.append(Path(jvm_home) / "bin" / "java")
+
     candidates.append(Path("java"))
 
     for candidate in candidates:

@@ -160,6 +160,8 @@ def test_adaptive_missing_element_rebuilds_from_spec():
 
 @pytest.mark.parametrize("case", json.loads(GOLDEN.read_text(encoding="utf-8")))
 def test_golden_cases_accept(case, tmp_path, plantuml_render_available):
+    if not plantuml_render_available:
+        pytest.skip("Java/PlantUML render not available")
     plantuml, spec = _generate(case["requirement"], case["diagram_type"])
     syntax = validate_diagram(plantuml, case["diagram_type"])
     assert syntax.ok, syntax.messages
@@ -194,6 +196,8 @@ def test_golden_cases_accept(case, tmp_path, plantuml_render_available):
 
 @pytest.mark.parametrize("case", json.loads(SOURCE_GOLDEN.read_text(encoding="utf-8")))
 def test_golden_source_code_cases(case, tmp_path, plantuml_render_available):
+    if not plantuml_render_available:
+        pytest.skip("Java/PlantUML render not available")
     source = case["source"]
     diagram_type = case["diagram_type"]
 

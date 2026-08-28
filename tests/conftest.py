@@ -15,12 +15,21 @@ os.environ.setdefault("DATABASE_URL", "sqlite://")
 # Keep tests auth-free unless a fixture explicitly sets a token (avoids .env bleed).
 os.environ["API_ACCESS_TOKEN"] = ""
 
-# Prefer bundled JDK so golden acceptance tests can compile/render PlantUML in CI.
+# Prefer bundled JDK (macOS) or common Linux paths so golden tests can render PlantUML.
 if not os.environ.get("JAVA_HOME"):
     for jdk_home in sorted(_ROOT.glob("tools/jdk-*/Contents/Home")):
         if (jdk_home / "bin" / "java").is_file():
             os.environ["JAVA_HOME"] = str(jdk_home)
             break
+    if not os.environ.get("JAVA_HOME"):
+        for candidate in (
+            Path("/usr/lib/jvm/java-21-openjdk-amd64"),
+            Path("/usr/lib/jvm/java-17-openjdk-amd64"),
+            Path("/usr/lib/jvm/java-21-openjdk"),
+        ):
+            if (candidate / "bin" / "java").is_file():
+                os.environ["JAVA_HOME"] = str(candidate)
+                break
 
 
 import pytest
