@@ -64,7 +64,9 @@ def test_agent_health_open(client):
     assert body["auth_required"] is False
 
 
-def test_command_requires_token_when_configured(locked_client):
+@patch("app.services.remote_agent._fetch_health")
+def test_command_requires_token_when_configured(mock_health, locked_client):
+    mock_health.return_value = {"status": "ok", "mock_providers": True}
     r = locked_client.post("/api/agent/command", json={"command": "health"})
     assert r.status_code == 401
 
