@@ -1,0 +1,17 @@
+{
+  "id": "SC-JAVA-02",
+  "language": "java",
+  "diagram_type": "class",
+  "source": "package com.example.payments;\n\npublic interface PaymentProcessor {\n    boolean authorize(double amount, String currency);\n    String capture(String authorizationId);\n    void refund(String transactionId, double amount);\n}\n\npublic class CreditCardProcessor implements PaymentProcessor {\n    private String merchantId;\n    private String apiKey;\n\n    public CreditCardProcessor(String merchantId, String apiKey) {\n        this.merchantId = merchantId;\n        this.apiKey = apiKey;\n    }\n\n    @Override\n    public boolean authorize(double amount, String currency) {\n        return amount > 0;\n    }\n\n    @Override\n    public String capture(String authorizationId) {\n        return \"txn-cc-\" + authorizationId;\n    }\n\n    @Override\n    public void refund(String transactionId, double amount) {\n        // refund via card network\n    }\n}\n\npublic class PayPalProcessor implements PaymentProcessor {\n    private String clientId;\n    private String secret;\n\n    public PayPalProcessor(String clientId, String secret) {\n        this.clientId = clientId;\n        this.secret = secret;\n    }\n\n    @Override\n    public boolean authorize(double amount, String currency) {\n        return amount <= 10000;\n    }\n\n    @Override\n    public String capture(String authorizationId) {\n        return \"txn-pp-\" + authorizationId;\n    }\n\n    @Override\n    public void refund(String transactionId, double amount) {\n        // refund via PayPal API\n    }\n}\n",
+  "expected": {
+    "classes": [
+      "PaymentProcessor",
+      "CreditCardProcessor",
+      "PayPalProcessor"
+    ],
+    "inheritance": [
+      "CreditCardProcessor --|> PaymentProcessor",
+      "PayPalProcessor --|> PaymentProcessor"
+    ]
+  }
+}

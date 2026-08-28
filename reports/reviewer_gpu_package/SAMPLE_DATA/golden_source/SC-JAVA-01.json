@@ -1,0 +1,18 @@
+{
+  "id": "SC-JAVA-01",
+  "language": "java",
+  "diagram_type": "class",
+  "source": "package com.example.library;\n\nimport java.util.Date;\nimport java.util.List;\n\npublic class Book {\n    private String isbn;\n    private String title;\n    private String author;\n    private boolean available;\n\n    public Book(String isbn, String title, String author) {\n        this.isbn = isbn;\n        this.title = title;\n        this.author = author;\n        this.available = true;\n    }\n\n    public String getTitle() { return title; }\n    public boolean isAvailable() { return available; }\n    public void markBorrowed() { this.available = false; }\n}\n\npublic interface Borrowable {\n    boolean isAvailable();\n    void markBorrowed();\n}\n\npublic class Member {\n    private int memberId;\n    private String name;\n    private String email;\n    private List<Loan> activeLoans;\n\n    public Member(int memberId, String name, String email) {\n        this.memberId = memberId;\n        this.name = name;\n        this.email = email;\n    }\n\n    public void borrowBook(Book book) {\n        if (book.isAvailable()) {\n            book.markBorrowed();\n        }\n    }\n}\n\npublic class Loan {\n    private int loanId;\n    private Book book;\n    private Member member;\n    private Date dueDate;\n\n    public Loan(int loanId, Book book, Member member, Date dueDate) {\n        this.loanId = loanId;\n        this.book = book;\n        this.member = member;\n        this.dueDate = dueDate;\n    }\n}\n\npublic class Librarian extends Member {\n    private String deskLocation;\n\n    public Librarian(int memberId, String name, String email, String deskLocation) {\n        super(memberId, name, email);\n        this.deskLocation = deskLocation;\n    }\n\n    public void processLoan(Loan loan) {\n        // approve loan\n    }\n}\n",
+  "expected": {
+    "classes": [
+      "Book",
+      "Borrowable",
+      "Member",
+      "Loan",
+      "Librarian"
+    ],
+    "inheritance": [
+      "Librarian --|> Member"
+    ]
+  }
+}

@@ -1,0 +1,16 @@
+{
+  "id": "GOLDEN-03",
+  "requirement": "Student inherits from Person. Course contains Enrollment records.",
+  "diagram_type": "class",
+  "expected": {
+    "classes": [
+      "Student",
+      "Person",
+      "Course",
+      "Enrollment"
+    ],
+    "inheritance": [
+      "Student --|> Person"
+    ]
+  }
+}
