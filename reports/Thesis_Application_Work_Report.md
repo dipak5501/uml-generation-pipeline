@@ -5,229 +5,224 @@
 **Student / implementer:** Dipak Yadav  
 **Repository:** https://github.com/dipak5501/uml-generation-pipeline  
 **Report date:** 2026-08-31  
-**Purpose:** Answer a reviewer request for a detailed account of what has been built: the research thesis, the software application that implements it, and recent engineering on the live system.
+
+This report is for the thesis reviewer. It explains how the **UML-Pipeline application** implements the **thesis method**, what has been evaluated on the live server, and what remains. Screen captures were taken from the production UI on 2026-08-31.
 
 ---
 
-## 1. Relationship between the thesis and the application
+## 1. Thesis method and the application
 
-The thesis (and the companion paper draft in `paper/main.tex`) defines a **method**. The GitHub repository is the **working system** that implements that method so it can be run, inspected, and used to generate scored UML artifacts.
+The thesis defines a **method**. The application is that method running as software.
 
-The paper’s central claim is that **verification is first-class**: a UML diagram that compiles is not automatically acceptable. Each artifact is scored by three vision-language models (VLMs), combined with an MMMU-weighted composite **S** and a majority-vote gate **A**. Dataset inclusion requires both signals.
+The paper’s central claim is that **verification is first-class**. A UML diagram that compiles is not automatically acceptable. Each artifact is scored by three vision-language models (VLMs). Scores are combined into an MMMU-weighted composite **S** and a majority-vote gate **A**. An artifact enters the dataset only when rendering succeeds, **A = 1**, and **S ≥ 3**.
 
-The application is not a separate product. It is the same three-stage pipeline, exposed as:
+The application is the same three-stage pipeline, with:
 
-- a FastAPI service (`/api/generate`, jobs, artifacts, analytics, human review);
-- a Streamlit UI (dashboard, generate, batch, gallery, human evaluation, analytics, settings, system design);
-- SQLite + PNG artifact storage;
-- a 24/7 production server on the Math department **Mac Studio** (Apple M1 Ultra, 128 GB).
+- a web UI and REST API;
+- SQLite storage of specifications, PlantUML, PNG diagrams, and scores;
+- a 24/7 server on the Math department **Mac Studio** (Apple M1 Ultra, 128 GB).
 
-LaTeX source: `paper/main.tex`. Overleaf: https://www.overleaf.com/project/69ed35eca71ed1faa143a7b9  
-Architecture: `docs/SYSTEM_DESIGN.md`  
-Gap analysis (paper vs code): `docs/gap_analysis.md`
+Paper source: `paper/main.tex`  
+Architecture: `docs/SYSTEM_DESIGN.md`
+
+**Figure 1.** Home page of the live application (system online, connected to the local API).
+
+![Figure 1. UML-Pipeline home page, system online](figures/work_report/01_home_system_online.png)
 
 ---
 
-## 2. What the thesis specifies (paper contributions)
+## 2. What the thesis specifies
 
 From `paper/main.tex`:
 
 1. A **three-stage pipeline**: natural-language requirement → structured specification → PlantUML → render → image-based evaluation.
-2. An **MMMU-weighted composite score S** with a render-failure indicator (failed renders do not inflate statistics; S is forced to 0).
-3. A **majority-voting acceptance gate A** on top of S (dual-signal quality decision).
-4. Comparative evaluation against prior LLM-based UML generators (paper-scale tables).
+2. An **MMMU-weighted composite score S**, with failed renders forced to **S = 0**.
+3. A **majority-voting acceptance gate A** on top of S.
+4. Comparative evaluation against prior LLM-based UML generators (paper tables).
 5. A planned public dataset of (specification, PlantUML, composite score) triples.
 
-The four **design-phase** UML types used in the live API and UI are **class, object, component, and package**. Flowchart/activity diagrams exist in training corpora but are not exposed on `/api/generate`.
+The live API and UI support four **design-phase** types: **class, object, component, and package**.
 
-Scoring in code (`uml_pipeline/scoring.py`, `app/services/scoring.py`):
-
-| Signal | Definition used in the app |
-|--------|----------------------------|
-| Per-VLM score | Integer 0–6 (semantic / structural / syntactic / coherence parsed from model text) |
+| Signal | Definition used in the application |
+|--------|--------------------------------------|
+| Per-VLM score | Integer 0–6 |
 | Weights | Qwen2.5-VL-3B **53.1**, LLaMA-3.2-Vision-11B **50.7**, Aya-Vision-8B **39.9** |
-| Composite **S** | Weighted average of available numeric scores (zeros count; missing skipped) |
-| Majority **A** | At least 2 of 3 models ≥ τ (**ACCEPTANCE_TAU = 4**) |
-| Dataset gate | Render success, **A = 1**, and **S ≥ 3** (`MIN_COMPOSITE_FOR_DATASET`) |
+| Composite **S** | Weighted average of available numeric scores |
+| Majority **A** | At least 2 of 3 models ≥ τ = 4 |
+| Dataset gate | Render success, **A = 1**, and **S ≥ 3** |
 
 ---
 
-## 3. What the application implements (end-to-end)
+## 3. What the application implements
 
-### 3.1 Pipeline stages
+### 3.1 Pipeline
 
 | Stage | Thesis role | Production implementation |
 |-------|-------------|---------------------------|
-| Input | NL requirements | Also **source code** (Java, Python, C) via `input_mode=source_code` |
-| Stage 1 | Spec LLM | Ollama `llama3.2:1b` (Llama-3.2-1B-Instruct) |
-| Stage 2 | PlantUML generator | **MLX LoRA** on Qwen2.5-0.5B-Instruct-4bit, adapter `models/uml-plantuml-lora-sourcecode-30k` (6,000 iters, warm-started from the 200k adapter). Spec-builder / LLM repair if LoRA output fails validation |
-| Render gate | PlantUML → PNG | Local JDK + `tools/plantuml.jar`; remote PlantUML HTTP fallback |
-| Stage 3 | Three VLMs | Qwen2.5-VL-3B (Ollama 0.32 `:11435`), LLaMA-3.2-Vision-11B (Ollama 0.24 `:11434`), Aya-Vision-8B (local Transformers, paper-exact, `VLM_AYA_BACKEND=local`) |
-| Persistence | Dataset construction | SQLite `data/uml_app.db` + PNG files + PlantUML text + per-model explanations |
+| Input | Natural-language requirements | Also **source code** (Java, Python, C) |
+| Stage 1 | Specification LLM | Llama-3.2-1B-Instruct (Ollama) |
+| Stage 2 | PlantUML generator | Fine-tuned Qwen2.5-0.5B LoRA (`uml-plantuml-lora-sourcecode-30k`), with repair if validation fails |
+| Render gate | PlantUML → PNG | Local Java + PlantUML |
+| Stage 3 | Three VLMs | Qwen2.5-VL-3B, LLaMA-3.2-Vision-11B, Aya-Vision-8B (local) |
+| Storage | Dataset construction | SQLite + PNG + PlantUML + per-model scores |
 
-**Honest stand-in (documented, not hidden):** the paper names DeepSeek-R1-Distill-Qwen-32B for Stage 2. The Mac serves a **0.5B MLX LoRA** stand-in. Architecture, gates, and VLM ensemble match the thesis; numeric parity with the 32B paper tables is **not claimed** on this stack.
+**Documented stand-in:** the paper names DeepSeek-R1-Distill-Qwen-32B for Stage 2. Production uses a **0.5B LoRA** adapter trained on UML PlantUML pairs. The **architecture, gates, and VLM ensemble** match the thesis. Numeric parity with the paper’s 32B tables is **not claimed** on this stack.
 
-### 3.2 Software surfaces
+**Figure 2.** Generate page: requirement or source code, diagram type, and paper scoring (composite S, majority A, dataset gate).
 
-| Surface | What it does |
-|---------|----------------|
-| Generate | One requirement or one source file → one or all four diagram types; optional VLM scoring |
-| Batch | Many requirements × diagram types as background jobs |
-| Generated diagrams | Gallery of every artifact (image, PlantUML, S, A, repairs) |
-| Human evaluation | Rubric UI aligned with the thesis dimensions |
-| Analytics | Counts, score distributions, dataset export (JSONL / CSV / Parquet) |
-| Settings | Health of providers, Java, PlantUML JAR, LoRA adapter, auth |
-| Remote agent | `POST /api/agent/command` (health, generate, smoke-test, restart, server-status) |
+![Figure 2. Single generation form](figures/work_report/12_generate_form.png)
 
-### 3.3 Production server
+**Figure 3.** System design page: UI and API share one orchestration service (providers, PlantUML render, SQLite + PNG).
 
-Always-on via **user LaunchAgents** (no admin) on the Mac Studio:
+![Figure 3. Runtime architecture](figures/work_report/05_system_design.png)
 
-- FastAPI `:8000`, Streamlit `:8501`
-- Dual Ollama (0.24 and 0.32 — required because one Ollama build cannot load both `llama3.2-vision` and `qwen2.5vl`)
-- Local Aya-Vision-8B in the API process
-- Cloudflare quick tunnels for public UI and API
-- `API_ACCESS_TOKEN` on public endpoints
+### 3.2 User-facing pages
 
-**Live access (as of 2026-08-31; URLs rotate when tunnels restart):**
+| Page | Role |
+|------|------|
+| Generate | One requirement or source file → UML + scores |
+| Batch | Many inputs × diagram types |
+| Generated diagrams | Gallery of images, PlantUML, S and A |
+| Human evaluation | Thesis-aligned 1–5 rubric (semantic, structural, syntactic, coherence) |
+| Analytics | Counts, score distributions, export |
+| Settings | Live health of models and render stack |
 
-- UI: https://individual-cinema-uri-checkout.trycloudflare.com
-- API: https://hypothetical-advanced-meanwhile-wow.trycloudflare.com
-- Agent: https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent
+**Figure 4.** Settings / health: production provider is Ollama VLMs + fine-tuned LoRA code model; Aya-Vision-8B is local; Java and PlantUML are available.
 
-Canonical copies on the Mac: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`. GitHub copy: `Link.md`. `scripts/tunnel_notify.py` rewrites a marked **Live demo** block in README and related docs when tunnels publish.
+![Figure 4. Settings health](figures/work_report/04_settings_health.png)
 
----
+### 3.3 Production server and live access
 
-## 4. Evaluation that has been done
+The application runs continuously on the department Mac Studio. Public access (as of 2026-08-31; tunnel URLs change if tunnels restart):
 
-### 4.1 Automated tests (CI)
+- **UI:** https://individual-cinema-uri-checkout.trycloudflare.com
+- **API:** https://hypothetical-advanced-meanwhile-wow.trycloudflare.com
 
-`MOCK_PROVIDERS=true pytest`: **153 tests** on `main` (deterministic mocks; no live GPU/VLM). Covers API, security, scoring, golden NL and source-code structure, PlantUML validation, jobs, agent allowlist.
-
-Golden fixtures: **6** NL cases (`tests/golden/cases.json`) + **15** source-code cases (`tests/golden/source_code_cases.json`) = **21**.
-
-### 4.2 Live Mac Studio smoke (production LoRA + three VLMs)
-
-`scripts/smoke_source_code_golden.py` (9 default Java/Python/C cases): render **9/9**, language detection **9/9**, composite **S** in about **4.72–6.00**, majority **A** on passing cases.
-
-These are interactive smoke jobs, **not** a re-run of the paper’s n≈8,000 DeepSeek-32B tables.
-
-### 4.3 Live functional check (2026-08-31)
-
-Under current model load (no finetune running; dual Ollama + Aya + MLX LoRA):
-
-- Health: `status=ok`, provider `spec/VLM=ollama · code=finetuned-mlx`, adapter present, Java and PlantUML JAR present.
-- Single class generate (campus parking): completed in ~43 s; render **success**; **S ≈ 5.65**; majority **true**; dataset **accepted**; all three VLMs available (Qwen 6, LLaMA-Vision 5, Aya 6).
-- Concurrent 4-type job from Java source (class, object, component, package): all four rendered successfully with all three VLMs scoring.
-- UI (Dashboard, gallery, Settings) stayed connected to the API during that load.
-
-Historical note: object diagrams have a higher lifetime render-failure rate than class/component/package in the stored database. Recent object jobs on the live stack can still succeed (the Java-source object in that 4-type job scored **S ≈ 5.65**).
-
-### 4.4 Paper-scale numbers (cite the paper, do not treat as re-measured here)
-
-Paper tables (DeepSeek-32B pipeline, large n): overall render success about **94.4%**, mean **S ≈ 3.85**, majority acceptance about **91.3%**. Those figures are **not** re-verified on the Mac LoRA stack.
-
-Human–AI correlation: the UI and API exist; a large-n human study has **not** been completed (`human_review_count` on the live DB was **0** at the 2026-08-31 check).
+Current URLs are also in `Link.md` at the repository root.
 
 ---
 
-## 5. Training data and LoRA (what was trained)
+## 4. Screen prints of generated diagrams
 
-| Corpus / adapter | Role |
-|------------------|------|
-| 8k / 50k / 100k / 200k UML PlantUML corpora | Earlier MLX LoRA runs (superseded for production) |
-| 30k source-code block (10k Java, 10k Python, 10k C) | **Production** adapter `uml-plantuml-lora-sourcecode-30k`, 6,000 iterations |
-| NVIDIA path | `scripts/finetune_plantuml_cuda.py` — **not** for the Mac Studio (MLX ≠ CUDA) |
+These images are from the live server on 2026-08-31 (natural-language class diagrams, then all four types recovered from one Java source file).
 
-The Mac must not run `make finetune-cuda`. GPU reviewers use `docs/CURSOR_GPU_HANDOFF.md`.
+**Figure 5.** Dashboard showing recent live artifacts, including a campus-parking class diagram and a class diagram recovered from Java.
 
----
+![Figure 5. Dashboard with recent diagrams](figures/work_report/02_dashboard_recent_diagrams.png)
 
-## 6. Work completed recently (application + thesis packaging)
+**Figure 6.** Generated-diagrams gallery (newest first). The four-type Java job and the parking class diagram are visible with composite scores.
 
-This section is the engineering completed around late August 2026 on top of the already-running pipeline.
+![Figure 6. Gallery of stored diagrams](figures/work_report/03_gallery_four_types.png)
 
-### 6.1 Readable UML for software-lifecycle tracking
+**Figure 7.** Class diagram from a natural-language requirement (campus parking office).
 
-Generated class / object / component / package diagrams now include a **title**, a plain-English “what this shows” note, **English arrow labels** (related to, owns, depends on, …), an **SDLC phase** hint by diagram type, and a **symbol legend**. Stage-1/2 prompts and the LoRA prompt ask for the same structure. The Generate UI explains how each diagram type tracks design vs architecture vs runtime snapshot.
+![Figure 7. Class diagram — parking office](figures/work_report/06_class_nl_parking.png)
 
-*(These prompt/UI changes live on PR branch `cursor/gpu-handoff-cuda-lora-2084` until that PR is merged. The Mac still serves whatever checkout is running there until `git pull` + API/UI restart.)*
+**Figure 8.** Class diagram recovered from Java source (library types).
 
-### 6.2 English-only Aya judge text
+![Figure 8. Class diagram from Java source](figures/work_report/07_class_from_java.png)
 
-Aya-Vision is multilingual; sampling mixed Japanese into EXPLANATION text even when the numeric score was valid. Prompts now require English-only judge output.
+**Figure 9.** Object diagram from the same Java source.
 
-### 6.3 Thesis draft and application report PDFs
+![Figure 9. Object diagram from Java source](figures/work_report/08_object_from_java.png)
 
-Generators: `scripts/generate_thesis_draft.py`, `scripts/generate_progress_pdf.py`. Tracked PDFs (on the GPU-handoff PR):
+**Figure 10.** Component diagram from the same Java source.
 
-- Application / system report
-- CSULB-style **M.S. thesis draft** (advisor review, not Thesis Office final format)
+![Figure 10. Component diagram from Java source](figures/work_report/09_component_from_java.png)
 
-GitHub PDF preview was fixed by rewriting ReportLab streams as Flate-only (no ASCII85).
+**Figure 11.** Package diagram from the same Java source.
 
-### 6.4 Live demo URLs kept current on GitHub
+![Figure 11. Package diagram from Java source](figures/work_report/10_package_from_java.png)
 
-Stale 2026-08-27 Cloudflare URLs were replaced with the working tunnels. A marked `<!-- LIVE_DEMO_BEGIN -->` block in README, deploy notes, and reviewer docs is rewritten by `scripts/tunnel_notify.py` whenever tunnels rotate, then `scripts/git_auto_push.sh` can sync `main`.
+**Figure 12.** Additional class diagram from a natural-language library requirement.
 
-### 6.5 Removed unused reviewer GPU package
-
-`reports/reviewer_gpu_package/` and `reports/reviewer_gpu_package.zip` were deleted from **GitHub `main`** (commit `a82217f`, 2026-08-31). They duplicated `tests/golden/` and `sample_data/` and were not needed for the thesis or the live app. GPU instructions remain in `docs/CURSOR_GPU_HANDOFF.md`.
-
-### 6.6 CUDA / GPU handoff (for machines that are not the Mac)
-
-PR https://github.com/dipak5501/uml-generation-pipeline/pull/1 documents NVIDIA PEFT LoRA and vLLM Aya. The **production server is Apple Silicon**, not CUDA.
+![Figure 12. Class diagram — library system](figures/work_report/11_class_nl_library.png)
 
 ---
 
-## 7. Mapping: paper contribution → software status
+## 5. Evaluation
+
+### 5.1 Automated tests
+
+`make test` (mock providers, no live VLMs): **153** tests on `main`.  
+Golden fixtures: **6** natural-language + **15** source-code = **21** cases.
+
+### 5.2 Live smoke on the Mac Studio
+
+Nine default Java / Python / C source-code cases on the production LoRA + three-VLM stack: render **9/9**, language detection **9/9**, composite **S** about **4.72–6.00**, majority **A** on passing cases.
+
+These smoke jobs are **not** a re-run of the paper’s large-n DeepSeek-32B tables.
+
+### 5.3 Live check on 2026-08-31
+
+- Health: `ok`; spec/VLM = Ollama; code = fine-tuned LoRA.
+- Natural-language class (campus parking): render success, **S ≈ 5.65**, majority accepted, all three VLMs scored (Qwen 6, LLaMA-Vision 5, Aya 6).
+- One Java source file → class, object, component, package: all four rendered; all three VLMs scored.
+
+**Figure 13.** Analytics on the live database (503 artifacts at capture time; majority acceptance 73.2%; human–AI correlation not yet available).
+
+![Figure 13. Analytics](figures/work_report/14_analytics.png)
+
+### 5.4 Human evaluation (ready; study not yet run)
+
+The UI implements the thesis rubric (semantic, structural, syntactic, coherence; 1–5). A large-n human–AI correlation study has **not** been completed.
+
+**Figure 14.** Human evaluation page: thesis-aligned rubric and sliders for a stored artifact.
+
+![Figure 14. Human evaluation](figures/work_report/13_human_evaluation.png)
+
+### 5.5 Paper-scale numbers (from the paper, not re-measured here)
+
+Paper tables (DeepSeek-32B pipeline, large n): render success about **94.4%**, mean **S ≈ 3.85**, majority acceptance about **91.3%**. Those figures are **not** re-verified on the LoRA stack.
+
+---
+
+## 6. Training used in production
+
+Production PlantUML generation uses a LoRA adapter trained on a **30k** Java / Python / C source-code UML corpus (6,000 iterations), after earlier 50k / 100k / 200k UML PlantUML runs. That adapter is what the live Settings page reports as `uml-plantuml-lora-sourcecode-30k`.
+
+---
+
+## 7. Paper contribution → software status
 
 | Paper item | In the application? | Status |
 |------------|---------------------|--------|
-| Three-stage pipeline | Yes | Live on Mac Studio |
-| NL → spec → PlantUML | Yes | Plus source-code intake |
-| Four design-phase UML types | Yes | class, object, component, package |
-| PlantUML render as hard gate | Yes | Failed render → S = 0 |
-| Three VLMs + MMMU weights | Yes | Dual Ollama + local Aya |
+| Three-stage pipeline | Yes | Live on the Mac Studio |
+| NL → spec → PlantUML | Yes | Also source-code input |
+| Four design-phase UML types | Yes | Class, object, component, package |
+| PlantUML render as a hard gate | Yes | Failed render → S = 0 |
+| Three VLMs + MMMU weights | Yes | Qwen, LLaMA-Vision, Aya |
 | Composite S + majority A | Yes | Same τ and dataset rule |
 | Human evaluation protocol | UI + rubric | Large-n study **not run** |
-| 8,000-triple public dataset | Batch + export APIs | HuggingFace release **not completed** as the paper’s public artifact |
-| DeepSeek-32B Stage 2 | No (stand-in) | 0.5B MLX LoRA; documented |
-| Comparison vs five prior systems | Paper tables | Not re-run on LoRA stack |
+| 8,000-triple public dataset | Batch + export | HuggingFace release **not completed** |
+| DeepSeek-32B Stage 2 | Stand-in | 0.5B LoRA; documented |
+| Comparison vs five prior systems | Paper tables | Not re-run on this stack |
 
 ---
 
-## 8. What is still open (honest)
+## 8. Remaining work
 
-1. **Stage-2 model size:** paper DeepSeek-32B vs production 0.5B LoRA — architecture matches; numbers may not.
-2. **Human alignment study:** screens exist; correlation with VLM scores is not yet a finished thesis experiment.
-3. **Official CSULB thesis format:** current PDF is an advisor draft, not Thesis Office template + complete bibliography from `paper/references.bib`.
-4. **Public 8k HuggingFace dataset:** generation machinery exists; the paper’s public dump is a remaining release step.
-5. **Mac checkout vs latest PR:** clearer UML labels and English Aya prompts need `git pull` of the GPU-handoff branch (or merge to `main`) and restart of API/UI on the Studio.
-6. **Object-diagram reliability:** historically weaker in the stored corpus; still the weakest of the four types.
+1. **Stage-2 model size.** Paper: DeepSeek-32B. Production: 0.5B LoRA. Method matches; numbers may not.
+2. **Human alignment study.** The evaluation UI exists; correlation with VLM scores is not yet a finished experiment.
+3. **Official CSULB thesis format.** A draft exists for advisor review; Thesis Office template and full bibliography are still required.
+4. **Public 8k dataset.** Generation and export exist; the paper’s public HuggingFace dump is still a release step.
+5. **Object diagrams** remain the weakest of the four types in the stored corpus, though recent live object jobs can succeed.
 
 ---
 
-## 9. How a reviewer can inspect the work
+## 9. How to inspect
 
-| What to inspect | Where |
-|-----------------|--------|
-| Live app | UI / API URLs in §3.3 and `Link.md` |
-| Source code | https://github.com/dipak5501/uml-generation-pipeline |
+| What | Where |
+|------|--------|
+| Live UI | https://individual-cinema-uri-checkout.trycloudflare.com |
+| Live API | https://hypothetical-advanced-meanwhile-wow.trycloudflare.com |
+| Source | https://github.com/dipak5501/uml-generation-pipeline |
 | Paper method | `paper/main.tex` |
-| System design | `docs/SYSTEM_DESIGN.md` |
-| Tests | `make test` (153 on `main`) |
-| Live code→UML smoke | `python scripts/smoke_source_code_golden.py` on the Mac with `API_ACCESS_TOKEN` |
-| GPU-only reproduction | `docs/CURSOR_GPU_HANDOFF.md` |
-
-Do not commit `.env`. Tokens stay on the Mac Studio.
+| Tests | `make test` |
 
 ---
 
-## 10. One-sentence summary for the reviewer
-
-The thesis defines a **multimodal-verified UML generation pipeline**; the repository is that pipeline as a **running application** (API, UI, LoRA, three VLMs, dataset gates) on a department Mac Studio, with documented stand-ins where 32B/CUDA hardware is not used, and with remaining research work in human correlation and paper-scale public data release rather than missing software modules.
+The thesis defines a **multimodal-verified UML generation pipeline**. The repository is that pipeline as a **running application**—UI, API, LoRA generator, three VLMs, and dataset gates—on a department Mac Studio, with a documented Stage-2 stand-in and remaining research work in human correlation and public data release.
 
 ---
 
