@@ -156,7 +156,7 @@ All Apple-Silicon training uses `scripts/finetune_plantuml.py` → `python -m ml
 | Remote access | Cloudflare tunnels + remote agent API | Complete |
 | macOS server supervision | LaunchAgents for API, UI, Ollama, tunnels | Complete |
 | Publication report | `reports/PUBLICATION_TECHNICAL_REPORT.md` + PDF | Complete |
-| Reviewer package | `reports/reviewer_gpu_package/` | This deliverable |
+| GPU reproduction notes | `docs/CURSOR_GPU_HANDOFF.md` | CUDA / vLLM handoff |
 
 **Fixes during development (selected):**
 
@@ -244,7 +244,7 @@ MLX adapters **do not run on CUDA**. Reviewer should use:
 - `USE_FINETUNED_CODE=false` (or retrain LoRA with PyTorch/PEFT on CUDA)  
 - Aya via vLLM: `VLM_AYA_BACKEND=openai_compat`  
 
-Full instructions: `reports/reviewer_gpu_package/CLAUDE_CODE_GPU_PROMPT.md` and `docs/CURSOR_GPU_HANDOFF.md`.
+Full instructions: `docs/CURSOR_GPU_HANDOFF.md`.
 
 ### 7.4 Key environment variables (names only)
 
@@ -273,8 +273,7 @@ See `.env.example` — **never commit secrets**.
 | Publication technical report | `reports/PUBLICATION_TECHNICAL_REPORT.md` |
 | System design | `docs/SYSTEM_DESIGN.md` |
 | GPU handoff | `docs/CURSOR_GPU_HANDOFF.md` |
-| Reviewer GPU package | `reports/reviewer_gpu_package/` |
-| Sample data | `sample_data/`, `tests/golden/`, `reports/reviewer_gpu_package/SAMPLE_DATA/` |
+| Sample data | `sample_data/`, `tests/golden/` |
 | Live URL file | `Link` |
 | Adapter inventory | `models/README.md` |
 | Data inventory | `data/data_lake_inventory.json` |
