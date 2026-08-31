@@ -154,6 +154,14 @@ class LocalAyaVisionProvider:
             model, processor = _load(self.model_id, self.hf_token)
             device = next(model.parameters()).device
             image = Image.open(image_path).convert("RGB")
+            # Aya-Vision is multilingual and may switch mid-sentence (often Japanese).
+            # Keep judge explanations in English for the UI and thesis logs.
+            if "English only" not in (prompt or ""):
+                prompt = (
+                    "IMPORTANT: Reply in English only. Do not use Japanese, Chinese, "
+                    "or any other language in SCORE labels or EXPLANATION.\n\n"
+                    + (prompt or "")
+                )
             messages = [
                 {
                     "role": "user",
