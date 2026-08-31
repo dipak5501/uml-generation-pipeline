@@ -2,12 +2,22 @@
 
 **For:** Dipak Yadav  
 **Server:** Mac Studio (always-on UML-Pipeline)  
-**Updated:** 2026-08-31 14:52 UTC  
+**Updated:** 2026-08-31 22:12 UTC
 **Repo:** https://github.com/dipak5501/uml-generation-pipeline
 
 ---
 
 ## Current public URLs
+
+<!-- LIVE_DEMO_BEGIN -->
+**Live demo (as of 2026-08-31):**
+
+- **UI:** [https://individual-cinema-uri-checkout.trycloudflare.com](https://individual-cinema-uri-checkout.trycloudflare.com)
+- **API:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com)
+- **Agent:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent)
+
+Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
+<!-- LIVE_DEMO_END -->
 
 | Endpoint | URL |
 |----------|-----|
