@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k thesis-pdf app-report-pdf
 
 install:
 	python3 -m venv .venv
@@ -147,6 +147,12 @@ test:
 
 smoke:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/smoke_test.py
+
+thesis-pdf:
+	PYTHONPATH=. python scripts/generate_thesis_draft.py
+
+app-report-pdf:
+	PYTHONPATH=. python scripts/generate_progress_pdf.py
 
 docker-up:
 	docker compose up --build
