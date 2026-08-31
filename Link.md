@@ -4,19 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://national-merger-rec-animation.trycloudflare.com](https://national-merger-rec-animation.trycloudflare.com)
+**Live UI:** [https://chemical-elliott-places-config.trycloudflare.com](https://chemical-elliott-places-config.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://national-merger-rec-animation.trycloudflare.com |
-| Public API (docs / exports) | https://constantly-seats-bodies-ruth.trycloudflare.com |
-| Remote command agent | https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://chemical-elliott-places-config.trycloudflare.com |
+| Public API (docs / exports) | https://clinics-wiki-limitations-simon.trycloudflare.com |
+| Remote command agent | https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-08-31 10:15 UTC
+Updated: 2026-08-31 10:16 UTC
 
 ## Authentication
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://constantly-seats-bodies-ruth.trycloudflare.com/api/agent/command" \
+curl -s "https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'
