@@ -14,4 +14,6 @@ make thesis-pdf
 
 The thesis PDF is an **advisor-review draft**, not the official CSULB Thesis Office template. Expand bibliography from `paper/references.bib` before final submission.
 
+If GitHub shows “Error loading PDF page number 1”, use **Download** (raw file). The tracked PDFs are rewritten with Flate-only streams so the GitHub viewer works; an older ReportLab ASCII85 encoding caused that error.
+
 Markdown companions in this folder (`PUBLICATION_TECHNICAL_REPORT.md`, `REVIEWER_PROGRESS_REPORT.md`, `REMOTE_CURSOR_ACCESS.md`) are source notes, not the submission PDFs.
