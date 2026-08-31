@@ -94,11 +94,120 @@ def _rel_arrow(rtype: str) -> str:
     return _ARROW.get((rtype or "association").lower().strip(), "-->")
 
 
-def build_class_plantuml(spec: dict[str, Any]) -> str:
-    lines = ["@startuml"]
-    summary = _safe_label(str(spec.get("summary") or ""), max_len=80)
+_REL_PLAIN = {
+    "inheritance": "is a kind of",
+    "generalization": "is a kind of",
+    "extends": "is a kind of",
+    "realization": "implements",
+    "composition": "owns / is part of",
+    "aggregation": "has (can share)",
+    "dependency": "depends on",
+    "uses": "uses",
+    "containment": "contains",
+    "contains": "contains",
+    "link": "linked to",
+    "association": "related to",
+}
+
+_SDLC_GUIDE: dict[str, tuple[str, str, list[str]]] = {
+    "class": (
+        "Design — domain model",
+        "Keep this diagram current as you add features: each box is a type in the software.",
+        [
+            "Box = a class (a kind of thing, e.g. Book)",
+            "--> related to / uses",
+            "--|> is a kind of (inheritance)",
+            "*-- owns (composition)",
+            "o-- has (aggregation)",
+        ],
+    ),
+    "object": (
+        "Design — runtime snapshot",
+        "Use this to show an example of objects at one moment (who is linked to whom).",
+        [
+            "Rounded box = one object (an instance, e.g. book1)",
+            "--> a link between two objects",
+        ],
+    ),
+    "component": (
+        "Architecture — deployable parts",
+        "Use this while planning services and APIs: boxes are components you can build and deploy.",
+        [
+            "Box = a component (a service or module)",
+            "() = an interface (a contract)",
+            "..> uses / depends on",
+        ],
+    ),
+    "package": (
+        "Design — modules and folders",
+        "Use this to track how the codebase is grouped and which modules depend on others.",
+        [
+            "Folder = a package (a namespace or folder)",
+            "..> depends on another package",
+        ],
+    ),
+    "flowchart": (
+        "Process — workflow steps",
+        "Use this to track the order of steps in a feature or script.",
+        [
+            "Rounded step = an action",
+            "Diamond = a yes/no decision",
+        ],
+    ),
+}
+
+
+def _plain_rel_label(rel: dict[str, Any]) -> str:
+    explicit = str(rel.get("label") or "").strip()
+    if explicit:
+        return _safe_label(explicit, max_len=40)
+    return _REL_PLAIN.get(str(rel.get("type") or "association").lower().strip(), "related to")
+
+
+def _readable_chrome_lines(spec: dict[str, Any], diagram_type: str) -> list[str]:
+    """Title, plain-English guide, and symbol legend for non-experts / SDLC tracking."""
+    dtype = (diagram_type or spec.get("diagram_type") or "class").lower().strip()
+    phase, how_to_use, legend_items = _SDLC_GUIDE.get(dtype, _SDLC_GUIDE["class"])
+    summary = _safe_label(str(spec.get("summary") or ""), max_len=90)
+    purpose = _safe_label(
+        str(spec.get("purpose") or spec.get("audience_summary") or summary or ""),
+        max_len=140,
+    )
+    sdlc = _safe_label(str(spec.get("sdlc_phase") or phase), max_len=80)
+    lines: list[str] = []
     if summary and summary != "Item":
         lines.append(f"title {summary}")
+    what = purpose if purpose and purpose != "Item" else (
+        f"{dtype.capitalize()} diagram of the software design"
+    )
+    lines.append("note as DiagramGuide")
+    lines.append(f"  What this shows: {what}")
+    lines.append(f"  Where it fits in the lifecycle: {sdlc}")
+    lines.append(f"  {_safe_label(how_to_use, max_len=140)}")
+    lines.append("end note")
+    lines.append("legend left")
+    lines.append("  How to read the symbols:")
+    for item in legend_items:
+        lines.append(f"  {_safe_label(item, max_len=72)}")
+    lines.append("endlegend")
+    return lines
+
+
+def inject_readable_chrome(code: str, spec: dict[str, Any], diagram_type: str) -> str:
+    """Add guide/legend to LLM PlantUML that omitted them."""
+    if re.search(r"(?i)note as DiagramGuide", code or ""):
+        return code
+    chrome = "\n".join(_readable_chrome_lines(spec, diagram_type))
+    return re.sub(
+        r"(?i)@startuml\s*\n",
+        lambda m: m.group(0) + chrome + "\n",
+        code or "",
+        count=1,
+    )
+
+
+def build_class_plantuml(spec: dict[str, Any]) -> str:
+    lines = ["@startuml"]
     entities = [e for e in (spec.get("entities") or []) if isinstance(e, dict) and e.get("name")]
     if not entities:
         for name in _entity_names(spec):
@@ -113,6 +222,7 @@ def build_class_plantuml(spec: dict[str, Any]) -> str:
         lines.append("end note")
         lines.append("@enduml")
         return "\n".join(lines) + "\n"
+    lines.extend(_readable_chrome_lines(spec, "class"))
     for ent in entities[:12]:
         name = _safe_id(str(ent["name"]))
         body = _fmt_members(ent.get("attributes")) + _fmt_members(ent.get("methods"))
@@ -129,7 +239,7 @@ def build_class_plantuml(spec: dict[str, Any]) -> str:
         if not src or not tgt:
             continue
         arrow = _rel_arrow(str(rel.get("type") or "association"))
-        label = str(rel.get("label") or "").strip()
+        label = _plain_rel_label(rel)
         # Prefer child --|> parent for inheritance wording
         if arrow == "--|>":
             line = f"{_safe_id(str(src))} --|> {_safe_id(str(tgt))}"
@@ -147,17 +257,19 @@ def build_class_plantuml(spec: dict[str, Any]) -> str:
             line = f"{_safe_id(str(src))} {arrow} {_safe_id(str(tgt))}"
         else:
             line = f"{_safe_id(str(src))} {arrow} {_safe_id(str(tgt))}"
-        if label:
-            line += f" : {_safe_label(label, max_len=40)}"
+        line += f" : {label}"
         lines.append(line)
     if len(entities) >= 2 and not any(isinstance(r, dict) and r.get("source") for r in (spec.get("relationships") or [])):
-        lines.append(f"{_safe_id(entities[0]['name'])} --> {_safe_id(entities[1]['name'])}")
+        lines.append(
+            f"{_safe_id(entities[0]['name'])} --> {_safe_id(entities[1]['name'])} : related to"
+        )
     lines.append("@enduml")
     return "\n".join(lines) + "\n"
 
 
 def build_object_plantuml(spec: dict[str, Any]) -> str:
     lines = ["@startuml"]
+    lines.extend(_readable_chrome_lines(spec, "object"))
     objects = [o for o in (spec.get("objects") or []) if isinstance(o, dict)]
     if not objects:
         for name in _entity_names(spec)[:4]:
@@ -204,7 +316,7 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
 
         s, t = _alias_for(str(src)), _alias_for(str(tgt))
         if s and t and s != t:
-            label = _safe_label(str(rel.get("label") or "link"), max_len=40) or "link"
+            label = _plain_rel_label(rel)
             lines.append(f"{s} --> {t} : {label}")
     if len(aliases) >= 2 and not any("-->" in ln for ln in lines):
         lines.append(f"{aliases[0]} --> {aliases[1]} : link")
@@ -216,6 +328,7 @@ def build_object_plantuml(spec: dict[str, Any]) -> str:
 
 def build_component_plantuml(spec: dict[str, Any]) -> str:
     lines = ["@startuml"]
+    lines.extend(_readable_chrome_lines(spec, "component"))
     comps: list[dict[str, Any]] = []
     for c in spec.get("components") or []:
         if isinstance(c, dict) and c.get("name"):
@@ -260,7 +373,7 @@ def build_component_plantuml(spec: dict[str, Any]) -> str:
         sa = next((aliases[k] for k in aliases if k.lower() == src.lower() or src.lower() in k.lower()), None)
         ta = next((aliases[k] for k in aliases if k.lower() == tgt.lower() or tgt.lower() in k.lower()), None)
         if sa and ta and sa != ta:
-            label = _safe_label(str(rel.get("label") or "uses"), max_len=40) or "uses"
+            label = _plain_rel_label(rel)
             lines.append(f"{sa} ..> {ta} : {label}")
     if len(comps) >= 2 and not any("..>" in ln for ln in lines):
         names = list(aliases.keys())
@@ -271,6 +384,7 @@ def build_component_plantuml(spec: dict[str, Any]) -> str:
 
 def build_package_plantuml(spec: dict[str, Any]) -> str:
     lines = ["@startuml"]
+    lines.extend(_readable_chrome_lines(spec, "package"))
     packages = [p for p in (spec.get("packages") or []) if isinstance(p, dict) and p.get("name")]
     names = _entity_names(spec)
     if not packages:
@@ -323,7 +437,7 @@ def build_package_plantuml(spec: dict[str, Any]) -> str:
         sa = next((p for p in pkg_ids if p.lower() == _safe_id(src).lower() or src.lower() in p.lower()), None)
         ta = next((p for p in pkg_ids if p.lower() == _safe_id(tgt).lower() or tgt.lower() in p.lower()), None)
         if sa and ta and sa != ta:
-            label = _safe_label(str(rel.get("label") or "depends"), max_len=40) or "depends"
+            label = _plain_rel_label(rel)
             lines.append(f"{sa} ..> {ta} : {label}")
             rels_added += 1
     if rels_added == 0 and len(pkg_ids) >= 2:
@@ -345,7 +459,9 @@ def build_flowchart_plantuml(spec: dict[str, Any]) -> str:
     if len(clean) < 2:
         names = _entity_names(spec)
         clean = [f"Start {names[0]}" if names else "Start", "Process", "Complete"]
-    lines = ["@startuml", "start"]
+    lines = ["@startuml"]
+    lines.extend(_readable_chrome_lines(spec, "flowchart"))
+    lines.append("start")
     mid = len(clean) // 2
     for i, step in enumerate(clean):
         step = step.rstrip(";")
@@ -374,6 +490,7 @@ def plantuml_from_spec(spec: dict[str, Any], diagram_type: str | None = None) ->
         code = build_flowchart_plantuml(spec)
     else:
         code = build_class_plantuml(spec)
+    code = inject_readable_chrome(code, spec, dtype)
     return sanitize_plantuml_output(code, diagram_type=dtype)
 
 
@@ -469,7 +586,9 @@ def ensure_faithful_plantuml(
         }
     report = fidelity_report(code, spec, diagram_type)
     if report["ok"] and report["recall"] >= min_recall:
-        return sanitize_plantuml_output(code, diagram_type=diagram_type), {**report, "source": "model"}
+        kept = sanitize_plantuml_output(code, diagram_type=diagram_type)
+        kept = inject_readable_chrome(kept, spec, diagram_type)
+        return kept, {**report, "source": "model"}
     deterministic = plantuml_from_spec(spec, diagram_type)
     report2 = fidelity_report(deterministic, spec, diagram_type)
     return deterministic, {**report2, "source": "spec-builder", "replaced": True, "prior": report}

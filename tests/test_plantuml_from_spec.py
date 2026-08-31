@@ -39,6 +39,29 @@ def test_class_builder_includes_all_entities():
     for name in ("Book", "Member", "Loan", "Librarian"):
         assert name in code
     assert "Module" not in code
+    assert "note as DiagramGuide" in code
+    assert "legend left" in code
+    assert "related to" in code or "borrows" in code or ":" in code
+
+
+def test_class_builder_plain_english_relationship_labels():
+    spec = {
+        "diagram_type": "class",
+        "summary": "Library borrowing model",
+        "purpose": "Shows who borrows books.",
+        "entities": [
+            {"name": "Member", "attributes": ["name: str"]},
+            {"name": "Book", "attributes": ["title: str"]},
+        ],
+        "relationships": [
+            {"source": "Member", "target": "Book", "type": "association"},
+        ],
+    }
+    code = plantuml_from_spec(spec, "class")
+    assert "related to" in code
+    assert "What this shows" in code
+    assert "lifecycle" in code
+    assert "title Library borrowing model" in code
 
 
 def test_package_builder_uses_named_packages():

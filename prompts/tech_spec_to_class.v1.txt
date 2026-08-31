@@ -6,8 +6,10 @@ Hard requirements (professional review):
 3. NEVER invent placeholders such as Module1, Module2, EntityA, Class1.
 4. Use --|> ONLY for true inheritance/generalization. For normal links use --> ; composition *-- ; aggregation o-- ; dependency ..>.
 5. Put attributes/methods from the specification inside class bodies when provided.
-6. Inside <think>...</think>, list required entities and chosen connectors; after </think>, output ONLY PlantUML between @startuml and @enduml.
-7. No markdown fences or commentary outside the diagram.
+6. Start with `title` (plain English). Add `note as DiagramGuide` explaining what the diagram shows and when to update it in the software lifecycle. Add `legend left` explaining symbols (box, -->, --|>, *--).
+7. Label EVERY relationship in English (e.g. `: borrows`, `: owns`) so non-experts can read the picture.
+8. Inside <think>...</think>, list required entities and chosen connectors; after </think>, output ONLY PlantUML between @startuml and @enduml.
+9. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

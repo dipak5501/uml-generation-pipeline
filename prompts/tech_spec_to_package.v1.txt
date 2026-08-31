@@ -7,8 +7,9 @@ Hard requirements (professional review):
 4. Use nested `package Name { ... }` blocks for containment. If names look like com.app.api / com.app.core, nest under shared parents — do NOT emit flat dotted peer packages.
 5. Dependencies use ..> and must not be self-referential. Put classes/interfaces INSIDE packages (no empty shells).
 6. Distinguish containment (nesting) from dependency (..>).
-7. Inside <think>...</think> plan packages and deps; after </think>, output ONLY PlantUML between @startuml and @enduml.
-8. No markdown fences or commentary outside the diagram.
+7. Add `title`, `note as DiagramGuide` (how folders/modules fit the software lifecycle), `..>` labels, and `legend left`.
+8. Inside <think>...</think> plan packages and deps; after </think>, output ONLY PlantUML between @startuml and @enduml.
+9. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}
