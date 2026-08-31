@@ -22,6 +22,10 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from scripts.pdf_github_compat import disable_reportlab_ascii85, github_compat_pdf
+
+disable_reportlab_ascii85()
+
 ROOT = Path(__file__).resolve().parent.parent
 OUT = ROOT / "reports" / "UML_Pipeline_Application_Report.pdf"
 ARTIFACTS = Path("/opt/cursor/artifacts") / "UML_Pipeline_Application_Report.pdf"
@@ -659,6 +663,7 @@ def build():
         author="Dipak Yadav",
     )
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    github_compat_pdf(OUT)
     print(OUT)
     try:
         ARTIFACTS.parent.mkdir(parents=True, exist_ok=True)

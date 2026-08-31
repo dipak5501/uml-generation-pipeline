@@ -30,6 +30,10 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from scripts.pdf_github_compat import disable_reportlab_ascii85, github_compat_pdf
+
+disable_reportlab_ascii85()
+
 ROOT = Path(__file__).resolve().parents[1]
 DESKTOP = Path.home() / "Desktop" / "Dipak_Yadav_MS_Thesis_Draft.pdf"
 LOCAL = ROOT / "thesis" / "Dipak_Yadav_MS_Thesis_Draft.pdf"
@@ -1053,6 +1057,7 @@ def main() -> None:
         author="Dipak Yadav",
     )
     doc.build(story, onFirstPage=_page, onLaterPages=_page)
+    github_compat_pdf(LOCAL)
     shutil.copy2(LOCAL, REPORTS)
     for dest in (DESKTOP, ARTIFACTS):
         try:
