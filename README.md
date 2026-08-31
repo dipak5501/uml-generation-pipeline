@@ -235,7 +235,7 @@ make test          # pytest (153 tests, MOCK_PROVIDERS=true)
 make smoke         # live API smoke (9/9 pass; composite scores 4.72–6.00)
 ```
 
-**Golden fixtures:** 21 cases (6 NL + 15 source-code) under `tests/golden/`. Progress notes: `reports/REVIEWER_PROGRESS_REPORT.md`. GPU handoff: `docs/CURSOR_GPU_HANDOFF.md`.
+**Golden fixtures:** 21 cases (6 NL + 15 source-code) under `tests/golden/`. Progress notes: `reports/REVIEWER_PROGRESS_REPORT.md`. Thesis–application work report (2026-08-31): `reports/Thesis_Application_Work_Report.md`. GPU handoff: `docs/CURSOR_GPU_HANDOFF.md`.
 
 ---
 
