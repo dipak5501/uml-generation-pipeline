@@ -470,4 +470,4 @@ MIN_COMPOSITE_FOR_DATASET=3.0
 | Golden fixtures | **21** (6 NL + 15 source-code) |
 | Live API smoke (`make smoke`) | **9/9** pass; composite scores **4.72–6.00** |
 
-Reviewer bundle: `reports/reviewer_gpu_package.zip` (includes sample golden JSON under `SAMPLE_DATA/`).
+Golden sample data lives under `tests/golden/` and `sample_data/`. GPU reproduction notes: `docs/CURSOR_GPU_HANDOFF.md`.
