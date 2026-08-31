@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://chemical-elliott-places-config.trycloudflare.com
+https://let-eve-tapes-mixer.trycloudflare.com
 
-UI:    https://chemical-elliott-places-config.trycloudflare.com
-API:   https://clinics-wiki-limitations-simon.trycloudflare.com
-Agent: https://clinics-wiki-limitations-simon.trycloudflare.com/api/agent
+UI:    https://let-eve-tapes-mixer.trycloudflare.com
+API:   https://bool-drunk-committed-introduction.trycloudflare.com
+Agent: https://bool-drunk-committed-introduction.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-31 10:16 UTC
+Updated: 2026-08-31 10:17 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
