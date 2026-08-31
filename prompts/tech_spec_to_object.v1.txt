@@ -1,12 +1,13 @@
 You are a senior UML modeler. Convert the technical specification into syntactically valid PlantUML for an OBJECT diagram.
 
 Hard requirements (professional review):
-1. Create concrete instances for each type named in the specification using name:Type syntax.
+1. Every instance MUST use `object name : Type` (e.g. `object alice : User` or `object alice : User { ... }`).
 2. Use EXACT type names from the specification (Patient, Doctor, Clinic, etc.).
-3. NEVER invent ModuleN / EntityA placeholders.
-4. Show links between instances that reflect the specified relationships.
-5. Inside <think>...</think> plan instances and links; after </think>, output ONLY PlantUML between @startuml and @enduml.
-6. No markdown fences or commentary outside the diagram.
+3. NEVER invent ModuleN / EntityA placeholders; NEVER emit `class` declarations.
+4. Show links between instances with --> that reflect the specified relationships.
+5. Prefer concrete instance names (alice, order1) — not bare type names as objects.
+6. Inside <think>...</think> plan instances and links; after </think>, output ONLY PlantUML between @startuml and @enduml.
+7. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

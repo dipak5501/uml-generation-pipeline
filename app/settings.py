@@ -82,6 +82,12 @@ class Settings(BaseSettings):
 
     # Optional shared secret for public deploys. Empty = open (local demo).
     api_access_token: str = ""
+    # Remote agent auth (falls back to API_ACCESS_TOKEN when empty).
+    remote_agent_token: str = ""
+    # Max POST /api/agent/command calls per client per minute (0 = unlimited).
+    remote_agent_rate_limit: int = 12
+    # Cursor SDK — enables agent-prompt remote commands when set.
+    cursor_api_key: str = ""
     # Comma-separated origins, or "*" for open demos (credentials disabled when "*").
     cors_origins: str = "*"
 

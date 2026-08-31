@@ -27,6 +27,13 @@ def find_java_executable() -> str | None:
     for path in sorted(tools.glob("**/bin/java")):
         candidates.append(path)
 
+    for jvm_home in (
+        "/usr/lib/jvm/java-21-openjdk-amd64",
+        "/usr/lib/jvm/java-17-openjdk-amd64",
+        "/usr/lib/jvm/java-21-openjdk",
+    ):
+        candidates.append(Path(jvm_home) / "bin" / "java")
+
     candidates.append(Path("java"))
 
     for candidate in candidates:
@@ -140,6 +147,8 @@ def find_dot_executable() -> str | None:
         Path("/usr/local/bin/dot"),
         Path("/opt/local/bin/dot"),
         Path(REPO_ROOT / "tools" / "graphviz" / "bin" / "dot"),
+        Path.home() / "micromamba" / "envs" / "uml-openmpi" / "bin" / "dot",
+        Path.home() / "micromamba" / "envs" / "uml-mpi" / "bin" / "dot",
     ):
         candidates.append(path)
     which = subprocess.run(["/usr/bin/which", "dot"], capture_output=True, text=True)
@@ -189,6 +198,9 @@ def _looks_like_graphviz_error_png(img_path: Path) -> bool:
 
 def _ensure_renderable_layout(code: str, *, has_dot: bool) -> str:
     """When Graphviz is missing, force PlantUML's built-in Smetana layout."""
+    from app.services.plantuml_validate import apply_publication_plantuml_style
+
+    code = apply_publication_plantuml_style(code)
     if has_dot:
         return code
     low = code.lower()

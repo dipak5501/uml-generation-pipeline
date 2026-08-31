@@ -1,20 +1,27 @@
 # UML Generation Pipeline — Dipak Yadav
 # https://github.com/dipak5501/uml-generation-pipeline
+#
+# Structural defaults only. Runtime provider/model paths live in .env
+# (see .env.example). Production: Math dept Mac Studio M1 Ultra (24/7 LaunchAgents),
+# dual Ollama :11434/:11435, MLX LoRA sourcecode-30k, local Aya-Vision-8B.
+# Architecture: docs/SYSTEM_DESIGN.md
 
 author:
   name: Dipak Yadav
   github: dipak5501
 
+# Application DB, artifacts, training corpora (gitignored)
 data_dir: data
 output_dir: output
 
-# VLM weights from MMMU benchmark scores (see paper)
+# VLM weights from MMMU benchmark scores (paper Eq.; mirrored in app/settings.py)
+# Production routes: qwen→Ollama:11435, llama-vision→Ollama:11434, aya→local Transformers
 vlm_weights:
   qwen25vl3b: 53.1
   llama32vl11b: 50.7
   aya_vision_8b: 39.9
 
-# Optional Hugging Face open sources (see scripts/build_training_corpus.py for the 8k builder)
+# Hugging Face open sources for corpus builders (8k / 50k / 100k — see models/README.md)
 datasets:
   class:
     repo: nguyenvanviet/UMLCode-ClassDiagram-DeepSeek-32B-Reasoning-RAW

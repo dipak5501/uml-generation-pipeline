@@ -150,12 +150,23 @@ def spec_to_prose(data: dict[str, Any]) -> str:
         for c in constraints:
             lines.append(f"- {c}")
 
+    def _join_names(items: object) -> str:
+        """Coerce package/component member lists that may mix str and dict."""
+        parts: list[str] = []
+        for item in items or []:  # type: ignore[union-attr]
+            if isinstance(item, dict):
+                name = item.get("name") or item.get("id") or item.get("type")
+                parts.append(str(name) if name is not None else str(item))
+            else:
+                parts.append(str(item))
+        return ", ".join(parts)
+
     packages = data.get("packages") or []
     if packages:
         lines.append("### Packages")
         for p in packages:
             if isinstance(p, dict):
-                lines.append(f"- {p.get('name')}: contains {', '.join(p.get('contains') or [])}")
+                lines.append(f"- {p.get('name')}: contains {_join_names(p.get('contains') or [])}")
             else:
                 lines.append(f"- {p}")
 
@@ -164,7 +175,7 @@ def spec_to_prose(data: dict[str, Any]) -> str:
         lines.append("### Components")
         for c in components:
             if isinstance(c, dict):
-                lines.append(f"- {c.get('name')}: {', '.join(c.get('interfaces') or [])}")
+                lines.append(f"- {c.get('name')}: {_join_names(c.get('interfaces') or [])}")
             else:
                 lines.append(f"- {c}")
 
@@ -471,6 +482,32 @@ def structure_to_spec_json(code: str, diagram_type: str) -> dict[str, Any]:
             cls = re.findall(r"(?i)class\s+(\w+)", before)
             if cls and typ in s.classes and cls[-1] != typ:
                 relationships.append({"source": cls[-1], "target": typ, "type": "association", "label": _field})
+        if s.language in ("c", "cpp"):
+            struct_owner: str | None = None
+            for line in code.splitlines():
+                sm = re.search(r"(?<!typedef\s)struct\s+(\w+)\s*\{", line)
+                if sm:
+                    struct_owner = sm.group(1)
+                    continue
+                tm = re.search(r"typedef\s+struct\s+(\w+)?\s*\{", line)
+                if tm:
+                    struct_owner = tm.group(1) or struct_owner
+                    continue
+                if line.strip() == "};" or re.search(r"}\s*\w+\s*;\s*$", line.strip()):
+                    struct_owner = None
+                    continue
+                fm = re.search(r"\b([A-Z][A-Za-z0-9_]*)\s*\*?\s+(\w+)\s*;", line)
+                if fm and struct_owner and struct_owner in s.classes:
+                    typ, field = fm.group(1), fm.group(2)
+                    if typ in s.classes and typ != struct_owner:
+                        relationships.append(
+                            {
+                                "source": struct_owner,
+                                "target": typ,
+                                "type": "association",
+                                "label": field,
+                            }
+                        )
         for m in re.finditer(
             r"(?i)(?:public|private|protected)?\s*(?:[\w<>\[\]]+\s+)?(\w+)\s*\(\s*([A-Z][A-Za-z0-9_]*)\s+\w+",
             code,

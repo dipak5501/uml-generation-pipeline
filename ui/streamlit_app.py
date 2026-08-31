@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import streamlit as st
 
-from ui.api_client import API_BASE, api_get
+from ui.api_client import API_BASE, api_auth_mismatch_message, api_get
 from ui.theme import apply_theme, footer, hero, panel, stats_row
 
 st.set_page_config(
@@ -54,6 +54,10 @@ elif not live:
     )
     footer()
     st.stop()
+
+_auth_warn = api_auth_mismatch_message()
+if _auth_warn:
+    st.warning(_auth_warn)
 
 n1, n2, n3, n4 = st.columns(4)
 with n1:

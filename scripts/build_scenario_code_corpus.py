@@ -85,6 +85,14 @@ DIAGRAM_TYPES = ["class", "object", "component", "package", "flowchart"]
 CODE_TEMPLATES: list[tuple[str, str]] = [
     ("python", "class {A}:\n    def {ma}(self):\n        return True\n\nclass {B}({A}):\n    def {mb}(self):\n        pass\n\nclass {C}:\n    def link(self, other: '{B}'):\n        self.ref = other\n"),
     ("java", "package demo;\npublic class {A} {{\n  public void {ma}() {{}}\n}}\npublic class {B} extends {A} {{\n  public void {mb}() {{}}\n}}\npublic class {C} {{\n  private {B} ref;\n}}\n"),
+    (
+        "c",
+        "#include <stdio.h>\n#include <stdlib.h>\n\n"
+        "typedef struct {A} {{\n    int id;\n    char name[64];\n}} {A};\n\n"
+        "typedef struct {B} {{\n    {A} base;\n    void (*{mb})(struct {B}*);\n}} {B};\n\n"
+        "typedef struct {C} {{\n    {B}* ref;\n    int linked;\n}} {C};\n\n"
+        "void {ma}_{A}({A}* self) {{\n    if (self) self->id = 0;\n}}\n",
+    ),
     ("javascript", "class {A} {{\n  {ma}() {{ return true; }}\n}}\nclass {B} extends {A} {{\n  {mb}() {{}}\n}}\nclass {C} {{\n  constructor(ref) {{ this.ref = ref; }}\n}}\n"),
     ("typescript", "export class {A} {{\n  {ma}(): boolean {{ return true; }}\n}}\nexport class {B} extends {A} {{\n  {mb}(): void {{}}\n}}\nexport class {C} {{\n  constructor(public ref: {B}) {{}}\n}}\n"),
     ("rust", "struct {A} {{}}\nimpl {A} {{\n  fn {ma}(&self) -> bool {{ true }}\n}}\nstruct {B} {{ parent: {A} }}\nimpl {B} {{\n  fn {mb}(&self) {{}}\n}}\nstruct {C} {{ ref: {B} }}\n"),
@@ -93,6 +101,14 @@ CODE_TEMPLATES: list[tuple[str, str]] = [
     ("kotlin", "open class {A} {{ fun {ma}(): Boolean = true }}\nclass {B} : {A}() {{ fun {mb}() {{}} }}\nclass {C}(val ref: {B})\n"),
     ("swift", "class {A} {{ func {ma}() -> Bool {{ return true }} }}\nclass {B}: {A} {{ func {mb}() {{}} }}\nclass {C} {{ var ref: {B}? }}\n"),
     ("cpp", "class {A} {{ public: void {ma}(); }};\nclass {B} : public {A} {{ public: void {mb}(); }};\nclass {C} {{ {B}* ref; }};\n"),
+    (
+        "c",
+        "#include <stdio.h>\n#include <stdlib.h>\n\ntypedef struct {A} {{\n    int id;\n    char name[64];\n}} {A};\n\n"
+        "typedef struct {B} {{\n    {A} base;\n    double value;\n}} {B};\n\n"
+        "typedef struct {C} {{\n    {B}* ref;\n    int count;\n}} {C};\n\n"
+        "void {ma}({A}* self) {{ self->id = 1; }}\n"
+        "int {mb}({B}* self) {{ return self ? (int)self->value : 0; }}\n",
+    ),
     ("ruby", "class {A}\n  def {ma}; true; end\nend\nclass {B} < {A}\n  def {mb}; end\nend\nclass {C}\n  attr_accessor :ref\nend\n"),
     ("php", "<?php\nclass {A} {{ public function {ma}() {{ return true; }} }}\nclass {B} extends {A} {{ public function {mb}() {{}} }}\nclass {C} {{ public ${B} $ref; }}\n"),
     ("scala", "class {A} {{ def {ma}(): Boolean = true }}\nclass {B} extends {A} {{ def {mb}(): Unit = () }}\nclass {C}(val ref: {B})\n"),
@@ -196,6 +212,9 @@ def build_scenarios(n: int, seed: int) -> list[dict]:
         domain = DOMAINS[i % len(DOMAINS)]
         ents = ENTITIES[domain]
         a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
         dtype = DIAGRAM_TYPES[i % len(DIAGRAM_TYPES)]
         lang, tmpl = HUMAN_LANGS[i % len(HUMAN_LANGS)]
         req = tmpl.format(domain=domain, a=a, b=b, c=c)
@@ -227,6 +246,57 @@ def build_scenarios(n: int, seed: int) -> list[dict]:
     return rows
 
 
+def build_code_samples_for_langs(
+    n: int,
+    seed: int,
+    langs: list[str] | None = None,
+) -> list[dict]:
+    """Build source-code training rows, optionally restricted to language ids."""
+    rng = random.Random(seed + 7)
+    templates = CODE_TEMPLATES
+    if langs:
+        want = {str(l).strip().lower() for l in langs}
+        templates = [(lang, tmpl) for lang, tmpl in CODE_TEMPLATES if lang in want]
+        if not templates:
+            raise ValueError(f"No CODE_TEMPLATES for languages={langs}")
+    rows: list[dict] = []
+    for i in range(n):
+        lang, tmpl = templates[i % len(templates)]
+        domain = DOMAINS[i % len(DOMAINS)]
+        ents = ENTITIES[domain]
+        a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
+        ma, mb = "process", "validate"
+        code = tmpl.format(
+            A=a, B=b, C=c, ma=ma, mb=mb, Ma=ma.capitalize(), Mb=mb.capitalize()
+        )
+        dtype = DIAGRAM_TYPES[i % len(DIAGRAM_TYPES)]
+        if dtype in ("object",) and lang in ("haskell", "r", "matlab"):
+            dtype = "class"
+        from app.services.code_analysis import structure_to_spec
+
+        spec = structure_to_spec(code, dtype)
+        uml = UML_BUILDERS[dtype]([a, b, c])
+        rows.append(
+            {
+                "id": _id("cd", str(i), lang, dtype),
+                "diagram_type": dtype,
+                "source_requirement": code,
+                "technical_spec": spec,
+                "uml_code": uml,
+                "human_language": "en",
+                "domain": domain,
+                "input_mode": "source_code",
+                "source_language": lang,
+                "dataset_accepted": True,
+                "source_dataset": "synthetic_code_langs_focused",
+            }
+        )
+    return rows
+
+
 def build_code_samples(n: int, seed: int) -> list[dict]:
     rng = random.Random(seed + 7)
     rows: list[dict] = []
@@ -235,6 +305,9 @@ def build_code_samples(n: int, seed: int) -> list[dict]:
         domain = DOMAINS[i % len(DOMAINS)]
         ents = ENTITIES[domain]
         a, b, c = rng.sample(ents, 3)
+        # Unique type names per row so focused-language corpora can scale past template/domain limits.
+        suffix = f"{i % 10000}"
+        a, b, c = f"{a}{suffix}", f"{b}{suffix}", f"{c}{suffix}"
         ma, mb = "process", "validate"
         code = tmpl.format(
             A=a, B=b, C=c, ma=ma, mb=mb, Ma=ma.capitalize(), Mb=mb.capitalize()
@@ -305,6 +378,12 @@ def main() -> None:
     ap.add_argument("--scenarios", type=int, default=1000)
     ap.add_argument("--codes", type=int, default=1000)
     ap.add_argument("--seed", type=int, default=42)
+    ap.add_argument(
+        "--min-merged",
+        type=int,
+        default=0,
+        help="If set, grow scenarios/codes until merged rows reach this size (honest synthetic top-up)",
+    )
     args = ap.parse_args()
 
     scenarios = build_scenarios(args.scenarios, args.seed)
@@ -312,10 +391,14 @@ def main() -> None:
 
     train_dir = ROOT / "data" / "training"
     eval_dir = ROOT / "data" / "eval"
+    # Keep classic filenames for compatibility; also write sized copies when N≠1000
     write_jsonl(train_dir / "scenarios_1000.jsonl", scenarios)
     write_jsonl(train_dir / "code_langs_1000.jsonl", codes)
-    write_jsonl(eval_dir / "scenarios_1000.jsonl", scenarios)
-    write_jsonl(eval_dir / "code_langs_1000.jsonl", codes)
+    write_jsonl(eval_dir / "scenarios_1000.jsonl", scenarios[: min(1000, len(scenarios))])
+    write_jsonl(eval_dir / "code_langs_1000.jsonl", codes[: min(1000, len(codes))])
+    if args.scenarios != 1000 or args.codes != 1000:
+        write_jsonl(train_dir / f"scenarios_{args.scenarios}.jsonl", scenarios)
+        write_jsonl(train_dir / f"code_langs_{args.codes}.jsonl", codes)
 
     df_new = pd.concat(
         [to_training_frame(scenarios), to_training_frame(codes)], ignore_index=True
@@ -334,6 +417,36 @@ def main() -> None:
     else:
         df_all = df_new
 
+    # Optional synthetic expansion to hit --min-merged (documented in manifest)
+    synthetic_topup = 0
+    if args.min_merged and len(df_all) < args.min_merged:
+        need = args.min_merged - len(df_all)
+        # Split need across more scenarios + codes with a shifted seed (new unique templates)
+        extra_sc = need // 2 + need % 2
+        extra_cd = need // 2
+        more_sc = build_scenarios(extra_sc, args.seed + 10_000)
+        more_cd = build_code_samples(extra_cd, args.seed + 20_000)
+        # Retag source so top-up is auditable
+        for r in more_sc:
+            r["source_dataset"] = "synthetic_scenarios_topup"
+        for r in more_cd:
+            r["source_dataset"] = "synthetic_code_langs_topup"
+        df_extra = pd.concat(
+            [to_training_frame(more_sc), to_training_frame(more_cd)], ignore_index=True
+        )
+        for col in df_all.columns:
+            if col not in df_extra.columns:
+                df_extra[col] = None
+        df_all = pd.concat([df_all, df_extra[df_all.columns]], ignore_index=True)
+        synthetic_topup = len(df_extra)
+        scenarios = scenarios + more_sc
+        codes = codes + more_cd
+
+    # Dedup on uml_code+technical_spec to avoid exact clones
+    before = len(df_all)
+    df_all = df_all.drop_duplicates(subset=["uml_code", "technical_spec"], keep="first")
+    dedup_dropped = before - len(df_all)
+
     out_parquet = train_dir / "uml_training_supplement_merged.parquet"
     out_jsonl = train_dir / "uml_training_supplement_merged.jsonl"
     df_all.to_parquet(out_parquet, index=False)
@@ -349,6 +462,14 @@ def main() -> None:
         "human_languages": human,
         "human_language_count": len(human),
         "merged_rows": int(len(df_all)),
+        "synthetic_topup_rows": int(synthetic_topup),
+        "dedup_dropped": int(dedup_dropped),
+        "min_merged_requested": int(args.min_merged or 0),
+        "notes": [
+            "Primary rows come from HF uml_training_8000.parquet when present.",
+            "scenario/code rows are synthetic templates for diversification.",
+            "synthetic_topup_rows > 0 means extra synthetic fill was used to reach --min-merged.",
+        ],
         "outputs": {
             "scenarios": str(train_dir / "scenarios_1000.jsonl"),
             "codes": str(train_dir / "code_langs_1000.jsonl"),

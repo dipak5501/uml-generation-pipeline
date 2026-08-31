@@ -64,7 +64,26 @@ class CodeStructure:
 
 
 def detect_language(code: str) -> str:
-    if re.search(r"^\s*def\s+\w+|^\s*class\s+\w+", code, re.M):
+    # C/C++ before JavaScript — ``const`` in C otherwise matches JS heuristics.
+    if re.search(r"^\s*#\s*include\s*[<\"]", code, re.M) or re.search(
+        r"\btypedef\s+struct\b", code
+    ):
+        if re.search(r"\bstd::|namespace\s+\w+|class\s+\w+\s*:\s*public", code):
+            return "cpp"
+        return "c"
+    # Java before Python — both use ``class``, but Java uses braces / JVM types.
+    if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
+        return "java"
+    if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
+        return "java"
+    if re.search(r"^\s*(public\s+)?class\s+\w+\s*\{", code, re.M) and re.search(
+        r"\b(boolean|void|String|int|double|float|long)\b", code
+    ):
+        return "java"
+    # Python: ``def`` or ``class Name:`` (colon syntax, not brace body).
+    if re.search(r"^\s*def\s+\w+", code, re.M):
+        return "python"
+    if re.search(r"^\s*class\s+\w+[^:{]*:", code, re.M):
         return "python"
     python_script = [
         r"^\s*#",
@@ -84,10 +103,6 @@ def detect_language(code: str) -> str:
         return "typescript"
     if re.search(r"\b(function|const|let|var|export\s+class|interface)\b", code):
         return "javascript"
-    if re.search(r"\b(public|private|protected)\s+(class|interface|enum)\s+\w+", code):
-        return "java"
-    if re.search(r"^\s*import\s+[\w.*]+\s*;\s*$|^\s*package\s+[\w.]+\s*;\s*$", code, re.M):
-        return "java"
     if "fn " in code and ("impl " in code or "struct " in code):
         return "rust"
     if re.search(r"^\s*package\s+\w+|func\s+\(\w+\s+\*", code, re.M) or (
@@ -149,7 +164,7 @@ def looks_like_source_code(text: str) -> bool:
         return False
     signals = 0
     patterns = [
-        r"\b(class|def|function|interface|struct|enum|public|private|package|import)\b",
+        r"\b(class|def|function|interface|struct|enum|public|private|package|import|typedef)\b",
         r"[{};]\s*$",
         r"^\s{2,}\w+",
         r"->|=>|::",
@@ -157,11 +172,38 @@ def looks_like_source_code(text: str) -> bool:
         r"\bprint\s*\(",
         r"\binput\s*\(",
         r"^\s*#",
+        r"^\s*#\s*include\b",
     ]
     for p in patterns:
         if re.search(p, t, re.M):
             signals += 1
     return signals >= 2
+
+
+def _extract_c_structs(code: str, struct: CodeStructure) -> None:
+    """Recover typedef/struct type names from C/C++ source."""
+    for m in re.finditer(
+        r"typedef\s+struct\s+(\w+)?\s*\{[^}]*\}\s*(\w+)\s*;",
+        code,
+        re.S,
+    ):
+        alias, tag = m.group(2), m.group(1)
+        name = alias or tag
+        if name and name not in struct.classes:
+            struct.classes.append(name)
+    for m in re.finditer(r"(?<!typedef\s)struct\s+(\w+)\s*\{", code):
+        name = m.group(1)
+        if name not in struct.classes:
+            struct.classes.append(name)
+
+
+def _guess_c_function_owner(fn_name: str, classes: list[str]) -> str | None:
+    low = fn_name.lower()
+    for cls in classes:
+        stem = cls.lower()
+        if low == stem or low.startswith(stem + "_"):
+            return cls
+    return None
 
 
 def analyze_source_code(code: str) -> CodeStructure:
@@ -227,6 +269,22 @@ def analyze_source_code(code: str) -> CodeStructure:
             name = m.group(1)
             if name not in {"if", "for", "while", "switch", "catch"} and name not in struct.functions:
                 struct.functions.append(name)
+        if lang in ("c", "cpp"):
+            _extract_c_structs(code, struct)
+            for m in re.finditer(
+                r"(?m)^(?:static\s+)?(?:const\s+)?(?:struct\s+)?([\w\s*]+?)\s+(\w+)\s*\([^;]*\)\s*(?:\{|;)",
+                code,
+            ):
+                fn = m.group(2)
+                if fn in {"if", "for", "while", "switch", "main"}:
+                    continue
+                if fn not in struct.functions:
+                    struct.functions.append(fn)
+                owner = _guess_c_function_owner(fn, struct.classes)
+                if owner:
+                    struct.methods.setdefault(owner, [])
+                    if fn not in struct.methods[owner]:
+                        struct.methods[owner].append(fn)
 
     # de-dupe
     struct.classes = list(dict.fromkeys(struct.classes))

@@ -25,11 +25,19 @@ jobs:
       - name: Validate config
         run: python -c "from uml_pipeline.config import load_config; c=load_config(); assert c['author']['name']=='Dipak Yadav'"
 
-      - name: Install JDK for PlantUML render tests
-        run: sudo apt-get update && sudo apt-get install -y openjdk-21-jre-headless
+      - name: Set up Java for PlantUML render tests
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Prefetch PlantUML jar
+        run: python -c "from pathlib import Path; from uml_pipeline.render import ensure_plantuml_jar, java_runtime_ok; ensure_plantuml_jar(Path('tools/plantuml.jar')); assert java_runtime_ok(), 'Java runtime required for PlantUML tests'"
 
       - name: Run tests
         env:
           MOCK_PROVIDERS: "true"
+          USE_FINETUNED_CODE: "false"
+          API_ACCESS_TOKEN: ""
           PYTHONPATH: .
         run: pytest -q

@@ -105,7 +105,12 @@ class LLMClient:
             r = client.post(f"{self.base_url}/chat/completions", headers=headers, json=payload)
             r.raise_for_status()
             text = r.json()["choices"][0]["message"]["content"].strip()
-        score, explanation = _score_from_vlm_text(text)
+        if not text or not score_response_parsed(text):
+            raise RuntimeError(
+                f"Vision model returned unparseable score output "
+                f"({len(text)} chars): {text[:240]!r}"
+            )
+        score, explanation = parse_score_response(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
     def _ollama_vision(self, image_path: Path, prompt: str) -> VisionAssessment:
@@ -115,7 +120,8 @@ class LLMClient:
             "stream": False,
             # Unload after scoring so the next large VLM can fit in VRAM.
             "keep_alive": "0",
-            "options": {"temperature": 0, "num_predict": 256},
+            # Slight temp + longer budget: reduces rubber-stamp SCORE:5 under greedy.
+            "options": {"temperature": 0.2, "num_predict": 384},
             "messages": [
                 {
                     "role": "user",
@@ -156,7 +162,12 @@ class LLMClient:
             else:
                 if last_exc:
                     raise last_exc
-        score, explanation = _score_from_vlm_text(text)
+        if not text or not score_response_parsed(text):
+            raise RuntimeError(
+                f"Ollama vision model {self.model!r} returned unparseable score "
+                f"output ({len(text)} chars): {text[:240]!r}"
+            )
+        score, explanation = parse_score_response(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)
 
 
@@ -194,42 +205,72 @@ def _image_b64(image_path: Path, max_side: int = 1280) -> str:
     return base64.b64encode(raw).decode()
 
 
-# Unfilled prompt templates such as "SEMANTIC: <0-6>" must not become score 0.
-_SCORE_PLACEHOLDER_RE = re.compile(
-    r"<\s*(?:integer\s+)?0\s*[-–to/]+\s*6\s*>|<\s*int(?:eger)?\s*>",
-    re.IGNORECASE,
-)
+_CRITERION_LABEL = r"(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE|OVERALL|RATING|FINAL)"
+_SCORE_LABEL = r"(?:SCORE|OVERALL(?:\s+SCORE)?|FINAL(?:\s+SCORE)?|RATING)"
+_PLACEHOLDER_RANGE = r"[<\[]\s*0\s*[-–—]\s*6\s*[>\]]"
 
 
-def _strip_score_markup(text: str) -> str:
-    return (text or "").replace("**", "").replace("__", "").replace("`", "")
+def parse_score_response(text: str) -> tuple[int, str | None]:
+    """Extract overall SCORE (0–6) and optional EXPLANATION from a VLM reply.
 
-
-def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
-    """Parse a VLM reply into (score, explanation).
-
-    Returns ``score=None`` when no real 0–6 value is present (including replies
-    that only echo ``<0-6>`` placeholders). Callers that need a numeric default
-    should use :func:`parse_score_response`.
+    Prefers an explicit ``SCORE:`` / ``OVERALL:`` line over criterion labels
+    (``SEMANTIC:``, ``STRUCTURAL:``, …) so multi-axis replies do not leak the
+    first criterion into the composite score. Also accepts markdown bold,
+    ``5/6`` forms, and ignores instructional placeholders like ``<0-6>``.
+    Unparseable text returns score ``0`` (callers should treat empty raw
+    output as unavailable separately).
     """
-    raw = text or ""
-    scrubbed = _SCORE_PLACEHOLDER_RE.sub(" ", raw)
-    scrubbed = _strip_score_markup(scrubbed)
-
     score: int | None = None
     explanation: str | None = None
+    scrubbed = re.sub(r"\*+", "", text or "")
 
-    m_score = re.search(r"(?im)^\s*SCORE\s*[:\-]\s*([0-6])\b", scrubbed)
-    if m_score:
-        score = int(m_score.group(1))
+    # Drop instructional placeholders such as SCORE: <0-6> or SEMANTIC: [0-6].
+    scrubbed_for_score = re.sub(
+        rf"(?im)\b(?:SCORE|SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE|OVERALL|RATING|FINAL)\s*[:\-]\s*{_PLACEHOLDER_RANGE}",
+        "",
+        scrubbed,
+    )
+
+    # 1) Prefer overall SCORE / OVERALL / RATING / FINAL (last wins if repeated).
+    overall_hits = list(
+        re.finditer(
+            rf"(?im)\b{_SCORE_LABEL}\s*[:\-]\s*([0-6])(?:\s*/\s*6)?\b",
+            scrubbed_for_score,
+        )
+    )
+    # Exclude criterion-only lines that matched via OVERALL SCORE already handled;
+    # if label was SEMANTIC-only it won't match _SCORE_LABEL.
+    if overall_hits:
+        score = int(overall_hits[-1].group(1))
+
+    # 2) Average criterion lines when present and no overall SCORE.
     if score is None:
-        m_sem = re.search(r"(?i)\bSEMANTIC\s*[:\-]\s*([0-6])\b", scrubbed)
-        if m_sem:
-            score = int(m_sem.group(1))
+        crit_vals = [
+            int(m.group(1))
+            for m in re.finditer(
+                rf"(?im)\b(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE)\s*[:\-]\s*([0-6])\b",
+                scrubbed_for_score,
+            )
+        ]
+        if len(crit_vals) >= 2:
+            score = int(round(sum(crit_vals) / len(crit_vals)))
+            score = max(0, min(6, score))
+        elif len(crit_vals) == 1:
+            # Legacy single-label SEMANTIC: N (or one criterion only).
+            score = crit_vals[0]
+
+    # 3) Forms like "score 5/6" or "rated 4 out of 6".
+    if score is None:
+        m_frac = re.search(
+            r"(?im)\b(?:score|rated|rating)\s*(?:is\s*|of\s*|:\s*)?([0-6])\s*(?:/\s*6|out\s+of\s+6)\b",
+            scrubbed_for_score,
+        )
+        if m_frac:
+            score = int(m_frac.group(1))
 
     m_exp = re.search(
-        r"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:SCORE|EXPLANATION|SEMANTIC)\s*[:\-]|\Z)",
-        _strip_score_markup(raw),
+        rf"(?is)^\s*EXPLANATION\s*[:\-]\s*(.+?)(?=\n\s*(?:{_SCORE_LABEL}|{_CRITERION_LABEL}|EXPLANATION)\s*[:\-]|\Z)",
+        scrubbed,
     )
     if m_exp:
         explanation = " ".join(m_exp.group(1).strip().split())
@@ -237,18 +278,26 @@ def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
             explanation = None
 
     if score is None:
-        for token in scrubbed.replace(".", " ").replace("/", " ").split():
-            token = token.strip("()[]{},;:")
+        # Last-resort: first bare 0–6 digit not inside a leftover placeholder.
+        fallback_text = re.sub(_PLACEHOLDER_RANGE, " ", scrubbed_for_score)
+        # Strip criterion labels' digits so "SEMANTIC: 5" leftovers don't dominate
+        # when they were already considered above; still allow prose "scores 4".
+        for token in re.split(r"[^\d]+", fallback_text):
             if token.isdigit():
                 val = int(token)
                 if 0 <= val <= 6:
                     score = val
                     break
+    if score is None:
+        score = 0
 
     if explanation is None:
-        cleaned = re.sub(r"(?im)^\s*SCORE\s*[:\-]\s*[0-6]\s*$", "", _strip_score_markup(raw)).strip()
+        cleaned = re.sub(
+            rf"(?im)^\s*(?:{_SCORE_LABEL}|{_CRITERION_LABEL})\s*[:\-]\s*[0-6](?:\s*/\s*6)?\s*$",
+            "",
+            scrubbed_for_score,
+        ).strip()
         cleaned = re.sub(r"(?im)^\s*EXPLANATION\s*[:\-]\s*", "", cleaned).strip()
-        cleaned = _SCORE_PLACEHOLDER_RE.sub(" ", cleaned)
         cleaned = " ".join(cleaned.split())
         if cleaned and cleaned != str(score):
             explanation = cleaned[:800] or None
@@ -256,27 +305,48 @@ def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
     return score, explanation
 
 
-def parse_score_response(text: str) -> tuple[int, str | None]:
-    """Extract SCORE (0–6) and optional EXPLANATION from a VLM reply.
+def score_response_parsed(text: str) -> bool:
+    """True when the reply contains an explicit overall or criterion score label."""
+    scrubbed = re.sub(r"\*+", "", text or "")
+    if re.search(rf"(?im)\b{_SCORE_LABEL}\s*[:\-]\s*[0-6]\b", scrubbed):
+        return True
+    if re.search(rf"(?im)\bSEMANTIC\s*[:\-]\s*[0-6]\b", scrubbed):
+        return True
+    if re.search(
+        rf"(?im)\b(?:SEMANTIC|STRUCTURAL|SYNTACTIC|COHERENCE)\s*[:\-]\s*[0-6]\b",
+        scrubbed,
+    ):
+        return True
+    if re.search(
+        r"(?im)\b(?:score|rated|rating)\s*(?:is\s*|of\s*|:\s*)?[0-6]\s*(?:/\s*6|out\s+of\s+6)\b",
+        scrubbed,
+    ):
+        return True
+    return False
 
-    Unparseable replies (markdown-stripped placeholders with no integer) default
-    to 0. Live scorers should use :func:`extract_vlm_score` and treat ``None``
-    as unavailable rather than a genuine zero.
+
+def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
+    """Parse a VLM reply into (score, explanation).
+
+    Returns ``score=None`` when no explicit 0–6 label is present (including
+    replies that only echo ``<0-6>`` placeholders). Callers that need a
+    numeric default should use :func:`parse_score_response`.
     """
-    score, explanation = extract_vlm_score(text)
-    return (0 if score is None else score), explanation
+    score, explanation = parse_score_response(text)
+    if not score_response_parsed(text or ""):
+        return None, explanation
+    return score, explanation
 
 
 def _score_from_vlm_text(text: str) -> tuple[int, str | None]:
     """Require a real 0–6 parse so placeholder ``<0-6>`` is not a fake zero."""
-    score, explanation = extract_vlm_score(text)
-    if score is None:
+    if not text or not score_response_parsed(text):
         snippet = (text or "").strip().replace("\n", " ")[:220]
         raise RuntimeError(
             "VLM score unparseable (markdown/placeholder, no integer 0-6): "
             f"{snippet!r}"
         )
-    return score, explanation
+    return parse_score_response(text)
 
 
 def _parse_score(text: str) -> int:

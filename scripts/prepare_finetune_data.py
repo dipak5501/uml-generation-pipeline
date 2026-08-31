@@ -19,9 +19,14 @@ from pathlib import Path
 
 import pandas as pd
 
+from app.services.code_analysis import looks_like_source_code
+
+from app.services.lora_prompt import format_plantuml_user_prompt
+
 SYSTEM = (
     "You are a UML expert. Given a technical specification and a target diagram type, "
     "output ONLY valid PlantUML between @startuml and @enduml. "
+    "Black-and-white UML only — no skinparam colors, themes, or hex fills. "
     "No markdown fences or commentary."
 )
 
@@ -54,11 +59,30 @@ def row_to_messages(row: dict, max_spec: int, max_uml: int) -> dict | None:
         return None
     spec = _truncate(spec, max_spec)
     uml = _truncate(uml, max_uml)
-    user = (
-        f"Target diagram type: {dtype}\n\n"
-        f"Technical specification:\n{spec}\n\n"
-        f"Generate PlantUML for a {dtype} diagram."
-    )
+    input_mode = str(row.get("input_mode") or "requirement").strip().lower()
+    source_lang = str(row.get("source_language") or "").strip()
+    src_req = str(row.get("source_requirement") or "").strip()
+    code_like = looks_like_source_code(src_req)
+
+    if code_like and input_mode != "source_code":
+        input_mode = "source_code"
+
+    if input_mode == "source_code" and src_req and len(src_req) >= 20 and code_like:
+        user = format_plantuml_user_prompt(
+            diagram_type=dtype,
+            specification=spec,
+            input_mode=input_mode,
+            source_text=src_req,
+            source_language=source_lang,
+            max_spec_chars=max_spec,
+        )
+    else:
+        user = format_plantuml_user_prompt(
+            diagram_type=dtype,
+            specification=spec,
+            input_mode="requirement",
+            max_spec_chars=max_spec,
+        )
     return {
         "messages": [
             {"role": "system", "content": SYSTEM},
@@ -73,7 +97,8 @@ def main() -> None:
     parser.add_argument(
         "--input",
         type=Path,
-        default=Path("data/training/uml_training_8000.parquet"),
+        default=Path("data/training/uml_training_combined_100k.parquet"),
+        help="Training parquet (default: combined 100k+ corpus)",
     )
     parser.add_argument("--out-dir", type=Path, default=Path("data/finetune"))
     parser.add_argument("--seed", type=int, default=42)

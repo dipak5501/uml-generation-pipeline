@@ -1,0 +1,17 @@
+{
+  "id": "SC-PY-02",
+  "language": "python",
+  "diagram_type": "class",
+  "source": "class Person:\n    def __init__(self, name: str, birth_year: int):\n        self.name = name\n        self.birth_year = birth_year\n\n    def age(self, current_year: int) -> int:\n        return current_year - self.birth_year\n\nclass Student(Person):\n    def __init__(self, name: str, birth_year: int, student_id: str):\n        super().__init__(name, birth_year)\n        self.student_id = student_id\n        self.enrollments: list[Enrollment] = []\n\n    def enroll(self, course: Course) -> Enrollment:\n        enrollment = Enrollment(self, course)\n        self.enrollments.append(enrollment)\n        return enrollment\n\nclass Course:\n    def __init__(self, code: str, title: str, credits: int):\n        self.code = code\n        self.title = title\n        self.credits = credits\n\nclass Enrollment:\n    def __init__(self, student: Student, course: Course):\n        self.student = student\n        self.course = course\n        self.grade: str | None = None\n",
+  "expected": {
+    "classes": [
+      "Person",
+      "Student",
+      "Course",
+      "Enrollment"
+    ],
+    "inheritance": [
+      "Student --|> Person"
+    ]
+  }
+}

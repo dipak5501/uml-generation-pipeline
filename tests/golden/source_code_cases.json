@@ -1,0 +1,142 @@
+[
+  {
+    "id": "SC-JAVA-01",
+    "language": "java",
+    "diagram_type": "class",
+    "source": "package com.example.library;\n\nimport java.util.Date;\nimport java.util.List;\n\npublic class Book {\n    private String isbn;\n    private String title;\n    private String author;\n    private boolean available;\n\n    public Book(String isbn, String title, String author) {\n        this.isbn = isbn;\n        this.title = title;\n        this.author = author;\n        this.available = true;\n    }\n\n    public String getTitle() { return title; }\n    public boolean isAvailable() { return available; }\n    public void markBorrowed() { this.available = false; }\n}\n\npublic interface Borrowable {\n    boolean isAvailable();\n    void markBorrowed();\n}\n\npublic class Member {\n    private int memberId;\n    private String name;\n    private String email;\n    private List<Loan> activeLoans;\n\n    public Member(int memberId, String name, String email) {\n        this.memberId = memberId;\n        this.name = name;\n        this.email = email;\n    }\n\n    public void borrowBook(Book book) {\n        if (book.isAvailable()) {\n            book.markBorrowed();\n        }\n    }\n}\n\npublic class Loan {\n    private int loanId;\n    private Book book;\n    private Member member;\n    private Date dueDate;\n\n    public Loan(int loanId, Book book, Member member, Date dueDate) {\n        this.loanId = loanId;\n        this.book = book;\n        this.member = member;\n        this.dueDate = dueDate;\n    }\n}\n\npublic class Librarian extends Member {\n    private String deskLocation;\n\n    public Librarian(int memberId, String name, String email, String deskLocation) {\n        super(memberId, name, email);\n        this.deskLocation = deskLocation;\n    }\n\n    public void processLoan(Loan loan) {\n        // approve loan\n    }\n}\n",
+    "expected": {
+      "classes": ["Book", "Borrowable", "Member", "Loan", "Librarian"],
+      "inheritance": ["Librarian --|> Member"]
+    }
+  },
+  {
+    "id": "SC-JAVA-02",
+    "language": "java",
+    "diagram_type": "class",
+    "source": "package com.example.payments;\n\npublic interface PaymentProcessor {\n    boolean authorize(double amount, String currency);\n    String capture(String authorizationId);\n    void refund(String transactionId, double amount);\n}\n\npublic class CreditCardProcessor implements PaymentProcessor {\n    private String merchantId;\n    private String apiKey;\n\n    public CreditCardProcessor(String merchantId, String apiKey) {\n        this.merchantId = merchantId;\n        this.apiKey = apiKey;\n    }\n\n    @Override\n    public boolean authorize(double amount, String currency) {\n        return amount > 0;\n    }\n\n    @Override\n    public String capture(String authorizationId) {\n        return \"txn-cc-\" + authorizationId;\n    }\n\n    @Override\n    public void refund(String transactionId, double amount) {\n        // refund via card network\n    }\n}\n\npublic class PayPalProcessor implements PaymentProcessor {\n    private String clientId;\n    private String secret;\n\n    public PayPalProcessor(String clientId, String secret) {\n        this.clientId = clientId;\n        this.secret = secret;\n    }\n\n    @Override\n    public boolean authorize(double amount, String currency) {\n        return amount <= 10000;\n    }\n\n    @Override\n    public String capture(String authorizationId) {\n        return \"txn-pp-\" + authorizationId;\n    }\n\n    @Override\n    public void refund(String transactionId, double amount) {\n        // refund via PayPal API\n    }\n}\n",
+    "expected": {
+      "classes": ["PaymentProcessor", "CreditCardProcessor", "PayPalProcessor"],
+      "inheritance": ["CreditCardProcessor --|> PaymentProcessor", "PayPalProcessor --|> PaymentProcessor"]
+    }
+  },
+  {
+    "id": "SC-JAVA-03",
+    "language": "java",
+    "diagram_type": "class",
+    "source": "package com.example.animals;\n\npublic abstract class Animal {\n    protected String name;\n    protected int age;\n\n    public Animal(String name, int age) {\n        this.name = name;\n        this.age = age;\n    }\n\n    public abstract String speak();\n    public void eat(String food) {\n        System.out.println(name + \" eats \" + food);\n    }\n}\n\npublic class Dog extends Animal {\n    private String breed;\n\n    public Dog(String name, int age, String breed) {\n        super(name, age);\n        this.breed = breed;\n    }\n\n    @Override\n    public String speak() {\n        return \"Woof!\";\n    }\n\n    public void fetch() {\n        System.out.println(name + \" fetches the ball\");\n    }\n}\n\npublic class Cat extends Animal {\n    private boolean indoor;\n\n    public Cat(String name, int age, boolean indoor) {\n        super(name, age);\n        this.indoor = indoor;\n    }\n\n    @Override\n    public String speak() {\n        return \"Meow!\";\n    }\n\n    public void climb() {\n        System.out.println(name + \" climbs\");\n    }\n}\n",
+    "expected": {
+      "classes": ["Animal", "Dog", "Cat"],
+      "inheritance": ["Dog --|> Animal", "Cat --|> Animal"]
+    }
+  },
+  {
+    "id": "SC-JAVA-04",
+    "language": "java",
+    "diagram_type": "package",
+    "source": "package com.example.domain;\n\npublic class Product {\n    private String sku;\n    private String title;\n    private double price;\n    private int stockLevel;\n\n    public Product(String sku, String title, double price) {\n        this.sku = sku;\n        this.title = title;\n        this.price = price;\n        this.stockLevel = 0;\n    }\n\n    public void adjustStock(int delta) {\n        this.stockLevel += delta;\n    }\n}\n\npackage com.example.service;\n\nimport com.example.domain.Product;\n\npublic class InventoryService {\n    public boolean reserve(Product product, int quantity) {\n        return product != null && quantity > 0;\n    }\n\n    public void release(Product product, int quantity) {\n        product.adjustStock(quantity);\n    }\n}\n\npublic class OrderService {\n    private InventoryService inventoryService;\n\n    public OrderService(InventoryService inventoryService) {\n        this.inventoryService = inventoryService;\n    }\n\n    public void placeOrder(Product product, int quantity) {\n        inventoryService.reserve(product, quantity);\n    }\n}\n\npackage com.example.api;\n\nimport com.example.domain.Product;\nimport com.example.service.OrderService;\n\npublic class OrderController {\n    private OrderService orderService;\n\n    public OrderController(OrderService orderService) {\n        this.orderService = orderService;\n    }\n\n    public void submit(Product product, int quantity) {\n        orderService.placeOrder(product, quantity);\n    }\n}\n",
+    "expected": {
+      "packages": ["Product", "InventoryService", "OrderService", "OrderController"]
+    }
+  },
+  {
+    "id": "SC-JAVA-05",
+    "language": "java",
+    "diagram_type": "component",
+    "source": "package com.example.ecommerce;\n\npublic class CartService {\n    public void addItem(String sku, int quantity) {\n        // add to session cart\n    }\n\n    public void removeItem(String sku) {\n        // remove from cart\n    }\n\n    public double calculateTotal() {\n        return 0.0;\n    }\n}\n\npublic class InventoryService {\n    public boolean checkAvailability(String sku, int quantity) {\n        return quantity > 0;\n    }\n\n    public void decrementStock(String sku, int quantity) {\n        // update warehouse\n    }\n}\n\npublic class OrderService {\n    private InventoryService inventoryService;\n    private PaymentGateway paymentGateway;\n\n    public OrderService(InventoryService inventory, PaymentGateway gateway) {\n        this.inventoryService = inventory;\n        this.paymentGateway = gateway;\n    }\n\n    public String checkout(CartService cart) {\n        double total = cart.calculateTotal();\n        return paymentGateway.charge(total);\n    }\n}\n\npublic class PaymentGateway {\n    public String charge(double amount) {\n        return \"txn-\" + (int) amount;\n    }\n\n    public void refund(String transactionId) {\n        // refund payment\n    }\n}\n",
+    "expected": {
+      "components": ["CartService", "InventoryService", "OrderService", "PaymentGateway"]
+    }
+  },
+  {
+    "id": "SC-PY-01",
+    "language": "python",
+    "diagram_type": "class",
+    "source": "from dataclasses import dataclass, field\nfrom typing import List\nfrom datetime import date\n\n@dataclass\nclass Book:\n    isbn: str\n    title: str\n    author: str\n    available: bool = True\n\n    def mark_borrowed(self) -> None:\n        self.available = False\n\nclass Member:\n    def __init__(self, member_id: int, name: str, email: str):\n        self.member_id = member_id\n        self.name = name\n        self.email = email\n        self._loans: List[Loan] = []\n\n    def borrow(self, book: Book) -> Loan:\n        if not book.available:\n            raise ValueError(\"book not available\")\n        book.mark_borrowed()\n        loan = Loan(len(self._loans) + 1, book, self, date.today())\n        self._loans.append(loan)\n        return loan\n\nclass Loan:\n    def __init__(self, loan_id: int, book: Book, member: Member, start: date):\n        self.loan_id = loan_id\n        self.book = book\n        self.member = member\n        self.start = start\n\n    def is_overdue(self, today: date) -> bool:\n        return (today - self.start).days > 14\n",
+    "expected": {
+      "classes": ["Book", "Member", "Loan"]
+    }
+  },
+  {
+    "id": "SC-PY-02",
+    "language": "python",
+    "diagram_type": "class",
+    "source": "class Person:\n    def __init__(self, name: str, birth_year: int):\n        self.name = name\n        self.birth_year = birth_year\n\n    def age(self, current_year: int) -> int:\n        return current_year - self.birth_year\n\nclass Student(Person):\n    def __init__(self, name: str, birth_year: int, student_id: str):\n        super().__init__(name, birth_year)\n        self.student_id = student_id\n        self.enrollments: list[Enrollment] = []\n\n    def enroll(self, course: Course) -> Enrollment:\n        enrollment = Enrollment(self, course)\n        self.enrollments.append(enrollment)\n        return enrollment\n\nclass Course:\n    def __init__(self, code: str, title: str, credits: int):\n        self.code = code\n        self.title = title\n        self.credits = credits\n\nclass Enrollment:\n    def __init__(self, student: Student, course: Course):\n        self.student = student\n        self.course = course\n        self.grade: str | None = None\n",
+    "expected": {
+      "classes": ["Person", "Student", "Course", "Enrollment"],
+      "inheritance": ["Student --|> Person"]
+    }
+  },
+  {
+    "id": "SC-PY-03",
+    "language": "python",
+    "diagram_type": "class",
+    "source": "from abc import ABC, abstractmethod\nfrom typing import Protocol\n\nclass Notifier(ABC):\n    @abstractmethod\n    def send(self, recipient: str, message: str) -> bool:\n        ...\n\nclass EmailNotifier(Notifier):\n    def __init__(self, smtp_host: str):\n        self.smtp_host = smtp_host\n\n    def send(self, recipient: str, message: str) -> bool:\n        print(f\"EMAIL to {recipient}: {message}\")\n        return True\n\nclass SmsNotifier(Notifier):\n    def __init__(self, gateway_url: str):\n        self.gateway_url = gateway_url\n\n    def send(self, recipient: str, message: str) -> bool:\n        print(f\"SMS to {recipient}: {message}\")\n        return True\n\nclass AlertService:\n    def __init__(self, notifier: Notifier):\n        self.notifier = notifier\n\n    def broadcast(self, users: list[str], message: str) -> int:\n        sent = 0\n        for user in users:\n            if self.notifier.send(user, message):\n                sent += 1\n        return sent\n",
+    "expected": {
+      "classes": ["Notifier", "EmailNotifier", "SmsNotifier", "AlertService"],
+      "inheritance": ["EmailNotifier --|> Notifier", "SmsNotifier --|> Notifier"]
+    }
+  },
+  {
+    "id": "SC-PY-04",
+    "language": "python",
+    "diagram_type": "object",
+    "source": "class Warehouse:\n    def __init__(self, location: str, capacity: int):\n        self.location = location\n        self.capacity = capacity\n        self.inventory: dict[str, int] = {}\n\n    def stock(self, sku: str, quantity: int) -> None:\n        self.inventory[sku] = self.inventory.get(sku, 0) + quantity\n\nclass Shipment:\n    def __init__(self, shipment_id: str, warehouse: Warehouse):\n        self.shipment_id = shipment_id\n        self.warehouse = warehouse\n        self.items: list[tuple[str, int]] = []\n\n    def add_item(self, sku: str, quantity: int) -> None:\n        self.items.append((sku, quantity))\n        self.warehouse.stock(sku, -quantity)\n\nclass Carrier:\n    def __init__(self, name: str, tracking_prefix: str):\n        self.name = name\n        self.tracking_prefix = tracking_prefix\n\n    def dispatch(self, shipment: Shipment) -> str:\n        return f\"{self.tracking_prefix}-{shipment.shipment_id}\"\n",
+    "expected": {
+      "types": ["Warehouse", "Shipment", "Carrier"]
+    }
+  },
+  {
+    "id": "SC-PY-05",
+    "language": "python",
+    "diagram_type": "component",
+    "source": "class CatalogRepository:\n    def find_by_sku(self, sku: str) -> dict | None:\n        return {\"sku\": sku, \"title\": \"Sample\", \"price\": 9.99}\n\n    def list_featured(self, limit: int = 10) -> list[dict]:\n        return []\n\nclass PricingEngine:\n    def __init__(self, tax_rate: float):\n        self.tax_rate = tax_rate\n\n    def price_with_tax(self, base_price: float) -> float:\n        return base_price * (1 + self.tax_rate)\n\nclass CheckoutService:\n    def __init__(self, catalog: CatalogRepository, pricing: PricingEngine):\n        self.catalog = catalog\n        self.pricing = pricing\n\n    def quote(self, sku: str) -> float:\n        product = self.catalog.find_by_sku(sku)\n        if not product:\n            return 0.0\n        return self.pricing.price_with_tax(product[\"price\"])\n\nclass PaymentAdapter:\n    def charge(self, amount: float, currency: str = \"USD\") -> str:\n        return f\"pay-{int(amount * 100)}\"\n\n    def void(self, transaction_id: str) -> bool:\n        return True\n",
+    "expected": {
+      "components": ["CatalogRepository", "PricingEngine", "CheckoutService", "PaymentAdapter"]
+    }
+  },
+  {
+    "id": "SC-C-01",
+    "language": "c",
+    "diagram_type": "class",
+    "source": "#include <stdio.h>\n#include <stdlib.h>\n#include <string.h>\n\ntypedef struct Book {\n    char isbn[20];\n    char title[128];\n    char author[64];\n    int available;\n} Book;\n\ntypedef struct Member {\n    int member_id;\n    char name[64];\n    char email[96];\n} Member;\n\ntypedef struct Loan {\n    int loan_id;\n    Book* book;\n    Member* member;\n    char due_date[16];\n} Loan;\n\nBook* book_create(const char* isbn, const char* title, const char* author) {\n    Book* b = (Book*)malloc(sizeof(Book));\n    strcpy(b->isbn, isbn);\n    strcpy(b->title, title);\n    strcpy(b->author, author);\n    b->available = 1;\n    return b;\n}\n\nvoid book_mark_borrowed(Book* book) {\n    if (book) book->available = 0;\n}\n\nLoan* loan_create(int loan_id, Book* book, Member* member, const char* due) {\n    Loan* loan = (Loan*)malloc(sizeof(Loan));\n    loan->loan_id = loan_id;\n    loan->book = book;\n    loan->member = member;\n    strcpy(loan->due_date, due);\n    return loan;\n}\n",
+    "expected": {
+      "classes": ["Book", "Member", "Loan"]
+    }
+  },
+  {
+    "id": "SC-C-02",
+    "language": "c",
+    "diagram_type": "class",
+    "source": "#ifndef SENSOR_H\n#define SENSOR_H\n\n#include <stdint.h>\n\ntypedef struct SensorReading {\n    uint32_t timestamp;\n    float value;\n    uint8_t unit;\n} SensorReading;\n\ntypedef struct Sensor {\n    char sensor_id[32];\n    char location[64];\n    SensorReading last_reading;\n} Sensor;\n\ntypedef struct SensorHub {\n    Sensor sensors[16];\n    int sensor_count;\n} SensorHub;\n\nSensorReading sensor_read(Sensor* sensor);\nvoid sensor_hub_register(SensorHub* hub, Sensor sensor);\nvoid sensor_hub_publish(SensorHub* hub, SensorReading reading);\n\n#endif\n",
+    "expected": {
+      "classes": ["SensorReading", "Sensor", "SensorHub"]
+    }
+  },
+  {
+    "id": "SC-C-03",
+    "language": "c",
+    "diagram_type": "class",
+    "source": "#include <stdlib.h>\n\ntypedef struct LineItem {\n    char sku[32];\n    int quantity;\n    double unit_price;\n} LineItem;\n\ntypedef struct Order {\n    int order_id;\n    char customer_email[96];\n    LineItem items[32];\n    int item_count;\n    double total_amount;\n} Order;\n\ntypedef struct Invoice {\n    int invoice_id;\n    Order* order;\n    char issued_on[16];\n    double tax_amount;\n} Invoice;\n\nOrder* order_create(int order_id, const char* email) {\n    Order* o = (Order*)malloc(sizeof(Order));\n    o->order_id = order_id;\n    o->item_count = 0;\n    o->total_amount = 0.0;\n    return o;\n}\n\nvoid order_add_line(Order* order, LineItem item) {\n    if (order && order->item_count < 32) {\n        order->items[order->item_count++] = item;\n        order->total_amount += item.quantity * item.unit_price;\n    }\n}\n",
+    "expected": {
+      "classes": ["LineItem", "Order", "Invoice"]
+    }
+  },
+  {
+    "id": "SC-C-04",
+    "language": "c",
+    "diagram_type": "component",
+    "source": "#include <stdio.h>\n\ntypedef struct HttpRequest {\n    char method[8];\n    char path[128];\n    char body[512];\n} HttpRequest;\n\ntypedef struct HttpResponse {\n    int status_code;\n    char body[512];\n} HttpResponse;\n\ntypedef struct Router {\n    char prefix[32];\n} Router;\n\nHttpResponse router_dispatch(Router* router, HttpRequest request) {\n    HttpResponse response = {404, \"not found\"};\n    return response;\n}\n\nvoid logger_info(const char* message) {\n    printf(\"[INFO] %s\\n\", message);\n}\n",
+    "expected": {
+      "components": ["HttpRequest", "HttpResponse", "Router"]
+    }
+  },
+  {
+    "id": "SC-C-05",
+    "language": "c",
+    "diagram_type": "object",
+    "source": "#include <string.h>\n\ntypedef struct Account {\n    int account_id;\n    char owner_name[64];\n    double balance;\n} Account;\n\ntypedef struct Transaction {\n    int transaction_id;\n    Account* source;\n    Account* destination;\n    double amount;\n    char memo[64];\n} Transaction;\n\nvoid transaction_execute(Transaction* txn) {\n    if (txn && txn->source && txn->destination) {\n        txn->source->balance -= txn->amount;\n        txn->destination->balance += txn->amount;\n    }\n}\n",
+    "expected": {
+      "types": ["Account", "Transaction"]
+    }
+  }
+]

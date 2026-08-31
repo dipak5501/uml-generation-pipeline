@@ -2,7 +2,7 @@ import time
 
 import streamlit as st
 
-from ui.api_client import api_get, api_get_bytes, api_post
+from ui.api_client import api_auth_mismatch_message, api_get, api_get_bytes, api_post
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -268,6 +268,9 @@ with c2:
         "not scored" if _vlm_skipped(artifact) else f"{artifact['composite_score']:.3f}",
     )
     if artifact.get("render_status") == "success":
+        _auth_warn = api_auth_mismatch_message()
+        if _auth_warn:
+            st.warning(_auth_warn)
         if st.button("Rescore with VLMs", key=f"rescore-{artifact['id']}"):
             try:
                 updated = api_post(f"/api/artifacts/{artifact['id']}/rescore", {})
@@ -299,6 +302,22 @@ with c2:
             st.error(f"Image load failed: {exc}")
     else:
         st.error("Render failed — paper rule: composite score = 0. PlantUML still available.")
+        if artifact_input_mode == "source_code":
+            st.info(
+                "Source-code tips: paste a focused class, struct, or interface with named fields and "
+                "methods. Bare scripts without type declarations often fail render or score poorly."
+            )
+
+if (
+    artifact_input_mode == "source_code"
+    and render_ok
+    and not vlm_skipped
+    and composite < 3.0
+):
+    st.info(
+        "Score below 3.0: try a richer snippet (multiple classes, inheritance, or associations) "
+        "or switch diagram type to match the code structure."
+    )
 
 st.subheader("Per-model VLM scores")
 model_scores = artifact.get("model_scores") or []

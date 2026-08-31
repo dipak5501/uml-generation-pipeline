@@ -6,6 +6,9 @@ docs/Paper_Talking_Points_for_Reviewer.*
 docs/GitHub_Progress_Report*
 docs/Professor_Progress_Report.*
 docs/Dipak_Yadav_Thesis_Progress_Report.*
+docs/DR_ZHAO_*
+docs/OVERLEAF_PAPER_HANDOFF.md
+docs/IMPLEMENTATION_EVIDENCE_MATRIX.md
 docs/THESIS_COMPLETION_CHECKLIST.md
 docs/Thesis_System_Alignment_Report.*
 docs/Application_Walkthrough_Guide.pdf
@@ -14,6 +17,9 @@ thesis/
 venv/
 __pycache__/
 *.pyc
+.pytest_cache/
+.huggingface/
+.cache/
 .DS_Store
 data/
 output/
@@ -28,6 +34,8 @@ htmlcov/
 .coverage
 models/*
 !models/README.md
+scripts/generate_dr_zhao_pdfs.py
+scripts/generate_dr_zhao_pdfs.sh
 
 # LaTeX build artifacts
 paper/*.aux

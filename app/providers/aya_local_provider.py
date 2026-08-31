@@ -9,7 +9,11 @@ import sys
 import threading
 from pathlib import Path
 
-from uml_pipeline.llm_client import VisionAssessment, _score_from_vlm_text
+from uml_pipeline.llm_client import (
+    VisionAssessment,
+    parse_score_response,
+    score_response_parsed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -170,12 +174,26 @@ class LocalAyaVisionProvider:
             inputs = {k: v.to(device) if hasattr(v, "to") else v for k, v in inputs.items()}
             prompt_len = int(inputs["input_ids"].shape[-1])
             with torch.inference_mode():
-                out = model.generate(**inputs, max_new_tokens=128, do_sample=False)
+                # Official Cohere Aya-Vision examples use sampling (temp≈0.3).
+                # Greedy decoding mid-collapses to SCORE 3/4 even when the
+                # explanation describes a strong match — sampling restores range.
+                out = model.generate(
+                    **inputs,
+                    max_new_tokens=320,
+                    do_sample=True,
+                    temperature=0.3,
+                    top_p=0.9,
+                )
             text = processor.tokenizer.decode(
                 out[0][prompt_len:], skip_special_tokens=True
             ).strip()
             if not text:
                 text = processor.tokenizer.decode(out[0], skip_special_tokens=True).strip()
 
-        score, explanation = _score_from_vlm_text(text)
+        if not text or not score_response_parsed(text):
+            raise RuntimeError(
+                f"Aya-Vision returned unparseable score output "
+                f"({len(text)} chars): {text[:240]!r}"
+            )
+        score, explanation = parse_score_response(text)
         return VisionAssessment(score=score, explanation=explanation, raw_output=text)

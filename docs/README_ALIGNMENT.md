@@ -2,6 +2,8 @@
 
 PDF that maps the paper method to the implemented UML-Pipeline system.
 
+**Markdown architecture (current):** [SYSTEM_DESIGN.md](SYSTEM_DESIGN.md)
+
 ```bash
 PYTHONPATH=. python scripts/generate_alignment_pdf.py
 ```

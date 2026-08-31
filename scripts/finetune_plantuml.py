@@ -95,7 +95,10 @@ def main() -> None:
 
     resume_file = args.resume_adapter_file
     if resume_file is None and args.resume:
-        checkpoints = sorted(args.adapter_path.glob("*_adapters.safetensors"))
+        checkpoints = sorted(
+            args.adapter_path.glob("*_adapters.safetensors"),
+            key=lambda p: int(p.name.split("_")[0]) if p.name.split("_")[0].isdigit() else 0,
+        )
         if checkpoints:
             resume_file = checkpoints[-1]
             print(f"Resuming from {resume_file}")
@@ -106,12 +109,22 @@ def main() -> None:
     # If resuming a partial run, train remaining iters toward the requested total when meta exists
     prior_iters = 0
     meta_path = args.adapter_path / "finetune_meta.json"
-    if resume_file and meta_path.is_file():
-        try:
-            prior = json.loads(meta_path.read_text(encoding="utf-8"))
-            prior_iters = int(prior.get("iters_completed") or prior.get("iters") or 0)
-        except (json.JSONDecodeError, TypeError, ValueError):
-            prior_iters = 0
+    if resume_file:
+        ckpt_name = Path(resume_file).name
+        if ckpt_name.startswith("000") and "_adapters" in ckpt_name:
+            try:
+                prior_iters = max(prior_iters, int(ckpt_name.split("_")[0]))
+            except ValueError:
+                pass
+        if meta_path.is_file():
+            try:
+                prior = json.loads(meta_path.read_text(encoding="utf-8"))
+                prior_iters = max(
+                    prior_iters,
+                    int(prior.get("iters_completed") or prior.get("iters") or 0),
+                )
+            except (json.JSONDecodeError, TypeError, ValueError):
+                pass
         # When --resume and prior < requested, run the remaining steps
         if prior_iters and prior_iters < args.iters and not args.quick:
             remaining = args.iters - prior_iters

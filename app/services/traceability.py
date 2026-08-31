@@ -89,6 +89,16 @@ def expected_from_requirement(
     names: list[str] = []
     if spec:
         names.extend(_entity_names(spec))
+    if names:
+        out: list[str] = []
+        seen: set[str] = set()
+        for n in names:
+            key = n.lower()
+            if key in seen or key in _ALLOW_EXTRA:
+                continue
+            seen.add(key)
+            out.append(n)
+        return out[:16]
     names.extend(extract_named_concepts(requirement or ""))
     out: list[str] = []
     seen: set[str] = set()

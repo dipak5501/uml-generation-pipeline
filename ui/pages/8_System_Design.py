@@ -58,14 +58,14 @@ with c3:
     )
 
 st.subheader("2 · Generation pipeline")
-st.caption("On validation/render failure, the repair loop returns to Validate. Typed templates cover package/flowchart failures.")
+st.caption("On validation/render failure, the repair loop returns to Validate. Package diagrams may fall back to base LLM + typed templates.")
 
 st.code(
     """
 Input → Tech Spec → PlantUML (+CoT) → Validate ⇄ Repair → Render PNG
                                               → 3× VLM scores → Dataset gate → Persist
 
-Package / flowchart: skip LoRA → base LLM (Ollama/mock) → typed template if still invalid
+Package: may skip LoRA → base LLM (Ollama) → typed template if still invalid
 """.strip(),
     language="text",
 )
@@ -100,10 +100,10 @@ st.markdown(
 | Stage | Local free path (recommended) | Alternatives |
 |-------|------------------------------|--------------|
 | Technical specification | **Ollama** `llama3.2:1b` (`USE_OLLAMA=true`) | Mock · HF Inference · OpenAI-compatible |
-| PlantUML — class / object / component | **MLX LoRA** when `USE_FINETUNED_CODE=true` | Ollama / mock / HF DeepSeek |
-| PlantUML — **package / flowchart** | Base provider (Ollama or mock); **LoRA skipped** | Typed safe template on validation failure |
-| PlantUML — source-code input | Base provider (LoRA trained on spec→PlantUML pairs) | Same |
-| VLM scoring | **3× Ollama vision** (see below) or mock | Paper HF IDs when `USE_HF_INFERENCE=true` |
+| PlantUML — class / object / component | **MLX LoRA** when `USE_FINETUNED_CODE=true` (`uml-plantuml-lora-sourcecode-30k`) | Ollama / mock / HF DeepSeek |
+| PlantUML — **package** | LoRA or base provider; typed safe template on validation failure | Same |
+| PlantUML — source-code input | LoRA (trained on Java/Python/C + NL pairs) | Base provider fallback |
+| VLM scoring | **3-model ensemble** (dual Ollama + local Aya) or mock | Paper HF IDs when `USE_HF_INFERENCE=true` |
 | Rendering | Remote PlantUML server, or local Java + jar | Same |
 
 **Local VLM ensemble** (`VLM_MODELS`, paper weight keys unchanged):
@@ -112,13 +112,11 @@ st.markdown(
 |-------------------|-------------|----------------|
 | `qwen25vl3b` (53.1) | **Qwen2.5-VL-3B-Instruct** | Ollama `qwen2.5vl:3b` on **:11435** (v0.32) |
 | `llama32vl11b` (50.7) | **LLaMA-3.2-11B-Vision-Instruct** | Ollama `llama3.2-vision:11b` on **:11434** (v0.24) |
-| `aya_vision_8b` (39.9) | **Aya-Vision-8B** | Not on Ollama → auto `llava:7b` stand-in on :11434 |
+| `aya_vision_8b` (39.9) | **Aya-Vision-8B** | **Local Transformers** when `VLM_AYA_BACKEND=local` (production); `llava:7b` only as stand-in |
 
-**Why two Ollama versions:** latest Ollama (0.32) cannot load `llama3.2-vision` (`mllama` unsupported). Ollama 0.24 can, but cannot run `qwen2.5vl`. `scripts/ensure_ollama_dual.sh` (called by `make run`) starts both. **Aya-Vision-8B** is Cohere and is not in the Ollama library.
+**Why two Ollama versions:** Qwen2.5-VL needs Ollama ≥0.32 (`:11435`); LLaMA-3.2-Vision needs 0.24 (`:11434`). LaunchAgents or `scripts/ensure_ollama_dual.sh` start both.
 
-**Why package/flowchart skip LoRA:** the fine-tuned adapter was trained mainly on class-style UML and often emits class diagrams or broken braces for those types. Validators reject class-as-flowchart and empty packages; repair + templates recover.
-
-The fine-tuned code stage uses an 8 000-row open UML corpus and a LoRA adapter on Qwen2.5-0.5B (`models/uml-plantuml-lora/`).
+**LoRA adapters:** production uses `models/uml-plantuml-lora-sourcecode-30k` (30k Java/Python/C, 6k iters, warm-started from 200k). Prior adapters (50k, 100k, 200k, source10k) are superseded. See [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md) and `models/README.md`.
 """
 )
 
@@ -127,15 +125,16 @@ d1, d2 = st.columns(2)
 with d1:
     st.markdown(
         """
-**Supported diagram types**
+**Supported diagram types (API)**
 
 1. Class  
 2. Object  
 3. Component  
-4. Package (nested `package { }` + `..>` deps)  
-5. Flowchart (activity: `start` / `:Step;` / `if` / `stop`)
+4. Package (nested `package { }` + `..>` deps)
 
-**Input modes:** natural-language requirement, or source code (language auto-detected).
+Flowchart/activity diagrams exist in training corpora but are **not** accepted on `/api/generate`.
+
+**Input modes:** natural-language requirement, or source code (Java/Python/C; language auto-detected).
 """
     )
 with d2:
@@ -146,7 +145,7 @@ with d2:
 - Database: `data/uml_app.db` (SQLite)  
 - Diagram images: `data/artifacts/{id}/`  
 - Training corpus: `data/training/`  
-- LoRA adapters: `models/uml-plantuml-lora/`
+- LoRA adapters: `models/uml-plantuml-lora-sourcecode-30k` (production) · prior 50k/100k/200k/source10k (superseded)
 """
     )
 

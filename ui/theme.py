@@ -61,6 +61,21 @@ div[data-testid="stTextArea"] textarea {
   border-color: var(--accent) !important;
   border-radius: 0 !important;
 }
+.stButton > button:focus-visible,
+.stTextInput input:focus-visible,
+textarea:focus-visible {
+  outline: 2px solid var(--accent) !important;
+  outline-offset: 2px !important;
+}
+@media (max-width: 768px) {
+  [data-testid="stSidebar"] { min-width: 100% !important; }
+  h1 { font-size: 1.6rem !important; }
+  div[data-testid="stTextArea"] textarea { min-height: 140px; }
+  .stButton > button { width: 100%; }
+}
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; }
+}
 """
 
 

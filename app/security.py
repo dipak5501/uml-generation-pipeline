@@ -27,6 +27,18 @@ def access_token_configured() -> bool:
     return bool((get_settings().api_access_token or "").strip())
 
 
+def remote_agent_token_configured() -> bool:
+    settings = get_settings()
+    return bool(
+        (settings.remote_agent_token or settings.api_access_token or "").strip()
+    )
+
+
+def _expected_remote_agent_token() -> str:
+    settings = get_settings()
+    return (settings.remote_agent_token or settings.api_access_token or "").strip()
+
+
 def _extract_presented_token(
     authorization: str | None,
     x_api_key: str | None,
@@ -49,6 +61,19 @@ async def require_api_access(
 ) -> None:
     """Enforce API token when configured; no-op for open local demos."""
     expected = (get_settings().api_access_token or "").strip()
+    if not expected:
+        return
+    presented = _extract_presented_token(authorization, x_api_key)
+    if presented is None or not secrets.compare_digest(presented, expected):
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
+
+async def require_remote_agent_access(
+    authorization: str | None = Header(default=None),
+    x_api_key: str | None = Header(default=None, alias="X-API-Key"),
+) -> None:
+    """Enforce remote-agent token (REMOTE_AGENT_TOKEN or API_ACCESS_TOKEN)."""
+    expected = _expected_remote_agent_token()
     if not expected:
         return
     presented = _extract_presented_token(authorization, x_api_key)

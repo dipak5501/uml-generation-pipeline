@@ -153,5 +153,7 @@ def health(session: Session = Depends(get_session)):
         database_ok=database_ok,
         plantuml_jar_present=jar_ok,
         java_available=java_ok,
+        auth_required=access_token_configured(),
+        remote_agent_available=True,
         messages=messages,
     )

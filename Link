@@ -1,0 +1,16 @@
+Open this URL from any device / any network (Mac Studio server):
+
+https://individual-cinema-uri-checkout.trycloudflare.com
+
+UI:    https://individual-cinema-uri-checkout.trycloudflare.com
+API:   https://hypothetical-advanced-meanwhile-wow.trycloudflare.com
+Agent: https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent
+
+Local (this Mac only):
+  UI  http://127.0.0.1:8501
+  API http://127.0.0.1:8000
+Adapter: models/uml-plantuml-lora-sourcecode-30k
+
+Updated: 2026-08-31 14:52 UTC
+URLs change when Cloudflare quick tunnels restart.
+Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

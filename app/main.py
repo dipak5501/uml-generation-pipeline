@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import analytics, artifacts, generate, human_review
+from app.routers import agent, analytics, artifacts, generate, human_review
 from app.security import cors_allow_origins
 from app.settings import get_settings
 
@@ -22,6 +22,17 @@ async def lifespan(_: FastAPI):
     settings = get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
     init_db()
+    try:
+        from sqlmodel import Session
+
+        from app.db import get_engine
+        from app.services.job_maintenance import reap_stale_jobs
+
+        with Session(get_engine()) as session:
+            # All in-process workers die with the process — reap every incomplete job.
+            reap_stale_jobs(session, max_age_minutes=None)
+    except Exception:
+        logger.exception("Stale job reaper failed (non-fatal)")
     if not (settings.api_access_token or "").strip():
         logger.warning(
             "API_ACCESS_TOKEN is unset — API is open. Set a token before public deploy."
@@ -50,6 +61,7 @@ app.include_router(generate.router)
 app.include_router(artifacts.router)
 app.include_router(human_review.router)
 app.include_router(analytics.router)
+app.include_router(agent.router)
 
 
 @app.get("/")
@@ -58,4 +70,5 @@ def root():
         "name": get_settings().app_name,
         "docs": "/docs",
         "health": "/api/settings/health",
+        "remote_agent": "/api/agent/health",
     }

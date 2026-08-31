@@ -108,7 +108,7 @@ def _load_peft(model_id: str, adapter_path: Path):
 
 
 class FinetunedMLXProvider:
-    """Chat provider backed by an MLX LoRA adapter trained on the 8k UML corpus."""
+    """Chat provider backed by an MLX LoRA adapter trained on open UML/PlantUML corpora."""
 
     name = "finetuned-mlx"
 
@@ -117,7 +117,7 @@ class FinetunedMLXProvider:
         base_model: str,
         adapter_path: Path,
         *,
-        max_tokens: int = 1200,
+        max_tokens: int = 1536,
         temperature: float = 0.2,
     ):
         self.base_model = base_model
@@ -127,10 +127,11 @@ class FinetunedMLXProvider:
         self.model = f"finetuned:{self.adapter_path.name}"
 
     def chat(self, system: str, user: str, temperature: float = 0.7) -> str:
-        if not self.adapter_path.exists():
+        adapters = self.adapter_path / "adapters.safetensors"
+        if not self.adapter_path.exists() or not adapters.is_file():
             raise FileNotFoundError(
-                f"Fine-tuned adapter not found at {self.adapter_path}. "
-                "Run: python scripts/finetune_plantuml.py"
+                f"Fine-tuned adapter weights missing at {adapters}. "
+                "Run: bash scripts/run_finetune_openmpi.sh"
             )
         from mlx_lm import generate
         from mlx_lm.sample_utils import make_sampler

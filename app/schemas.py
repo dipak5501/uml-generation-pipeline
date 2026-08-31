@@ -41,6 +41,14 @@ class GenerateRequest(BaseModel):
     # Skip the 3-VLM ensemble (Qwen/LLaMA/Aya). Diagram + acceptance still run.
     skip_vlm: bool = False
 
+    @field_validator("requirement", mode="before")
+    @classmethod
+    def _strip_requirement(cls, value: object) -> object:
+        # Reject whitespace-only bodies that would otherwise pass min_length=3.
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
 
 class BatchGenerateRequest(BaseModel):
     requirement: Optional[str] = Field(default=None, max_length=MAX_REQUIREMENT_CHARS)
@@ -105,6 +113,7 @@ class ModelScoreOut(BaseModel):
     weight: float
     available: bool
     explanation: Optional[str] = None
+    raw_output: Optional[str] = None
 
 
 class RepairAttemptOut(BaseModel):
@@ -222,4 +231,44 @@ class HealthResponse(BaseModel):
     database_ok: bool
     plantuml_jar_present: bool
     java_available: bool
+    auth_required: bool = False
+    remote_agent_available: bool = True
     messages: list[str]
+
+
+class AgentCommandRequest(BaseModel):
+    command: str = Field(
+        description="Allowlisted command: health, restart-api, restart-ui, smoke-test, "
+        "generate, training-status, server-status, agent-prompt"
+    )
+    args: dict = Field(default_factory=dict, description="Command-specific arguments")
+
+
+class AgentCommandResponse(BaseModel):
+    task_id: str
+    command: str
+    status: str
+
+
+class AgentTaskResponse(BaseModel):
+    task_id: str
+    command: str
+    status: str
+    created_at: str
+    started_at: Optional[str] = None
+    finished_at: Optional[str] = None
+    result: Optional[dict] = None
+    output: str = ""
+    error: Optional[str] = None
+
+
+class AgentHealthResponse(BaseModel):
+    status: str
+    agent: str
+    version: str
+    auth_required: bool
+    cursor_sdk_available: bool
+    cursor_agent_enabled: bool
+    allowed_commands: list[str]
+    active_tasks: int
+    rate_limit_per_minute: int

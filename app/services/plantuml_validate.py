@@ -5,6 +5,36 @@ from __future__ import annotations
 import re
 from dataclasses import dataclass, field
 
+# PlantUML preprocessor / include directives that must never appear in untrusted diagrams.
+_UNSAFE_DIRECTIVE = re.compile(
+    r"^\s*!(?:include|includeurl|import|pragma|define|undef|definelong|enddefinelong|"
+    r"startsub|endsub|function|endfunction|procedure|endprocedure|return|exit|"
+    r"theme|includesub)\b",
+    re.I,
+)
+_SKINPARAM_LINE = re.compile(r"^\s*skinparam\b", re.IGNORECASE)
+_STYLE_LINE = re.compile(r"^\s*style\s+\S", re.IGNORECASE)
+_INLINE_HEX = re.compile(r"#[0-9A-Fa-f]{3,8}\b")
+_COLOR_WORD_BG = re.compile(
+    r"\b(?:BackgroundColor|FontColor|BorderColor|ArrowColor|LineColor|"
+    r"Shadowing|RoundCorner|Gradient)\b",
+    re.IGNORECASE,
+)
+
+_PUBLICATION_SKINPARAMS = (
+    "skinparam monochrome true",
+    "skinparam shadowing false",
+    "skinparam backgroundColor white",
+    "skinparam defaultFontColor black",
+    "skinparam ArrowColor black",
+    "skinparam ClassBorderColor black",
+    "skinparam PackageBorderColor black",
+    "skinparam ComponentBorderColor black",
+    "skinparam ObjectBorderColor black",
+    "skinparam NoteBorderColor black",
+    "skinparam dpi 150",
+)
+
 
 @dataclass
 class ValidationResult:
@@ -13,6 +43,51 @@ class ValidationResult:
 
     def merge(self, other: "ValidationResult") -> "ValidationResult":
         return ValidationResult(ok=self.ok and other.ok, messages=self.messages + other.messages)
+
+
+def strip_plantuml_colors(code: str) -> str:
+    """Remove color themes, skinparams, and inline hex fills from PlantUML."""
+    if not code or not code.strip():
+        return code
+    kept: list[str] = []
+    in_style_block = False
+    for line in code.splitlines():
+        stripped = line.strip()
+        low = stripped.lower()
+        if _UNSAFE_DIRECTIVE.match(line):
+            continue
+        if _SKINPARAM_LINE.match(line) or _STYLE_LINE.match(line):
+            continue
+        if low.startswith("style ") and "{" in low:
+            in_style_block = True
+            continue
+        if in_style_block:
+            if "}" in line:
+                in_style_block = False
+            continue
+        if _COLOR_WORD_BG.search(line):
+            continue
+        cleaned = _INLINE_HEX.sub("", line)
+        cleaned = re.sub(r"\s+#[A-Za-z][\w]*", "", cleaned).rstrip()
+        if cleaned.strip():
+            kept.append(cleaned)
+    return "\n".join(kept).strip()
+
+
+def apply_publication_plantuml_style(code: str) -> str:
+    """Force clean black-and-white publication defaults after @startuml."""
+    text = ensure_plantuml_bounds(strip_plantuml_colors(code))
+    low = text.lower()
+    marker = "@startuml"
+    idx = low.find(marker)
+    if idx < 0:
+        return text
+    insert_at = idx + len(marker)
+    nl = text.find("\n", insert_at)
+    header = "\n".join(_PUBLICATION_SKINPARAMS)
+    if nl < 0:
+        return f"{text}\n{header}\n"
+    return text[: nl + 1] + header + "\n" + text[nl + 1 :]
 
 
 def ensure_plantuml_bounds(code: str) -> str:
@@ -93,15 +168,6 @@ def normalize_plantuml_relations(code: str) -> str:
     return "\n".join(_rewrite_line(ln) for ln in code.splitlines())
 
 
-# PlantUML preprocessor / include directives that must never appear in untrusted diagrams.
-_UNSAFE_DIRECTIVE = re.compile(
-    r"^\s*!(?:include|includeurl|import|pragma|define|undef|definelong|enddefinelong|"
-    r"startsub|endsub|function|endfunction|procedure|endprocedure|return|exit|"
-    r"theme|includesub)\b",
-    re.I,
-)
-
-
 def strip_unsafe_plantuml_directives(code: str) -> str:
     """Drop preprocessor / include lines that enable local file read or SSRF."""
     kept: list[str] = []
@@ -114,11 +180,175 @@ def strip_unsafe_plantuml_directives(code: str) -> str:
     return "\n".join(kept)
 
 
-def sanitize_plantuml_output(code: str, *, max_lines: int = 120) -> str:
+def _infer_type_from_instance(name: str) -> str:
+    """user1 → User, cartItem2 → CartItem, Order → Order."""
+    base = re.sub(r"\d+$", "", (name or "").strip())
+    if not base:
+        return "Object"
+    if base[0].isupper() and any(c.islower() for c in base[1:]):
+        return base
+    if "_" in base:
+        parts = [p for p in base.split("_") if p]
+        return "".join(p[:1].upper() + p[1:] for p in parts) or "Object"
+    return base[:1].upper() + base[1:]
+
+
+def repair_object_declarations(code: str) -> str:
+    """Ensure object instances use ``name : Type`` (fixes common LoRA/LLM output)."""
+    lines_out: list[str] = []
+    for line in code.splitlines():
+        raw = line.rstrip()
+        # object "foo : Bar" as alias  — already typed in label; leave alone
+        if re.match(r'^\s*object\s+"[^"]*"\s+as\s+\w+', raw, flags=re.I):
+            lines_out.append(raw)
+            continue
+        # object alias : Type {?}  — already good
+        if re.match(r"^\s*object\s+\w+\s*:\s*\w+", raw, flags=re.I):
+            lines_out.append(raw)
+            continue
+        # object alias {  or object alias
+        m = re.match(r"^(\s*)object\s+([A-Za-z_][\w]*)\s*(\{)?\s*$", raw, flags=re.I)
+        if m:
+            indent, alias, brace = m.groups()
+            typ = _infer_type_from_instance(alias)
+            suffix = " {" if brace else ""
+            lines_out.append(f"{indent}object {alias} : {typ}{suffix}")
+            continue
+        # object alias with attrs on same line without type
+        m = re.match(r"^(\s*)object\s+([A-Za-z_][\w]*)\s+(?![:\"])(.+)$", raw, flags=re.I)
+        if m and ":" not in m.group(0).split("object", 1)[1].split("{", 1)[0]:
+            indent, alias, rest = m.groups()
+            typ = _infer_type_from_instance(alias)
+            lines_out.append(f"{indent}object {alias} : {typ} {rest}".rstrip())
+            continue
+        lines_out.append(raw)
+    return "\n".join(lines_out)
+
+
+def repair_package_nesting(code: str) -> str:
+    """Rewrite peer ``package a.b.c {`` blocks into one nested package tree.
+
+    Leaves non-dotted packages untouched when there are fewer than two dotted
+    peers. Deterministic post-process for the common LoRA failure of flat
+    dotted package peers (which also breaks line-dedupe if emitted naively).
+    """
+    text = ensure_plantuml_bounds(code)
+    dotted = re.findall(r"(?im)^\s*package\s+([A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+)\s*\{", text)
+    if len(dotted) < 2:
+        return text
+
+    pattern = re.compile(
+        r"(?im)^(?P<indent>\s*)package\s+(?P<name>[A-Za-z0-9]+(?:\.[A-Za-z0-9]+)+)\s*\{(?P<body>.*?)^(?P=indent)\}",
+        re.S,
+    )
+    packages: list[tuple[str, str]] = []
+    for m in pattern.finditer(text):
+        packages.append((m.group("name"), m.group("body")))
+    if len(packages) < 2:
+        return text
+
+    # Nested dict: part → {__kids__, __body__}
+    root: dict = {"__kids__": {}, "__body__": []}
+    for name, body in packages:
+        node = root
+        for part in name.split("."):
+            kids = node.setdefault("__kids__", {})
+            node = kids.setdefault(part, {"__kids__": {}, "__body__": []})
+        cleaned = [ln.rstrip() for ln in body.strip("\n").splitlines() if ln.strip()]
+        node.setdefault("__body__", []).extend(cleaned)
+
+    def _emit(node: dict, indent: str = "") -> list[str]:
+        out: list[str] = []
+        for part, child in node.get("__kids__", {}).items():
+            out.append(f"{indent}package {part} {{")
+            for ln in child.get("__body__", []):
+                out.append(f"{indent}  {ln.lstrip()}")
+            out.extend(_emit(child, indent + "  "))
+            out.append(f"{indent}}}")
+        return out
+
+    tree_block = "\n".join(_emit(root))
+    titles = re.findall(r"(?im)^\s*title\b.*$", text)
+    deps_raw = [
+        ln
+        for ln in text.splitlines()
+        if re.search(r"(\.\.>|->|-->)", ln)
+    ]
+    fixed_deps: list[str] = []
+    for ln in deps_raw:
+        fixed = ln
+        for full, _body in packages:
+            leaf = full.split(".")[-1]
+            fixed = re.sub(rf"\b{re.escape(full)}\b", leaf, fixed)
+        if re.search(r"^\s*([A-Za-z_][\w.]*)\s+(\.\.>|->|-->)\s*\1\b", fixed):
+            continue
+        fixed_deps.append(fixed)
+
+    parts = ["@startuml", *titles, tree_block, *fixed_deps, "@enduml"]
+    return "\n".join(p for p in parts if str(p).strip()) + "\n"
+
+def repair_component_interfaces(code: str) -> str:
+    """Drop auto-invented ``() \"IName\" as IName`` stubs that mirror component names."""
+    comps = {
+        re.sub(r"[^\w]", "", m.group(1).split()[0]).lower()
+        for m in re.finditer(r"(?im)^\s*\[([^\]]+)\]", code)
+        if m.group(1).strip()
+    }
+    comps |= {
+        m.group(1).lower()
+        for m in re.finditer(r"(?im)^\s*component\s+([A-Za-z_][\w]*)", code)
+    }
+    drop_aliases: set[str] = set()
+    lines_out: list[str] = []
+    for line in code.splitlines():
+        m = re.match(r'^\s*\(\)\s*"([^"]+)"\s+as\s+([A-Za-z_][\w]*)\s*$', line)
+        if m:
+            label, alias = m.group(1).strip(), m.group(2)
+            stem = re.sub(r"^I", "", label, flags=re.I)
+            stem = re.sub(r"(Service|Api|Store)$", "", stem, flags=re.I)
+            if label.lower().startswith("i") and any(
+                stem.lower() == c or c.startswith(stem.lower()) or stem.lower() in c
+                for c in comps
+            ):
+                drop_aliases.add(alias.lower())
+                continue
+        lines_out.append(line)
+    if not drop_aliases:
+        return code
+    cleaned: list[str] = []
+    for line in lines_out:
+        if re.search(r"(-->|\.\.>|->)", line):
+            toks = re.findall(r"[A-Za-z_][\w]*", line)
+            if toks and toks[-1].lower() in drop_aliases:
+                continue
+        cleaned.append(line)
+    return "\n".join(cleaned)
+
+
+def sanitize_plantuml_output(
+    code: str,
+    *,
+    max_lines: int = 180,
+    diagram_type: str | None = None,
+) -> str:
     """Clean common LLM failures: duplicate tags, repeated lines, runaway output."""
     text = ensure_plantuml_bounds(code)
+    # Drop accidental @startchen / ER leftovers that break UML renders
+    text = re.sub(r"(?im)^@startchen\b.*$", "", text)
+    text = re.sub(r"(?im)^@endchen\b.*$", "", text)
     text = normalize_plantuml_relations(text)
     text = strip_unsafe_plantuml_directives(text)
+
+    dtype = (diagram_type or "").lower().strip()
+    if dtype == "object" or (not dtype and re.search(r"(?im)^\s*object\s+", text)):
+        text = repair_object_declarations(text)
+    if dtype == "package" or (
+        not dtype and len(re.findall(r"(?im)^\s*package\s+\S+\.\S+", text)) >= 2
+    ):
+        text = repair_package_nesting(text)
+    if dtype == "component" or (not dtype and re.search(r"(?im)^\s*\[", text)):
+        text = repair_component_interfaces(text)
+
     lines = text.splitlines()
     cleaned: list[str] = []
     seen: set[str] = set()
@@ -151,7 +381,7 @@ def sanitize_plantuml_output(code: str, *, max_lines: int = 120) -> str:
     closes = body.count("}")
     if opens > closes:
         body = body.replace("@enduml", "}" * (opens - closes) + "\n@enduml", 1)
-    return body.strip() + "\n"
+    return apply_publication_plantuml_style(body.strip() + "\n")
 
 
 def validate_basic_syntax(code: str) -> ValidationResult:
@@ -232,10 +462,19 @@ def validate_package_semantics(code: str) -> ValidationResult:
 
 def validate_object_syntax(code: str) -> ValidationResult:
     msgs: list[str] = []
-    # Common failure: object Name without :Type and with invalid attribute block
-    if "object " in code.lower() and not re.search(r"object\s+\w+\s*:\s*\w+", code, re.I):
-        if re.search(r"object\s+\w+\s*\{", code, re.I):
-            msgs.append("Object instances should use name:Type syntax")
+    # Accept either `object name : Type` or `object "name : Type" as alias`
+    typed = bool(re.search(r"(?im)^\s*object\s+\w+\s*:\s*\w+", code))
+    labeled = bool(re.search(r'(?im)^\s*object\s+"[^"]+\s*:\s*[^"]+"\s+as\s+\w+', code))
+    any_object = bool(re.search(r"(?im)^\s*object\s+", code))
+    if any_object and not typed and not labeled:
+        msgs.append("Object instances should use name:Type syntax (e.g. object cart1 : Cart)")
+    # Flag bare `object Name {` even if another object is typed
+    for m in re.finditer(r"(?im)^\s*object\s+(\w+)\s*\{", code):
+        # Look back on same match — if line has no colon before brace
+        line = m.group(0)
+        if ":" not in line:
+            msgs.append(f"Object '{m.group(1)}' is missing :Type before attribute block")
+            break
     return ValidationResult(ok=not msgs, messages=msgs)
 
 
