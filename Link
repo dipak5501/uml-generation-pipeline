@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://preston-validation-amber-into.trycloudflare.com
+https://resulted-applied-excluding-chocolate.trycloudflare.com
 
-UI:    https://preston-validation-amber-into.trycloudflare.com
-API:   https://look-institutions-dpi-setup.trycloudflare.com
-Agent: https://look-institutions-dpi-setup.trycloudflare.com/api/agent
+UI:    https://resulted-applied-excluding-chocolate.trycloudflare.com
+API:   https://off-barry-encourage-swap.trycloudflare.com
+Agent: https://off-barry-encourage-swap.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-30 16:34 UTC
+Updated: 2026-08-31 10:13 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
