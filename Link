@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://resulted-applied-excluding-chocolate.trycloudflare.com
+https://chronicle-trained-ride-subscriptions.trycloudflare.com
 
-UI:    https://resulted-applied-excluding-chocolate.trycloudflare.com
-API:   https://off-barry-encourage-swap.trycloudflare.com
-Agent: https://off-barry-encourage-swap.trycloudflare.com/api/agent
+UI:    https://chronicle-trained-ride-subscriptions.trycloudflare.com
+API:   https://trying-integer-converter-marking.trycloudflare.com
+Agent: https://trying-integer-converter-marking.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-31 10:13 UTC
+Updated: 2026-08-31 10:14 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
