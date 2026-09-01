@@ -61,6 +61,7 @@ def test_agent_health_open(client):
     body = r.json()
     assert body["status"] == "ok"
     assert "health" in body["allowed_commands"]
+    assert "restart-tunnels" in body["allowed_commands"]
     assert body["auth_required"] is False
 
 

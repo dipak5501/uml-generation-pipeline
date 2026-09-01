@@ -84,7 +84,10 @@ sync_link_files() {
 }
 
 git_push_safe() {
-  bash "$ROOT/scripts/git_push_live_urls.sh" >>/tmp/uml-git-live-urls.log 2>&1 || true
+  if ! bash "$ROOT/scripts/git_push_live_urls.sh" >>/tmp/uml-git-live-urls.log 2>&1; then
+    log "WARN: git_push_live_urls.sh failed — GitHub Link.md may be stale. See /tmp/uml-git-live-urls.log"
+    return 1
+  fi
 }
 
 link_needs_refresh() {

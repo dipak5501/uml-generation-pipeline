@@ -220,6 +220,7 @@ curl -s -X POST "$API_URL/api/generate" \
 | `training-status` | LoRA adapter path, finetune meta, running processes | seconds |
 | `restart-api` | Runs `scripts/restart_api.sh` | ~30 sec |
 | `restart-ui` | Runs `scripts/restart_ui.sh` | ~30 sec |
+| `restart-tunnels` | Runs `scripts/start_public_tunnels.sh` (new trycloudflare URLs + GitHub Link.md) | ~1–3 min |
 | `agent-prompt` | Runs a Cursor SDK local agent on the Mac (`args.prompt` or `args.text`) | varies |
 
 **`generate` args (all optional):**

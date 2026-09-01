@@ -184,7 +184,7 @@ curl -s -X POST "$AGENT/command" \
   -d '{"command":"health"}'
 ```
 
-Allowlisted commands: `health`, `restart-api`, `restart-ui`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (requires `CURSOR_API_KEY`).
+Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (requires `CURSOR_API_KEY`).
 
 ---
 

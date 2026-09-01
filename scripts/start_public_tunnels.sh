@@ -86,7 +86,10 @@ printf '%s\n' "$API_URL" >"$API_URL_FILE"
 "$ROOT/.venv/bin/python" "$ROOT/scripts/tunnel_notify.py" publish \
   --ui "$UI_URL" --api "$API_URL" --reason "manual tunnel start" || true
 
-bash "$ROOT/scripts/git_push_live_urls.sh" >/dev/null 2>&1 || true
+if ! bash "$ROOT/scripts/git_push_live_urls.sh"; then
+  echo "WARNING: tunnels are up but GitHub Link.md was NOT updated." >&2
+  echo "See /tmp/uml-git-live-urls.log (GH_TOKEN in .env — do not print it)." >&2
+fi
 
 echo
 echo "============================================"

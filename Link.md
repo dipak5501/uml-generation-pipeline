@@ -45,7 +45,7 @@ curl -s -X POST "https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/a
   -d '{"command":"health"}'
 ```
 
-Allowlisted commands: `health`, `restart-api`, `restart-ui`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
+Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
 
 ## Troubleshooting
 
