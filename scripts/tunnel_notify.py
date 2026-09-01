@@ -161,21 +161,27 @@ def rewrite_live_demo_docs(
 
 
 def git_push_link_update() -> None:
-    """Commit and push Link/Link.md (and other safe changes) to GitHub."""
-    script = ROOT / "scripts/git_auto_push.sh"
+    """Publish Link/Link.md (and live-demo blocks) to GitHub main from any branch."""
+    script = ROOT / "scripts/git_push_live_urls.sh"
     if not script.is_file():
         return
     try:
-        subprocess.run(
+        proc = subprocess.run(
             ["bash", str(script)],
             cwd=ROOT,
             capture_output=True,
             text=True,
-            timeout=120,
+            timeout=180,
             check=False,
         )
     except (OSError, subprocess.TimeoutExpired) as exc:
-        print(f"git auto-push skipped: {exc}")
+        print(f"git live-url push skipped: {exc}")
+        return
+    out = ((proc.stdout or "") + (proc.stderr or "")).strip()
+    if proc.returncode != 0:
+        print(f"git live-url push failed (exit {proc.returncode}): {out[-2000:]}")
+    elif out:
+        print(out[-800:])
 
 
 def _agent_section(api_url: str) -> list[str]:

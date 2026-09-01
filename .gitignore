@@ -15,6 +15,7 @@ docs/THESIS_COMPLETION_CHECKLIST.md
 docs/Thesis_System_Alignment_Report.*
 docs/Application_Walkthrough_Guide.pdf
 thesis/
+.live-url-worktree/
 .venv/
 venv/
 __pycache__/

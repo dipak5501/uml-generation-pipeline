@@ -10,6 +10,9 @@ log() { echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') $LOG_TAG $*"; }
 log "Ensuring public tunnels and refreshing Link..."
 bash "$ROOT/scripts/monitor_public_tunnels.sh" --once || true
 
+log "Pushing live tunnel URLs to GitHub main..."
+bash "$ROOT/scripts/git_push_live_urls.sh" || true
+
 log "Pushing safe changes to GitHub..."
 bash "$ROOT/scripts/git_auto_push.sh"
 
