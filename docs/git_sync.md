@@ -28,11 +28,12 @@ Optional: change interval (seconds), e.g. 30 minutes:
 GIT_SYNC_INTERVAL_SEC=1800 bash scripts/install_git_sync.sh
 ```
 
-## Manual sync
+When Cloudflare **quick tunnels** rotate, `scripts/tunnel_notify.py` rewrites `Link`, `Link.md`, and the marked Live demo blocks, then `scripts/git_push_live_urls.sh` **always pushes those URL files to `origin/main`**, even if the Mac checkout is on another branch. That is separate from `git_auto_push.sh` (which still skips when not on `main`, and runs pytest).
+
+Manual live-URL push:
 
 ```bash
-bash scripts/auto_sync_all.sh   # tunnels + Link + git push
-bash scripts/git_auto_push.sh   # git only
+bash scripts/git_push_live_urls.sh
 ```
 
 ## Full automation install

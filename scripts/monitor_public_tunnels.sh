@@ -84,7 +84,7 @@ sync_link_files() {
 }
 
 git_push_safe() {
-  bash "$ROOT/scripts/git_auto_push.sh" >/dev/null 2>&1 || true
+  bash "$ROOT/scripts/git_push_live_urls.sh" >>/tmp/uml-git-live-urls.log 2>&1 || true
 }
 
 link_needs_refresh() {

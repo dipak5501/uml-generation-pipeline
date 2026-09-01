@@ -16,7 +16,7 @@ STDERR="/tmp/uml-launchd-git-sync.err"
 GEN_DIR="$ROOT/data/run/launchd_plists"
 DEST="$GEN_DIR/${LABEL}.plist"
 
-chmod +x "$PROGRAM" "$ROOT/scripts/git_auto_push.sh"
+chmod +x "$PROGRAM" "$ROOT/scripts/git_auto_push.sh" "$ROOT/scripts/git_push_live_urls.sh"
 mkdir -p "$AGENT_DIR" "$GEN_DIR"
 
 sed \
