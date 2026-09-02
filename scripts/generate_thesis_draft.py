@@ -2,8 +2,9 @@
 """Generate a CSULB-style M.S. thesis draft PDF from paper/ + implementation notes.
 
 Outputs:
-  ~/Desktop/Dipak_Yadav_MS_Thesis_Draft.pdf
+  reports/Dipak_Yadav_MS_Thesis_Draft.pdf
   thesis/Dipak_Yadav_MS_Thesis_Draft.pdf
+  ~/Desktop/Dipak_Yadav_MS_Thesis_Draft.pdf (when Desktop exists)
 
 This is an advisor-review DRAFT, not the official Thesis Office template.
 """
@@ -29,9 +30,15 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from scripts.pdf_github_compat import disable_reportlab_ascii85, github_compat_pdf
+
+disable_reportlab_ascii85()
+
 ROOT = Path(__file__).resolve().parents[1]
 DESKTOP = Path.home() / "Desktop" / "Dipak_Yadav_MS_Thesis_Draft.pdf"
 LOCAL = ROOT / "thesis" / "Dipak_Yadav_MS_Thesis_Draft.pdf"
+REPORTS = ROOT / "reports" / "Dipak_Yadav_MS_Thesis_Draft.pdf"
+ARTIFACTS = Path("/opt/cursor/artifacts") / "Dipak_Yadav_MS_Thesis_Draft.pdf"
 FIG_DIRS = [ROOT / "paper", ROOT / "output" / "figures"]
 
 
@@ -436,9 +443,10 @@ def main() -> None:
         "95.7% render success and Pearson r = 0.82 versus human experts, while package "
         "diagrams are hardest (81.1% success, r = 0.55). Inter-rater reliability among 80 "
         "domain experts reaches Fleiss' κ = 0.68 (substantial agreement). Beyond the paper "
-        "baseline, this thesis delivers a production-ready FastAPI and Streamlit system with "
-        "source-code input, fidelity gates against hallucinated classes, local LoRA PlantUML "
-        "generation, dual-Ollama VLM serving, and script-without-types recovery. The public "
+        "baseline, this thesis delivers a production FastAPI and Streamlit system on an Apple "
+        "Mac Studio (M1 Ultra, 128 GB unified memory) with source-code input, fidelity gates, "
+        "MLX LoRA PlantUML (source-code 30k adapter), dual-Ollama VLM serving, local "
+        "Aya-Vision-8B, a remote command agent, and script-without-types recovery. The public "
         "repository is https://github.com/dipak5501/uml-generation-pipeline."
     )
     add_text(story, styles, abstract, "BodyNI")
@@ -541,8 +549,9 @@ def main() -> None:
         "Comparative evaluation across four diagram types with human correlation analysis "
         "(80 experts; Fleiss' κ = 0.68 overall).",
         "A public reproducible implementation (FastAPI + Streamlit) with advances: "
-        "source-code input, fidelity gates, LoRA PlantUML, dual-Ollama VLM serving, and "
-        "script-without-types recovery.",
+        "source-code input (Java/Python/C), fidelity gates, MLX LoRA PlantUML on Mac Studio, "
+        "optional NVIDIA PEFT CUDA LoRA, dual-Ollama VLM serving, local Aya-Vision-8B on "
+        "128 GB unified memory, remote agent API, and script-without-types recovery.",
     ]:
         story.append(Paragraph(esc("• " + c), styles["ThesisBullet"]))
     story.append(Paragraph("1.4 Scope and Assumptions", styles["H2"]))
@@ -720,14 +729,33 @@ def main() -> None:
     add_text(
         story,
         styles,
-        "On Apple Silicon and other local machines, DeepSeek-R1-32B and Aya-Vision-8B may "
-        "be unavailable. The implementation therefore supports USE_OLLAMA and "
-        "USE_FINETUNED_CODE with dual Ollama hosts (typically :11434 and :11435) for "
-        "Qwen2.5-VL and LLaMA-Vision compatibility, plus an optional LoRA PlantUML model. "
-        "Environment variables ACCEPTANCE_TAU and MIN_COMPOSITE_FOR_DATASET encode the "
-        "paper thresholds. Mock providers use the same fidelity builders so unit tests can "
-        "exercise the pipeline without GPUs. scripts/run_local.sh starts API and UI in a "
-        "detached session so Cursor shell exits do not kill servers.",
+        "The paper Stage-2 model DeepSeek-R1-Distill-Qwen-32B is not run in-process on the "
+        "student workstation. On Apple Silicon the stand-in is an MLX LoRA adapter on "
+        "mlx-community/Qwen2.5-0.5B-Instruct-4bit. Production on the Math-department Mac "
+        "Studio (Apple M1 Ultra, 128 GB unified memory) uses "
+        "FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k after 6,000 LoRA "
+        "iterations on a Java/Python/C source-code corpus. Dual Ollama daemons serve "
+        "LLaMA-3.2-Vision-11B on Ollama 0.24 at :11434 and Qwen2.5-VL-3B on Ollama 0.32 at "
+        ":11435; a single 0.32 process cannot load mllama. Aya-Vision-8B is loaded in-process "
+        "with Transformers on MPS when unified memory is at least 64 GB (the 24 GB M2 hung on "
+        "model.to(mps)). NVIDIA hosts retrain PEFT LoRA with scripts/finetune_plantuml_cuda.py "
+        "and may serve Aya via vLLM on port 8001. Environment variables ACCEPTANCE_TAU and "
+        "MIN_COMPOSITE_FOR_DATASET encode the paper thresholds. Mock providers use the same "
+        "fidelity builders so unit tests run without GPUs.",
+        "BodyNI",
+    )
+    story.append(Paragraph("4.5.1 Production Mac Studio Deployment", styles["H3"]))
+    add_text(
+        story,
+        styles,
+        "The always-on server is a user-level LaunchAgent stack (no sudo): FastAPI on :8000, "
+        "Streamlit on :8501, dual Ollama, caffeinate, and Cloudflare quick tunnels. A remote "
+        "HTTP agent at /api/agent accepts allowlisted commands (health, server-status, "
+        "generate, smoke-test, training-status, restart-api, restart-ui) with Bearer token "
+        "auth. Public UI and API URLs are written to data/run/public_*.txt when tunnels "
+        "restart. Measured live generate on 2026-08-31 produced a class diagram with render "
+        "success and composite S approximately 5.37 using the three-VLM ensemble. Keep the "
+        "Mac user logged in (screen lock is permitted; Log Out stops LaunchAgents).",
         "BodyNI",
     )
     story.append(Paragraph("4.6 Paper–Code Alignment", styles["H2"]))
@@ -741,22 +769,26 @@ def main() -> None:
             ["MMMU weights 53.1/50.7/39.9", "settings + scoring"],
             ["Render fail → S=0", "verify_scores(render_ok=False)"],
             ["Majority τ=4, S≥3.0", "scoring defaults / .env"],
-            ["4 diagram types", "class/object/component/package (+flowchart)"],
+            ["4 diagram types", "class/object/component/package (flowchart training only)"],
             ["Human 4 criteria", "UI rubric (1–5) + paper 0–6 protocol"],
+            ["Mac Studio production", "MLX 30k LoRA + dual Ollama + local Aya"],
+            ["NVIDIA path", "PEFT CUDA LoRA + optional vLLM Aya"],
         ],
         "Table 4. Paper–implementation alignment summary.",
         [3.1 * inch, 3.1 * inch],
     )
     story.append(Paragraph("4.7 Advances Beyond the Paper Baseline", styles["H2"]))
     for a in [
-        "Source-code input mode with structural recovery.",
-        "Flowchart/activity diagrams as an additional process view.",
-        "Local LoRA PlantUML adapter when DeepSeek-32B is unavailable on-device.",
-        "Dual Ollama hosting for VLM compatibility.",
+        "Source-code input mode with structural recovery (Python, Java, C).",
+        "Flowchart/activity diagrams as an additional process view for scripts without types.",
+        "MLX LoRA PlantUML on Apple Silicon (production adapter: source-code 30k).",
+        "NVIDIA PEFT CUDA LoRA trainer and inference provider.",
+        "Dual Ollama hosting for Qwen2.5-VL and LLaMA-Vision.",
+        "Local Aya-Vision-8B on Mac Studio 128 GB (refuse in-process below 64 GB).",
         "Fidelity gate and deterministic PlantUML-from-spec builders.",
         "Script-without-types recovery (no fake classes from variables).",
-        "Package failure taxonomy and analytics endpoint.",
-        "Human evaluation and artifact review UI.",
+        "Remote agent API and Cloudflare public tunnels for 24/7 demo.",
+        "Package failure taxonomy, human evaluation UI, and analytics export.",
     ]:
         story.append(Paragraph(esc("• " + a), styles["ThesisBullet"]))
     story.append(PageBreak())
@@ -869,8 +901,8 @@ def main() -> None:
     )
     story.append(Paragraph("6.2 Limitations", styles["H2"]))
     for lim in [
-        "On-device demos may use LoRA and Ollama stand-ins (for example, llava for Aya) "
-        "rather than full DeepSeek-32B and Aya-Vision-8B.",
+        "On-device Stage 2 uses Qwen2.5-0.5B LoRA rather than DeepSeek-R1-32B. Aya-Vision-8B "
+        "runs locally on the 128 GB Mac Studio; 24 GB Macs must not load Aya on MPS.",
         "The VLM prompt currently requests a joint SCORE; the paper protocol discusses "
         "four 0–6 criteria, while the human UI uses 1–5 Likert items.",
         "Assembled local corpora are not identical to regenerating the paper’s full "
@@ -949,10 +981,12 @@ def main() -> None:
         "Clone https://github.com/dipak5501/uml-generation-pipeline. Create a virtual "
         "environment, copy .env.example to .env, then run make install and ./scripts/run_local.sh. "
         "UI: http://127.0.0.1:8501. API: http://127.0.0.1:8000. Health: /api/settings/health. "
-        "Live VLM reliability: python scripts/eval_live_vlm_reliability.py. Batch evaluation: "
-        "make eval-smoke / make eval-batch. Unit tests: make test with MOCK_PROVIDERS=true. "
-        "Dual Ollama helper: scripts/ensure_ollama_dual.sh. For gated Hugging Face downloads, "
-        "use the gated include flag documented in the Makefile.",
+        "Production Mac Studio uses MOCK_PROVIDERS=false, USE_OLLAMA=true, "
+        "USE_FINETUNED_CODE=true, FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k, "
+        "and VLM_AYA_BACKEND=local. Remote operator: POST /api/agent/command with Bearer token. "
+        "Unit tests: make test with MOCK_PROVIDERS=true. Dual Ollama: scripts/ensure_ollama_dual.sh. "
+        "NVIDIA: make finetune-cuda (do not run on the Mac Studio). The gated class-scored "
+        "Hugging Face dataset is optional and not required.",
         "BodyNI",
     )
     story.append(PageBreak())
@@ -1011,6 +1045,7 @@ def main() -> None:
         canvas.restoreState()
 
     LOCAL.parent.mkdir(parents=True, exist_ok=True)
+    REPORTS.parent.mkdir(parents=True, exist_ok=True)
     doc = SimpleDocTemplate(
         str(LOCAL),
         pagesize=letter,
@@ -1022,21 +1057,30 @@ def main() -> None:
         author="Dipak Yadav",
     )
     doc.build(story, onFirstPage=_page, onLaterPages=_page)
-    shutil.copy2(LOCAL, DESKTOP)
+    github_compat_pdf(LOCAL)
+    shutil.copy2(LOCAL, REPORTS)
+    for dest in (DESKTOP, ARTIFACTS):
+        try:
+            dest.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(LOCAL, dest)
+            print(f"Copied {dest}")
+        except OSError as exc:
+            print(f"Skip copy {dest}: {exc}")
 
     readme = LOCAL.parent / "README.md"
     readme.write_text(
         """# M.S. Thesis Draft (local)
 
 - `Dipak_Yadav_MS_Thesis_Draft.pdf` — advisor-review draft
-- Desktop copy: `~/Desktop/Dipak_Yadav_MS_Thesis_Draft.pdf`
+- Tracked copy: `reports/Dipak_Yadav_MS_Thesis_Draft.pdf`
+- Desktop copy: `~/Desktop/Dipak_Yadav_MS_Thesis_Draft.pdf` (when present)
 
 **Not** the official CSULB Thesis Office submission format.
 
 Regenerate:
 
 ```bash
-.venv/bin/python scripts/generate_thesis_draft.py
+python scripts/generate_thesis_draft.py
 ```
 
 Next steps with Dr. Zhao: move content into the official template, expand refs from
@@ -1045,7 +1089,7 @@ Next steps with Dr. Zhao: move content into the official template, expand refs f
         encoding="utf-8",
     )
     print(f"Wrote {LOCAL} ({doc.page} pages)")
-    print(f"Copied {DESKTOP}")
+    print(f"Wrote {REPORTS}")
 
 
 if __name__ == "__main__":

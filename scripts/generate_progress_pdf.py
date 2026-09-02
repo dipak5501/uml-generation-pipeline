@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import shutil
 from pathlib import Path
 
 from reportlab.lib import colors
@@ -21,8 +22,13 @@ from reportlab.platypus import (
     TableStyle,
 )
 
+from scripts.pdf_github_compat import disable_reportlab_ascii85, github_compat_pdf
+
+disable_reportlab_ascii85()
+
 ROOT = Path(__file__).resolve().parent.parent
-OUT = ROOT / "docs" / "UML_Application_Progress_Report.pdf"
+OUT = ROOT / "reports" / "UML_Pipeline_Application_Report.pdf"
+ARTIFACTS = Path("/opt/cursor/artifacts") / "UML_Pipeline_Application_Report.pdf"
 
 INK = colors.HexColor("#14212b")
 ACCENT = colors.HexColor("#0f766e")
@@ -123,7 +129,7 @@ def add_footer(canvas, doc):
     canvas.line(0.7 * inch, 0.52 * inch, letter[0] - 0.7 * inch, 0.52 * inch)
     canvas.setFont("Helvetica", 8)
     canvas.setFillColor(colors.HexColor("#5a6a75"))
-    canvas.drawString(0.7 * inch, 0.36 * inch, "UML-Pipeline — Application Progress Report")
+    canvas.drawString(0.7 * inch, 0.36 * inch, "UML-Pipeline — Application Report (M.S. Thesis)")
     canvas.drawRightString(letter[0] - 0.7 * inch, 0.36 * inch, f"Page {doc.page}")
     canvas.restoreState()
 
@@ -142,8 +148,9 @@ def build():
         s["subtitle"],
     ))
     story.append(P(
-        "Student: Dipak Yadav &nbsp;·&nbsp; Advisor: Dr. Yutong Zhao<br/>"
-        "M.S. Thesis application implementing the paper method<br/>"
+        "Student: Dipak Yadav (Campus ID 033783670) &nbsp;·&nbsp; Advisor: Dr. Yutong Zhao<br/>"
+        "M.S. Thesis application — California State University, Long Beach (CECS 698)<br/>"
+        "Production host: Apple Mac Studio M1 Ultra, 128 GB &nbsp;·&nbsp; Report date: 31 August 2026<br/>"
         "Public code: https://github.com/dipak5501/uml-generation-pipeline",
         s["meta"],
     ))
@@ -275,13 +282,15 @@ def build():
     story.append(P("3. System design", s["h1"]))
     story.append(P("3.1 Deployment view", s["h2"]))
     story.append(P(
-        "Clients are the Streamlit UI (http://127.0.0.1:8501) and optional HTTP/CLI callers. "
-        "They call a FastAPI service (http://127.0.0.1:8000). Orchestration in "
-        "app/services/orchestration.py runs Stage 1–3. Background jobs use a thread pool "
-        "(app/jobs/runner.py) so the UI is not blocked. Persistence is SQLite "
+        "Production runs on an always-on Apple Mac Studio (M1 Ultra, 128 GB unified memory) "
+        "under user LaunchAgents. Clients are the Streamlit UI (http://127.0.0.1:8501 and a "
+        "Cloudflare public URL) and HTTP/CLI callers, including POST /api/agent/command. "
+        "They call FastAPI on :8000. Orchestration in app/services/orchestration.py runs "
+        "Stages 1–3. Background jobs use a thread pool. Persistence is SQLite "
         "(data/uml_app.db) plus PNG files under data/artifacts/. PlantUML rendering uses "
-        "tools/plantuml.jar and Java. Local models use dual Ollama processes and, for PlantUML, "
-        "an MLX LoRA adapter. Fine-tuning is offline (make finetune), not in the request path.",
+        "a local JDK plus tools/plantuml.jar (optional remote PlantUML HTTP). PlantUML "
+        "generation uses the MLX LoRA adapter models/uml-plantuml-lora-sourcecode-30k. "
+        "Fine-tuning is offline (make train-source30k / make finetune), not in the request path.",
         s["body"],
     ))
     story.append(P(
@@ -324,7 +333,8 @@ def build():
             [P("app/services/acceptance.py / uml_structure.py / traceability.py", c),
              P("Multi-layer accept/reject with failure categories", c)],
             [P("app/services/scoring.py", c), P("MMMU-weighted S, majority A, dataset_entry_accepted", c)],
-            [P("app/providers/", c), P("Mock, Ollama, HF, OpenAI-compatible, MLX LoRA chat", c)],
+            [P("app/providers/", c), P("Mock, Ollama, HF, OpenAI-compatible, MLX LoRA, PEFT CUDA, local Aya", c)],
+            [P("app/routers/agent.py", c), P("Remote allowlisted commands for the Mac Studio operator API", c)],
             [P("prompts/*.v1.txt", c), P("Versioned Stage-1, Stage-2, VLM, repair, human rubric templates", c)],
             [P("ui/pages/", c), P("Eight Streamlit pages listed in Section 5", c)],
         ],
@@ -338,7 +348,7 @@ def build():
             [P("Stage", h), P("Paper model", h), P("Local application path", h)],
             [P("Specification", c), P("LLaMA 3.2-1B-Instruct", c), P("Ollama llama3.2:1b; mock; optional HF/OpenAI", c)],
             [P("PlantUML (class)", c), P("DeepSeek-R1-Distill-Qwen-32B", c),
-             P("MLX LoRA Qwen2.5-0.5B when USE_FINETUNED_CODE; else Ollama/spec-builder", c)],
+             P("MLX LoRA Qwen2.5-0.5B (production: models/uml-plantuml-lora-sourcecode-30k)", c)],
             [P("PlantUML (object)", c), P("Same 32B", c), P("LoRA if chosen; fidelity + builder fallback", c)],
             [P("PlantUML (component, package)", c), P("Same 32B", c),
              P("Spec-builder default until LoRA has ≥8 proven samples; skip empty LLM rewrite", c)],
@@ -416,10 +426,11 @@ def build():
     ))
     story.append(P(
         "Local artifacts after build: data/training/uml_training_8000.parquet and .jsonl, "
-        "manifest.json. After supplements: uml_training_supplement_merged.parquet (~10k = 8k + "
-        "2k scenario/code). Fine-tune chat JSONL: data/finetune/{train,valid,test}.jsonl via "
-        "scripts/prepare_finetune_data.py. LoRA adapters: models/uml-plantuml-lora/ on "
-        "mlx-community/Qwen2.5-0.5B-Instruct-4bit. Only Stage 2 PlantUML uses LoRA.",
+        "manifest.json. After supplements: uml_training_supplement_merged.parquet. Fine-tune "
+        "JSONL: data/finetune/{train,valid,test}.jsonl. Production LoRA on the Mac Studio is "
+        "models/uml-plantuml-lora-sourcecode-30k (6,000 iters, Java/Python/C source corpus) on "
+        "mlx-community/Qwen2.5-0.5B-Instruct-4bit. NVIDIA hosts use PEFT via "
+        "scripts/finetune_plantuml_cuda.py. Only Stage 2 PlantUML uses LoRA.",
         s["body"],
     ))
 
@@ -486,6 +497,10 @@ def build():
             [P("Live 3-VLM smoke", c), P("Stratified types + multilingual + source-code", c), P("12", c),
              P("All scorers up, render, mean S", c),
              P("12/12 scorers; 11/12 render; mean S≈4.93", c)],
+            [P("Mac Studio live generate (31 Aug 2026)", c),
+             P("Bookstore class diagram via /api/agent generate, skip_vlm=false", c), P("1", c),
+             P("Render + three-VLM composite S", c),
+             P("render success; S ≈ 5.37", c)],
             [P("NL bulk generate/render", c), P("data/eval/scenarios_1000.jsonl", c), P("1,000", c),
              P("Valid UML + PNG; VLM mocked", c), P("974/1000 (97.4%)", c)],
             [P("Code bulk generate/render", c), P("data/eval/code_langs_1000.jsonl", c), P("1,000", c),
@@ -547,9 +562,35 @@ def build():
         "Adaptive generator policy and repair ordered by empirical win rate.",
         "Render-as-gate, MMMU-weighted ensemble, majority vote, dataset export.",
         "Human rubric parallel to VLMs for later correlation studies.",
-        "Mock providers so the app runs without GPUs; live path uses Ollama + LoRA + local Aya.",
+        "Mock providers so the app runs without GPUs; live Mac Studio path uses Ollama + 30k LoRA + local Aya.",
+        "Remote agent: health, generate, smoke-test, training-status, restart API/UI.",
         "Colab helper for Qwen2.5-VL-3B scoring only (not Aya-8B or LLaMA-11B on free T4).",
     ], s["bullet"]))
+
+    story.append(P("5.4 Production Mac Studio (always-on)", s["h2"]))
+    story.append(P(
+        "The thesis demonstration server is an Apple Mac Studio (Mac13,2, M1 Ultra, 128 GB) "
+        "at /Users/033783670/Desktop/uml-generation-pipeline-main. User LaunchAgents keep "
+        "API, UI, dual Ollama, caffeinate, and Cloudflare tunnels running while the account "
+        "stays logged in. Remote Cursor Cloud Agents do not run on this hardware; they "
+        "operate the Mac through POST /api/agent/command. NVIDIA CUDA LoRA "
+        "(make finetune-cuda) is documented for other machines and must not be run on this Mac.",
+        s["body"],
+    ))
+    story.append(table(
+        [
+            [P("Service", h), P("Local", h), P("Notes", h)],
+            [P("FastAPI", c), P(":8000", c), P("Live providers; API_ACCESS_TOKEN on public tunnels", c)],
+            [P("Streamlit UI", c), P(":8501", c), P("Eight pages; public Cloudflare URL", c)],
+            [P("Ollama 0.24", c), P(":11434", c), P("llama3.2-vision:11b (and llama3.2:1b spec)", c)],
+            [P("Ollama 0.32", c), P(":11435", c), P("qwen2.5vl:3b", c)],
+            [P("Aya-Vision-8B", c), P("in-process MPS", c), P("VLM_AYA_BACKEND=local; ≥64 GB RAM", c)],
+            [P("PlantUML LoRA", c), P("MLX", c), P("models/uml-plantuml-lora-sourcecode-30k", c)],
+            [P("Remote agent", c), P("/api/agent", c), P("Allowlisted commands; 2 workers", c)],
+        ],
+        [1.5 * inch, 1.5 * inch, 4.1 * inch],
+    ))
+    story.append(P("Table 8b. Production Mac Studio services (measured 31 August 2026).", s["caption"]))
 
     # --- 6 results recap ---
     story.append(P("6. Connection to the thesis and remaining work", s["h1"]))
@@ -557,7 +598,7 @@ def build():
         [
             [P("Milestone", h), P("Application status", h)],
             [P("1. Pipeline completion", c),
-             P("Stages 1–3, JSON spec, majority gate, configs, UI, API, LoRA, dual Ollama, Aya-local option: implemented", c)],
+             P("Stages 1–3, JSON spec, majority gate, UI, API, remote agent, 30k MLX LoRA, dual Ollama, local Aya on Mac Studio 128 GB: implemented and live", c)],
             [P("2. Dataset and evaluation", c),
              P("Training corpus scripts + 8k target; 2k supplement; 200-type acceptance; 2k bulk render; 12 live VLM; longer archived 3-VLM tables still needed", c)],
             [P("3. Human-alignment study", c),
@@ -571,7 +612,8 @@ def build():
 
     story.append(P("6.1 Limitations (application)", s["h2"]))
     story.append(bullets([
-        "On-device Stage 2 is 0.5B LoRA + spec-builder, not always DeepSeek-R1-32B.",
+        "On-device Stage 2 is 0.5B LoRA + spec-builder, not DeepSeek-R1-32B.",
+        "24 GB Macs must not load Aya on MPS; Mac Studio 128 GB is the paper-exact local Aya path.",
         "LoRA training data is class-heavy; component/package rely on the grounded builder locally.",
         "Full three-VLM scoring is ~100–120 s per diagram; interactive skip_vlm does not compute S.",
         "The 1,000+1,000 bulk numbers mock VLMs; they are render success, not dataset-accepted counts.",
@@ -591,12 +633,13 @@ def build():
     story.append(P("7. How to reproduce the local application", s["h1"]))
     story.append(P(
         "Clone https://github.com/dipak5501/uml-generation-pipeline . Create the venv (make install). "
-        "For a full local path: MOCK_PROVIDERS=false, USE_OLLAMA=true, USE_FINETUNED_CODE=true, "
-        "VLM_AYA_BACKEND=local, then ./scripts/run_local.sh. UI: http://127.0.0.1:8501 . "
-        "Acceptance eval: python scripts/eval_acceptance.py . Live VLM smoke: "
-        "python scripts/eval_live_vlm_reliability.py --runs 12 . Training rebuild: "
-        "python scripts/build_training_corpus.py --target 8000 then make finetune-prepare && make finetune. "
-        "Java and plantuml.jar are required to render.",
+        "Mac Studio live path: MOCK_PROVIDERS=false USE_OLLAMA=true USE_FINETUNED_CODE=true "
+        "FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k VLM_AYA_BACKEND=local, "
+        "then LaunchAgents or ./scripts/run_local.sh. UI: http://127.0.0.1:8501 . "
+        "Health: GET /api/settings/health . Remote: POST /api/agent/command . "
+        "Tests: make test (MOCK_PROVIDERS=true). NVIDIA only: make finetune-cuda. "
+        "Java and plantuml.jar are required to render. Regenerate this PDF: "
+        "python scripts/generate_progress_pdf.py . Thesis PDF: python scripts/generate_thesis_draft.py .",
         s["body"],
     ))
 
@@ -616,11 +659,18 @@ def build():
         rightMargin=0.7 * inch,
         topMargin=0.6 * inch,
         bottomMargin=0.7 * inch,
-        title="UML-Pipeline Application Progress Report",
+        title="UML-Pipeline Application Report",
         author="Dipak Yadav",
     )
     doc.build(story, onFirstPage=add_footer, onLaterPages=add_footer)
+    github_compat_pdf(OUT)
     print(OUT)
+    try:
+        ARTIFACTS.parent.mkdir(parents=True, exist_ok=True)
+        shutil.copy2(OUT, ARTIFACTS)
+        print(ARTIFACTS)
+    except OSError as exc:
+        print(f"Skip artifacts copy: {exc}")
 
 
 if __name__ == "__main__":

@@ -135,6 +135,26 @@ Hyperparameters (50k/100k): batch 2, max_seq_length 1536, lr 1e-5, LoRA 8 layers
 
 ---
 
+## Train (NVIDIA CUDA)
+
+Apple MLX adapters **will not load**. Retrain with PEFT:
+
+```bash
+pip install -r requirements-finetune-cuda.txt
+make finetune-cuda
+# or: make train-real   # auto-detects CUDA
+```
+
+Then in `.env`:
+
+```bash
+USE_FINETUNED_CODE=true
+FINETUNED_BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora
+```
+
+Full GPU-machine checklist: [docs/CURSOR_GPU_HANDOFF.md](../docs/CURSOR_GPU_HANDOFF.md).
+
 ## Enable in the running app
 
 `.env`:

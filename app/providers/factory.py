@@ -172,13 +172,32 @@ def build_chat_provider(settings: Settings | None = None, model: str | None = No
     return _live_chat_provider(settings, model)
 
 
+class UnavailableProvider:
+    """Marks a VLM slot unavailable without crashing ensemble scoring."""
+
+    name = "unavailable"
+
+    def __init__(self, reason: str, model: str = ""):
+        self.reason = reason
+        self.model = model or "unavailable"
+
+    def chat(self, system: str, user: str, temperature: float = 0.7) -> str:
+        raise RuntimeError(self.reason)
+
+    def vision_score(self, image_path: Path, prompt: str) -> int:
+        raise RuntimeError(self.reason)
+
+    def vision_assess(self, image_path: Path, prompt: str):
+        raise RuntimeError(self.reason)
+
+
 def build_code_provider(settings: Settings | None = None):
     """PlantUML code model — prefers local LoRA fine-tune when enabled."""
     settings = settings or get_settings()
     if settings.use_finetuned_code:
-        from app.providers.finetuned_provider import FinetunedMLXProvider
+        from app.providers.finetuned_provider import build_finetuned_provider
 
-        return FinetunedMLXProvider(
+        return build_finetuned_provider(
             base_model=settings.finetuned_base_model,
             adapter_path=settings.finetuned_adapter_path,
             max_tokens=settings.finetuned_max_tokens,
@@ -203,6 +222,11 @@ def build_base_code_provider(settings: Settings | None = None):
 
 def _build_aya_provider(settings: Settings, configured_model: str) -> object:
     """Paper 3rd VLM: real Aya when possible; otherwise explicit stand-in."""
+    if not settings.use_aya:
+        return UnavailableProvider(
+            "USE_AYA=false — Aya-Vision-8B slot skipped (set USE_AYA=true and serve via vLLM)",
+            model=configured_model or "aya-vision:8b",
+        )
     backend = (settings.vlm_aya_backend or "ollama_standin").strip().lower()
     model_id = (settings.aya_vlm_model or "CohereLabs/aya-vision-8b").strip()
 

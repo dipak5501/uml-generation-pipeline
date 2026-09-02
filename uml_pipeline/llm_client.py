@@ -325,6 +325,30 @@ def score_response_parsed(text: str) -> bool:
     return False
 
 
+def extract_vlm_score(text: str) -> tuple[int | None, str | None]:
+    """Parse a VLM reply into (score, explanation).
+
+    Returns ``score=None`` when no explicit 0–6 label is present (including
+    replies that only echo ``<0-6>`` placeholders). Callers that need a
+    numeric default should use :func:`parse_score_response`.
+    """
+    score, explanation = parse_score_response(text)
+    if not score_response_parsed(text or ""):
+        return None, explanation
+    return score, explanation
+
+
+def _score_from_vlm_text(text: str) -> tuple[int, str | None]:
+    """Require a real 0–6 parse so placeholder ``<0-6>`` is not a fake zero."""
+    if not text or not score_response_parsed(text):
+        snippet = (text or "").strip().replace("\n", " ")[:220]
+        raise RuntimeError(
+            "VLM score unparseable (markdown/placeholder, no integer 0-6): "
+            f"{snippet!r}"
+        )
+    return parse_score_response(text)
+
+
 def _parse_score(text: str) -> int:
     score, _ = parse_score_response(text)
     return score

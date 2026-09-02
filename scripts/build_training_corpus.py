@@ -721,6 +721,11 @@ def main() -> None:
         help="Explicitly include flowchart (default already includes unless --no-flowchart)",
     )
     parser.add_argument(
+        "--include-flowchart",
+        action="store_true",
+        help="Accepted for compatibility; flowcharts are included by default unless --no-flowchart",
+    )
+    parser.add_argument(
         "--no-topup-sources",
         action="store_true",
         help="Do not use extra open repos / the-stack for fill",

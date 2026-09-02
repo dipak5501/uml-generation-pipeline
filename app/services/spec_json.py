@@ -113,6 +113,12 @@ def spec_to_prose(data: dict[str, Any]) -> str:
     summary = str(data.get("summary") or "").strip()
     if summary:
         lines.append(f"### Summary\n{summary}")
+    purpose = str(data.get("purpose") or data.get("audience_summary") or "").strip()
+    if purpose:
+        lines.append(f"### Purpose (plain English)\n{purpose}")
+    sdlc = str(data.get("sdlc_phase") or "").strip()
+    if sdlc:
+        lines.append(f"### Software lifecycle use\n{sdlc}")
 
     lines.append("### Entities")
     for ent in data.get("entities") or []:

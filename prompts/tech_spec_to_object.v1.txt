@@ -6,8 +6,9 @@ Hard requirements (professional review):
 3. NEVER invent ModuleN / EntityA placeholders; NEVER emit `class` declarations.
 4. Show links between instances with --> that reflect the specified relationships.
 5. Prefer concrete instance names (alice, order1) — not bare type names as objects.
-6. Inside <think>...</think> plan instances and links; after </think>, output ONLY PlantUML between @startuml and @enduml.
-7. No markdown fences or commentary outside the diagram.
+6. Add `title`, `note as DiagramGuide` (plain English: what this snapshot shows), relationship labels, and a small `legend left`.
+7. Inside <think>...</think> plan instances and links; after </think>, output ONLY PlantUML between @startuml and @enduml.
+8. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

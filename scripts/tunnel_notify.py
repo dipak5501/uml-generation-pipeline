@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import os
 import re
 import smtplib
 import ssl
@@ -20,7 +21,16 @@ UI_URL_FILE = ROOT / "data/run/public_ui_url.txt"
 API_URL_FILE = ROOT / "data/run/public_api_url.txt"
 LINK_FILE = ROOT / "Link"
 LINK_MD_FILE = ROOT / "Link.md"
+LIVE_DEMO_BEGIN = "<!-- LIVE_DEMO_BEGIN -->"
+LIVE_DEMO_END = "<!-- LIVE_DEMO_END -->"
+LIVE_DEMO_FILES = (
+    ROOT / "README.md",
+    ROOT / "reports/REVIEWER_PROGRESS_REPORT.md",
+    ROOT / "reports/REMOTE_CURSOR_ACCESS.md",
+    ROOT / "docs/deploy.md",
+)
 DEFAULT_NOTIFY_EMAIL = "dipak.yadav5501@gmail.com"
+_TUNNEL_URL_RE = re.compile(r"https://[a-zA-Z0-9-]+\.trycloudflare\.com")
 
 
 def _clean_url(url: str) -> str:
@@ -30,20 +40,124 @@ def _clean_url(url: str) -> str:
         raise ValueError(f"URL contains control characters: {cleaned!r}")
     if not cleaned.startswith("https://") or "trycloudflare.com" not in cleaned:
         raise ValueError(f"Unexpected public tunnel URL: {cleaned!r}")
-    if "api.trycloudflare.com" in cleaned:
+    host = cleaned.split("/")[2].split(":")[0].lower()
+    if host == "api.trycloudflare.com":
         raise ValueError(f"Bogus api.trycloudflare.com URL: {cleaned!r}")
     return cleaned.rstrip("/")
 
 
 def _links_current(ui: str, api: str) -> bool:
-    """True when Link + Link.md already contain both public URLs."""
-    for path in (LINK_FILE, LINK_MD_FILE):
+    """True when Link files and live-demo doc blocks already contain both public URLs."""
+    for path in (LINK_FILE, LINK_MD_FILE, *LIVE_DEMO_FILES):
         if not path.is_file():
             return False
         text = path.read_text(encoding="utf-8")
         if ui not in text or api not in text:
             return False
+        if path in LIVE_DEMO_FILES and (
+            LIVE_DEMO_BEGIN not in text or LIVE_DEMO_END not in text
+        ):
+            return False
     return True
+
+
+def live_demo_markdown(ui_url: str, api_url: str, *, link_md_rel: str, as_of: str) -> str:
+    """GitHub-visible live access block rewritten whenever tunnels rotate."""
+    ui = _clean_url(ui_url)
+    api = _clean_url(api_url)
+    agent = f"{api}/api/agent"
+    return "\n".join(
+        [
+            LIVE_DEMO_BEGIN,
+            f"**Live demo (as of {as_of}):**",
+            "",
+            f"- **UI:** [{ui}]({ui})",
+            f"- **API:** [{api}]({api})",
+            f"- **Agent:** [{agent}]({agent})",
+            "",
+            "Quick-tunnel URLs rotate on restart. This block is rewritten by "
+            "`scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated "
+            f"via `scripts/git_auto_push.sh`). Always-current copy: [{link_md_rel}]({link_md_rel}). "
+            "On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.",
+            LIVE_DEMO_END,
+        ]
+    )
+
+
+def _link_md_rel(path: Path) -> str:
+    return Path(os.path.relpath(LINK_MD_FILE, start=path.parent)).as_posix()
+
+
+def _swap_public_tunnels(text: str, ui: str, api: str) -> str:
+    """Map previously published trycloudflare hosts onto the current UI/API pair."""
+    ui = _clean_url(ui)
+    api = _clean_url(api)
+
+    def repl(match: re.Match[str]) -> str:
+        url = match.group(0)
+        if url in {ui, api}:
+            return url
+        ctx = text[max(0, match.start() - 96) : match.start()].lower()
+        ui_hints = (
+            "ui_url",
+            "live ui",
+            "public ui",
+            "browser ui",
+            "- **ui:**",
+            "\nui:",
+            " ui:",
+            "streamlit",
+        )
+        if any(hint in ctx for hint in ui_hints):
+            return ui
+        return api
+
+    return _TUNNEL_URL_RE.sub(repl, text)
+
+
+def rewrite_live_demo_docs(
+    ui_url: str,
+    api_url: str,
+    *,
+    as_of: str | None = None,
+    updated_at: str | None = None,
+) -> bool:
+    """Keep README / report live-demo blocks on the current public tunnels."""
+    from datetime import datetime, timezone
+
+    ui = _clean_url(ui_url)
+    api = _clean_url(api_url)
+    now = datetime.now(timezone.utc)
+    stamp = as_of or now.strftime("%Y-%m-%d")
+    updated = updated_at or now.strftime("%Y-%m-%d %H:%M UTC")
+    changed = False
+    for path in LIVE_DEMO_FILES:
+        if not path.is_file():
+            continue
+        original = path.read_text(encoding="utf-8")
+        block = live_demo_markdown(ui, api, link_md_rel=_link_md_rel(path), as_of=stamp)
+        if LIVE_DEMO_BEGIN in original and LIVE_DEMO_END in original:
+            text = re.sub(
+                re.escape(LIVE_DEMO_BEGIN) + r".*?" + re.escape(LIVE_DEMO_END),
+                lambda _: block,
+                original,
+                count=1,
+                flags=re.S,
+            )
+        else:
+            text = original
+        text = _swap_public_tunnels(text, ui, api)
+        if path.name == "REMOTE_CURSOR_ACCESS.md":
+            text = re.sub(
+                r"(?m)^\*\*Updated:\*\* .+$",
+                f"**Updated:** {updated}",
+                text,
+                count=1,
+            )
+        if text != original:
+            path.write_text(text, encoding="utf-8")
+            changed = True
+    return changed
 
 
 def git_push_link_update() -> None:
@@ -212,6 +326,7 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
         ]
     )
     LINK_MD_FILE.write_text("\n".join(link_md_lines), encoding="utf-8")
+    rewrite_live_demo_docs(ui, api, as_of=updated.split(" ")[0], updated_at=updated)
     return True
 
 
@@ -324,7 +439,7 @@ def urls_changed(ui_url: str, api_url: str) -> bool:
 
 
 def link_stale() -> bool:
-    """True if repo-root Link files do not contain the stored public URLs."""
+    """True if Link files or live-demo docs do not contain the stored public URLs."""
     if not UI_URL_FILE.is_file() or not API_URL_FILE.is_file():
         return True
     try:
@@ -332,13 +447,7 @@ def link_stale() -> bool:
         api = _clean_url(API_URL_FILE.read_text(encoding="utf-8"))
     except ValueError:
         return True
-    for path in (LINK_FILE, LINK_MD_FILE):
-        if not path.is_file():
-            return True
-        text = path.read_text(encoding="utf-8")
-        if ui not in text or api not in text:
-            return True
-    return False
+    return not _links_current(ui, api)
 
 
 def stored_urls_changed() -> bool:

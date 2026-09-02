@@ -11,6 +11,16 @@ This repository implements the system described in **Automated UML Dataset Gener
 
 **Full architecture:** [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
+<!-- LIVE_DEMO_BEGIN -->
+**Live demo (as of 2026-08-31):**
+
+- **UI:** [https://individual-cinema-uri-checkout.trycloudflare.com](https://individual-cinema-uri-checkout.trycloudflare.com)
+- **API:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com)
+- **Agent:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent)
+
+Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [Link.md](Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
+<!-- LIVE_DEMO_END -->
+
 ---
 
 ## Production stack (Math dept Mac Studio)
@@ -52,6 +62,8 @@ flowchart LR
 ```
 
 ---
+
+NVIDIA CUDA machines must **retrain** with `make finetune-cuda` (MLX adapters will not load). See [docs/CURSOR_GPU_HANDOFF.md](docs/CURSOR_GPU_HANDOFF.md).
 
 ## Quick start (local)
 
@@ -97,7 +109,7 @@ Setup helper for paper-exact Aya: `bash scripts/setup_paper_aya_local.sh`
 
 ```bash
 bash scripts/start_public_tunnels.sh
-# URLs → data/run/public_ui_url.txt
+# URLs → data/run/public_ui_url.txt and the Live demo block above / Link.md
 ```
 
 Set `API_ACCESS_TOKEN` in `.env` before exposing tunnels. Streamlit attaches Bearer auth automatically.
@@ -174,7 +186,7 @@ Auth (when `API_ACCESS_TOKEN` set): `Authorization: Bearer <token>` or `X-API-Ke
 Control the Mac Studio server from any device when away from the machine. The public URL is kept in repo root [`Link`](Link) / [`Link.md`](Link.md) (auto-updated when Cloudflare tunnels restart).
 
 ```bash
-export AGENT="https://YOUR-TUNNEL.trycloudflare.com/api/agent"
+export AGENT="https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent"
 export TOKEN="your-api-access-token"   # from .env on the server — never commit
 
 curl -s "$AGENT/health" | python3 -m json.tool

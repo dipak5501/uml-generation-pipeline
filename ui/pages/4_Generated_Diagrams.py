@@ -150,6 +150,12 @@ if opened:
             st.code(opened.get("source_requirement") or "", language=opened.get("source_language") or "text")
         else:
             st.write(opened.get("source_requirement") or "")
+        with st.expander("How to read this diagram", expanded=True):
+            st.markdown(
+                "Boxes are parts of the software; labeled arrows explain the relationship. "
+                "Use the diagram to track design as you implement and maintain the system."
+            )
+            st.text((opened.get("technical_spec") or "")[:2000])
         with st.expander("PlantUML", expanded=True):
             st.code(opened.get("plantuml_code") or "", language="text")
             st.download_button(

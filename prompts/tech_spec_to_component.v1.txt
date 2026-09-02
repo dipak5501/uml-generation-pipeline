@@ -6,8 +6,9 @@ Hard requirements (professional review):
 3. NEVER invent ModuleN / Module3Store / Svc / Api placeholders.
 4. Emit interfaces ONLY when the specification names them — do not invent IXxx for every component.
 5. Show dependencies with ..> that match the specification.
-6. Inside <think>...</think> list components and interfaces; after </think>, output ONLY PlantUML between @startuml and @enduml.
-7. No markdown fences or commentary outside the diagram.
+6. Add `title`, `note as DiagramGuide` (what each component does in the system), `..>` labels in English, and `legend left`.
+7. Inside <think>...</think> list components and interfaces; after </think>, output ONLY PlantUML between @startuml and @enduml.
+8. No markdown fences or commentary outside the diagram.
 
 Technical specification:
 {specification}

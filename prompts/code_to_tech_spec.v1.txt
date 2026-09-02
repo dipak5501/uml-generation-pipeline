@@ -15,11 +15,16 @@ Rules:
 - Do NOT output PlantUML
 - Do NOT expose private reasoning
 - Output ONLY one JSON object (no markdown fences, no prose outside JSON)
+- summary/purpose must be readable by a developer tracking the software lifecycle
+- Every relationship needs a short English label
 
 Required JSON schema:
 {
   "diagram_type": "{diagram_type}",
   "summary": "<one sentence grounded in the code>",
+  "purpose": "<plain-English description of this design>",
+  "audience_summary": "<how to use this diagram while maintaining the code>",
+  "sdlc_phase": "<design|implementation|architecture|maintenance>",
   "entities": [
     {"name": "TypeName", "kind": "class", "attributes": [], "methods": []}
   ],

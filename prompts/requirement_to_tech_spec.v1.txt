@@ -18,16 +18,21 @@ Constraints:
 - Do NOT output PlantUML or source code
 - Do NOT expose chain-of-thought or private reasoning
 - Output ONLY one JSON object (no markdown fences, no prose outside JSON)
+- Write for a mixed audience (developers AND stakeholders). Names must be real domain words.
+- Every relationship MUST have a short English label (e.g. "borrows", "owns", "depends on").
 
 Required JSON schema:
 {
   "diagram_type": "<class|object|component|package|flowchart>",
-  "summary": "<one sentence>",
+  "summary": "<one sentence title of what the diagram shows>",
+  "purpose": "<one or two sentences a non-expert can understand>",
+  "audience_summary": "<how a developer should use this diagram during the software lifecycle>",
+  "sdlc_phase": "<requirements|design|implementation|architecture|maintenance>",
   "entities": [
     {"name": "EntityName", "kind": "class", "attributes": ["id: int"], "methods": ["action()"]}
   ],
   "relationships": [
-    {"source": "A", "target": "B", "type": "association", "label": "optional"}
+    {"source": "A", "target": "B", "type": "association", "label": "borrows"}
   ],
   "constraints": ["optional constraint text"],
   "packages": [{"name": "core", "contains": ["EntityName"]}],

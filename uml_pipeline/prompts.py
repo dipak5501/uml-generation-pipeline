@@ -86,7 +86,8 @@ Scale:
 - 5: strong alignment with minor issues
 - 6: complete alignment
 
-Respond in exactly this format (no other prose before SCORE):
+Respond in exactly this format (no other prose before SCORE).
+Write SCORE and EXPLANATION in English only (no Japanese, Chinese, or other languages):
 SCORE: <integer 0-6>
-EXPLANATION: <2-4 sentences covering semantic, structural, syntactic, and coherence findings>
+EXPLANATION: <2-4 English sentences covering semantic, structural, syntactic, and coherence findings>
 """

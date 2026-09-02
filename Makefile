@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-prepare train-real train-50k train-100k train-source10k train-source30k
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k thesis-pdf app-report-pdf
 
 install:
 	python3 -m venv .venv
@@ -13,7 +13,7 @@ install-java:
 
 setup: install
 	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000 || true
-	@test -d models/uml-plantuml-lora || echo "Run: make finetune-quick (optional, ~800 iters)"
+	@test -d models/uml-plantuml-lora || echo "Run: make finetune-quick (Apple) or make finetune-cuda (NVIDIA)"
 
 api:
 	. .venv/bin/activate && set -a && [ -f .env ] && . ./.env; set +a && PYTHONPATH=. uvicorn app.main:app --reload --host 0.0.0.0 --port 8000
@@ -31,7 +31,7 @@ dataset:
 	. .venv/bin/activate && PYTHONPATH=. MOCK_PROVIDERS=true python scripts/generate_dataset.py -n 50
 
 training-corpus:
-	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000 --include-flowchart
 
 training-corpus-50k:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/build_training_corpus.py --target 50000 --include-flowchart
@@ -60,14 +60,24 @@ finetune:
 finetune-quick:
 	. .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --quick
 
-# Full real-data train path: HF corpus → JSONL → LoRA (Apple Silicon)
+finetune-cuda:
+	. .venv/bin/activate && pip install -q -r requirements-finetune-cuda.txt && PYTHONPATH=. python scripts/finetune_plantuml_cuda.py --iters 2000 --resume
+
+# Full real-data train path: HF corpus → JSONL → LoRA (MLX on Apple, PEFT on NVIDIA)
 train-real:
-	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
 	@test -f data/training/uml_training_8000.parquet || (echo "Building 8k HF corpus..." && PYTHONPATH=. python scripts/build_training_corpus.py --target 8000 --include-flowchart)
 	@test -f data/training/uml_training_supplement_merged.parquet || (echo "Building supplement..." && $(MAKE) scenario-corpus)
 	$(MAKE) finetune-prepare
-	. .venv/bin/activate && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 3000 --resume --skip-prepare
-	@echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"
+	@backend=$$(PYTHONPATH=. python scripts/detect_compute.py || true); \
+	if [ "$$backend" = "nvidia-cuda" ]; then \
+	  echo "CUDA GPU detected — PEFT LoRA (not mlx_lm)"; \
+	  . .venv/bin/activate && pip install -q -r requirements-finetune-cuda.txt && PYTHONPATH=. python scripts/finetune_plantuml_cuda.py --iters 3000 --resume --skip-prepare; \
+	  echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_BASE_MODEL=Qwen/Qwen2.5-0.5B-Instruct FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"; \
+	else \
+	  echo "Apple/MLX path (no NVIDIA)"; \
+	  . .venv/bin/activate && pip install -q -r requirements-finetune.txt && PYTHONPATH=. python scripts/finetune_plantuml.py --iters 3000 --resume --skip-prepare; \
+	  echo "Enable in .env: USE_FINETUNED_CODE=true FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora"; \
+	fi
 	@echo "Then restart: ./scripts/run_local.sh"
 
 # ≥50k web/HF train path (downloads + corpus + LoRA via Open MPI-safe runner)
@@ -137,6 +147,12 @@ test:
 
 smoke:
 	. .venv/bin/activate && PYTHONPATH=. python scripts/smoke_test.py
+
+thesis-pdf:
+	PYTHONPATH=. python scripts/generate_thesis_draft.py
+
+app-report-pdf:
+	PYTHONPATH=. python scripts/generate_progress_pdf.py
 
 docker-up:
 	docker compose up --build

@@ -27,8 +27,19 @@ apply_theme(show_job_banner=False)
 hero(
     "Generate from text or source code",
     "Paste a requirement paragraph or software source. UML-Pipeline builds a "
-    "technical specification, PlantUML, render gate, and multimodal validation scores.",
-    chips=["Requirements", "Source code", "Verification"],
+    "technical specification, a labeled PlantUML diagram with a plain-English guide, "
+    "a render gate, and multimodal validation scores. Use the picture to track design "
+    "as the software grows.",
+    chips=["Requirements", "Source code", "Verification", "SDLC"],
+)
+
+st.info(
+    "**How these UML types track the software lifecycle**  \n"
+    "- **Class** — design / domain model (types, fields, relationships). Update when you add features.  \n"
+    "- **Object** — a snapshot of instances at runtime.  \n"
+    "- **Component** — architecture (services, interfaces, dependencies).  \n"
+    "- **Package** — modules/folders and how they depend on each other.  \n"
+    "Every diagram includes a title, a ‘what this shows’ note, English arrow labels, and a symbol legend."
 )
 
 REQ_EXAMPLES = {
@@ -224,6 +235,15 @@ if artifact_input_mode == "source_code" or source_lang:
 else:
     st.caption(f"Input mode: `{artifact_input_mode}`")
     st.write(artifact["source_requirement"])
+
+_spec_text = artifact.get("technical_spec") or ""
+if "### Purpose" in _spec_text or "### Software lifecycle" in _spec_text or "### Summary" in _spec_text:
+    with st.expander("How to read this diagram (plain English)", expanded=True):
+        st.markdown(
+            "This picture is a living design artifact: update it when the software changes. "
+            "Boxes are types or parts; labeled arrows say how they relate."
+        )
+        st.text(_spec_text[:2500])
 
 st.subheader("Paper validation pipeline")
 render_ok = artifact["render_status"] == "success"

@@ -27,11 +27,16 @@ def format_plantuml_user_prompt(
             f"Target diagram type: {dtype}\n\n"
             f"Source code context ({lang_label}):\n{src_clip}\n\n"
             f"Technical specification:\n{spec}\n\n"
-            f"Generate black-and-white PlantUML for a {dtype} diagram from this codebase."
+            f"Generate black-and-white PlantUML for a {dtype} diagram from this codebase. "
+            "Use a title, a DiagramGuide note in plain English, labeled relationships, "
+            "and a legend so anyone on the team can track the software design."
         )
 
     return (
         f"Target diagram type: {dtype}\n\n"
         f"Technical specification:\n{spec}\n\n"
-        f"Generate PlantUML for a {dtype} diagram."
+        f"Generate PlantUML for a {dtype} diagram. Include a title, a short note "
+        f"(note as DiagramGuide) explaining the picture in everyday language, English "
+        f"labels on every arrow, and a legend of symbols. The diagram is used to keep "
+        f"track of software design through the development lifecycle."
     )
