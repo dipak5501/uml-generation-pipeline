@@ -19,13 +19,8 @@ git fetch origin main
 git checkout main
 git pull origin main
 
-echo "== local API / UI =="
-if ! curl -sf -o /dev/null --max-time 5 http://127.0.0.1:8000/api/settings/health \
-  || ! curl -sf -o /dev/null --max-time 5 http://127.0.0.1:8501/; then
-  echo "Local services down — installing user LaunchAgents"
-  bash "$ROOT/scripts/install_macos_user_server.sh"
-  bash "$ROOT/scripts/install_tunnel_monitor.sh"
-fi
+echo "== always-on LaunchAgents (API, UI, Ollama, tunnels, URL publish) =="
+bash "$ROOT/scripts/install_macos_user_server.sh"
 bash "$ROOT/scripts/macos_server_status.sh" || true
 
 echo "== Cloudflare tunnels =="

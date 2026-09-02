@@ -29,6 +29,18 @@ def test_bring_up_public_links_refuses_non_darwin():
     assert "Mac Studio" in combined
 
 
+def test_macos_server_install_includes_url_watchdogs():
+    install = (ROOT / "scripts" / "install_macos_user_server.sh").read_text(encoding="utf-8")
+    assert "install_auto_sync.sh" in install
+    uninstall = (ROOT / "scripts" / "uninstall_macos_user_server.sh").read_text(encoding="utf-8")
+    assert "com.uml.pipeline.tunnel-monitor" in uninstall
+    assert "com.uml.pipeline.git-sync" in uninstall
+    bring = (ROOT / "scripts" / "bring_up_public_links.sh").read_text(encoding="utf-8")
+    assert "install_macos_user_server.sh" in bring
+    status = (ROOT / "scripts" / "macos_server_status.sh").read_text(encoding="utf-8")
+    assert "com.uml.pipeline.git-sync" in status
+
+
 def test_start_public_tunnels_does_not_hide_github_push():
     text = (ROOT / "scripts" / "start_public_tunnels.sh").read_text(encoding="utf-8")
     assert "git_push_live_urls.sh" in text

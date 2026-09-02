@@ -25,7 +25,7 @@ bash scripts/bring_up_public_links.sh
 cat data/run/public_ui_url.txt
 ```
 
-That command writes a **new** `https://….trycloudflare.com` into this file and pushes GitHub `main`. Until then there is no public URL.
+That installs **always-on** user LaunchAgents (API, UI, dual Ollama, Cloudflare tunnels, tunnel watchdog, GitHub `Link.md` publisher, caffeinate). They survive Cursor quit and screen lock. **Do not Log Out** this macOS user (use Fast User Switch). The same command writes a **new** `https://….trycloudflare.com` into this file and pushes GitHub `main`. Until then there is no public URL.
 
 Canonical copies on the Mac: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 

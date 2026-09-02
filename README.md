@@ -34,7 +34,8 @@ The primary deployment runs **24/7** on the **Math department Mac Studio (M1 Ult
 | Supervision | `scripts/install_macos_user_server.sh` |
 
 ```bash
-# Always-on server (survives Cursor quit; no sudo)
+# Always-on (API, UI, Ollama, tunnels, GitHub Link.md publisher). No sudo.
+# Survives Cursor quit and screen lock. Do NOT Log Out this macOS user.
 bash scripts/install_macos_user_server.sh
 bash scripts/macos_server_status.sh
 ```

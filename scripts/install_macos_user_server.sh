@@ -114,3 +114,7 @@ echo
 echo "Status:    bash $ROOT/scripts/macos_server_status.sh"
 echo "Uninstall: bash $ROOT/scripts/uninstall_macos_user_server.sh"
 echo "=========================================="
+
+# Tunnel watchdog + GitHub Link.md publisher (was a separate install; required
+# for always-on public URLs). Safe to re-run.
+bash "$ROOT/scripts/install_auto_sync.sh"
