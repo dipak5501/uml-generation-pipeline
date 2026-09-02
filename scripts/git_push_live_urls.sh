@@ -3,6 +3,9 @@
 # Does not run pytest (markdown only). Never commits .env, data/, or models/.
 #
 # Does NOT `source .env` (Outlook signatures / stray lines abort the push).
+# Stays in the repo root (never cd into the worktree) so a concurrent cleanup
+# cannot getcwd-fail the push. Unique worktree + flock avoid two LaunchAgents
+# deleting each other's directory.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
@@ -10,8 +13,10 @@ cd "$ROOT"
 LOG_TAG="[git-live-urls]"
 LOG_FILE="${UML_LIVE_URL_LOG:-/tmp/uml-git-live-urls.log}"
 STATUS_FILE="${UML_LIVE_URL_STATUS:-$ROOT/data/run/github_url_push.status}"
-WT="${UML_LIVE_URL_WORKTREE:-$ROOT/.live-url-worktree}"
-BRANCH_TMP="_live-url-push"
+LOCK_FILE="${UML_LIVE_URL_LOCK:-$ROOT/data/run/git_push_live_urls.lock}"
+WT="${UML_LIVE_URL_WORKTREE:-$ROOT/.live-url-worktree.$$}"
+BRANCH_TMP="_live-url-push.$$"
+
 log() { echo "$(date -u '+%Y-%m-%d %H:%M:%S UTC') $LOG_TAG $*" | tee -a "$LOG_FILE"; }
 
 write_status() {
@@ -19,21 +24,25 @@ write_status() {
   printf '%s\n' "$1" >"$STATUS_FILE"
 }
 
+mkdir -p "$ROOT/data/run"
+exec 9>"$LOCK_FILE"
+if ! flock -w 180 9; then
+  log "Could not acquire live-url push lock."
+  write_status "failed: lock timeout"
+  exit 1
+fi
+
 # Read GH_TOKEN without executing .env (strips CR). Existing env wins.
 if [ -z "${GH_TOKEN:-}" ] && [ -z "${GITHUB_TOKEN:-}" ]; then
   GH_TOKEN="$(bash "$ROOT/scripts/read_env_key.sh" GH_TOKEN "$ROOT/.env" || true)"
 fi
 export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
-# Never leak a token that was pasted with a trailing \r into git credentials.
 GH_TOKEN="$(printf '%s' "$GH_TOKEN" | tr -d '\r')"
 export GH_TOKEN
 
 git config user.name "dipak5501"
 git config user.email "dipak5501@users.noreply.github.com"
 
-# Canonical live-URL files. Copy whole files only when they are the Link
-# pointers, or when they contain the marked live-demo block (so we do not
-# overwrite a newer GitHub README with an older Mac checkout).
 CANDIDATES=(
   Link
   Link.md
@@ -85,26 +94,23 @@ for rel in "${FILES[@]}"; do
   cp "$ROOT/$rel" "$WT/$rel"
 done
 
-cd "$WT"
-git add -- "${FILES[@]}"
-if git diff --cached --quiet; then
+git -C "$WT" add -- "${FILES[@]}"
+if git -C "$WT" diff --cached --quiet; then
   log "origin/main already has the current public URLs."
   write_status "ok: origin/main already current"
   exit 0
 fi
 
-git commit -m "chore: update public Cloudflare tunnel URLs"
+git -C "$WT" commit -m "chore: update public Cloudflare tunnel URLs"
 
 _redact() {
-  # Drop token-shaped strings from git/credential errors.
   sed -E 's/github_pat_[A-Za-z0-9_]+/<redacted-pat>/g; s/ghp_[A-Za-z0-9]+/<redacted-pat>/g; s/:[^\/:@]+@/:<redacted>@/g'
 }
 
 _push_with_token() {
   local err
   err="$(mktemp)"
-  # Ignore stored helpers (stale PAT in macOS Keychain / origin URL).
-  if ! GIT_TERMINAL_PROMPT=0 git \
+  if ! GIT_TERMINAL_PROMPT=0 git -C "$WT" \
     -c credential.helper= \
     -c credential.helper='!f() { echo username=x-access-token; echo "password=${GH_TOKEN}"; }; f' \
     push origin "HEAD:main" 2>"$err"; then
@@ -131,7 +137,7 @@ if [ -n "${GH_TOKEN:-}" ]; then
 fi
 
 if command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1; then
-  GIT_TERMINAL_PROMPT=0 git push origin HEAD:main
+  GIT_TERMINAL_PROMPT=0 git -C "$WT" push origin HEAD:main
   log "Pushed live URLs to origin/main via gh (${FILES[*]})"
   write_status "ok: pushed via gh ${FILES[*]}"
   exit 0

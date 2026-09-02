@@ -15,7 +15,7 @@ USER_NAME="$(id -un)"
 USER_HOME="${HOME}"
 UID_NUM="$(id -u)"
 AGENT_DIR="$USER_HOME/Library/LaunchAgents"
-PATH_VAL="$ROOT/.venv/bin:$USER_HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$USER_HOME/Applications/Ollama.app/Contents/Resources"
+PATH_VAL="$ROOT/.venv/bin:$USER_HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin:$USER_HOME/Applications/Ollama.app/Contents/Resources"
 
 chmod +x "$LAUNCHD_DIR"/run_*.sh
 mkdir -p "$AGENT_DIR" "$ROOT/data/run"

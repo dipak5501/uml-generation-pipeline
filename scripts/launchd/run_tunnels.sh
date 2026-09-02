@@ -4,10 +4,16 @@
 set -euo pipefail
 ROOT="/Users/033783670/Desktop/uml-generation-pipeline-main"
 cd "$ROOT"
-export PATH="$HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
-CLOUDFLARED="${CLOUDFLARED:-$HOME/.local/bin/cloudflared}"
-if [ ! -x "$CLOUDFLARED" ]; then
-  echo "cloudflared missing at $CLOUDFLARED" >&2
+export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+CLOUDFLARED="${CLOUDFLARED:-}"
+if [ -z "$CLOUDFLARED" ]; then
+  CLOUDFLARED="$(command -v cloudflared || true)"
+fi
+if [ -z "$CLOUDFLARED" ] && [ -x "$HOME/.local/bin/cloudflared" ]; then
+  CLOUDFLARED="$HOME/.local/bin/cloudflared"
+fi
+if [ -z "$CLOUDFLARED" ] || [ ! -x "$CLOUDFLARED" ]; then
+  echo "cloudflared missing (not on PATH or ~/.local/bin/cloudflared)" >&2
   exit 1
 fi
 

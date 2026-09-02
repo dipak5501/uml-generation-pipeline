@@ -13,7 +13,9 @@ def test_git_push_live_urls_script_targets_main():
     text = script.read_text(encoding="utf-8")
     assert script.is_file()
     assert "push origin" in text
-    assert "HEAD:main" in text
+    assert "git -C" in text
+    assert 'cd "$WT"' not in text
+    assert "flock" in text
     assert "git_auto_push.sh" not in text
     assert "Link.md" in text
     assert "read_env_key.sh" in text

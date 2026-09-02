@@ -6,7 +6,7 @@ LAUNCHD_DIR="$ROOT/scripts/launchd"
 USER_HOME="${HOME}"
 UID_NUM="$(id -u)"
 AGENT_DIR="$USER_HOME/Library/LaunchAgents"
-PATH_VAL="$ROOT/.venv/bin:$USER_HOME/.local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+PATH_VAL="$ROOT/.venv/bin:$USER_HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
 INTERVAL_SEC="${TUNNEL_MONITOR_INTERVAL_SEC:-240}"  # default 4 minutes
 
 LABEL="com.uml.pipeline.tunnel-monitor"
