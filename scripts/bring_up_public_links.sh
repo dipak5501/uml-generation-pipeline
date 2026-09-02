@@ -14,10 +14,14 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 export PATH="$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:$PATH"
 
-echo "== git (main) =="
+echo "== git (follow GitHub main) =="
 git fetch origin main
 git checkout main
-git pull origin main
+# This Mac is a replica of origin/main. Local unpublished commits (often
+# failed auto-sync) must not block tunnels. .env / data/ / models/ are gitignored.
+echo "Resetting local main to origin/main (gitignored .env is kept)."
+git reset --hard origin/main
+git status -sb
 
 echo "== always-on LaunchAgents (API, UI, Ollama, tunnels, URL publish) =="
 bash "$ROOT/scripts/install_macos_user_server.sh"

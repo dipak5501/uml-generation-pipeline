@@ -15,6 +15,7 @@ def test_bring_up_public_links_refuses_non_darwin():
     text = script.read_text(encoding="utf-8")
     assert "Darwin" in text
     assert "git_push_live_urls.sh" in text
+    assert "git reset --hard origin/main" in text
     if sys.platform == "darwin":
         return
     proc = subprocess.run(
