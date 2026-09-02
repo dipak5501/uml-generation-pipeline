@@ -54,7 +54,13 @@ The paper describes **DeepSeek-R1-Distill-Qwen-32B** for Stage 2 PlantUML genera
 | Remote agent | `POST /api/agent/command` (Cursor SDK) |
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-09-02):** **offline** (no public trycloudflare hostname). Last published URLs from 2026-08-31 do not resolve. On the Mac Studio run `bash scripts/bring_up_public_links.sh`; this block is rewritten with the new UI/API/agent URLs and pushed to GitHub `main`. Always-current copy: [../Link.md](../Link.md). Canonical files on the Mac: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
+**Live demo (as of 2026-09-02):**
+
+- **UI:** [https://shanghai-logos-mere-sticks.trycloudflare.com](https://shanghai-logos-mere-sticks.trycloudflare.com)
+- **API:** [https://urban-install-big-noticed.trycloudflare.com](https://urban-install-big-noticed.trycloudflare.com)
+- **Agent:** [https://urban-install-big-noticed.trycloudflare.com/api/agent](https://urban-install-big-noticed.trycloudflare.com/api/agent)
+
+Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
 
 ---

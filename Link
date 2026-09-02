@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-(no live Cloudflare hostname — last public tunnels died 2026-08-31)
+https://shanghai-logos-mere-sticks.trycloudflare.com
 
-UI:    (offline) run on the Mac: bash scripts/bring_up_public_links.sh
-API:   (offline)
-Agent: (offline)
+UI:    https://shanghai-logos-mere-sticks.trycloudflare.com
+API:   https://urban-install-big-noticed.trycloudflare.com
+Agent: https://urban-install-big-noticed.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-02 18:56 UTC
-Public trycloudflare.com URLs are created only on the Mac Studio.
+Updated: 2026-09-02 19:10 UTC
+URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

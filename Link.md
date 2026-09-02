@@ -4,32 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** **offline** as of 2026-09-02 18:56 UTC.
-
-The previous GitHub hostnames (`individual-cinema-uri-checkout.trycloudflare.com` and `hypothetical-advanced-meanwhile-wow.trycloudflare.com`) **do not resolve**. Cloudflare quick-tunnel names are deleted when the Mac `cloudflared` process stops. This cloud checkout cannot mint a new public hostname.
+**Live UI:** [https://shanghai-logos-mere-sticks.trycloudflare.com](https://shanghai-logos-mere-sticks.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | **offline** — start tunnels on the Mac (below) |
-| Public API (docs / exports) | **offline** |
-| Remote command agent | **offline** |
+| Public UI (browser, any network) | https://shanghai-logos-mere-sticks.trycloudflare.com |
+| Public API (docs / exports) | https://urban-install-big-noticed.trycloudflare.com |
+| Remote command agent | https://urban-install-big-noticed.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
-On the Mac Studio:
+Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-```bash
-cd /Users/033783670/Desktop/uml-generation-pipeline-main
-git checkout main && git pull origin main
-bash scripts/bring_up_public_links.sh
-cat data/run/public_ui_url.txt
-```
-
-That installs **always-on** user LaunchAgents (API, UI, dual Ollama, Cloudflare tunnels, tunnel watchdog, GitHub `Link.md` publisher, caffeinate). They survive Cursor quit and screen lock. **Do not Log Out** this macOS user (use Fast User Switch). The same command writes a **new** `https://….trycloudflare.com` into this file and pushes GitHub `main`. Until then there is no public URL.
-
-Canonical copies on the Mac: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
-
-Updated: 2026-09-02 18:56 UTC
+Updated: 2026-09-02 19:10 UTC
 
 ## Authentication
 
@@ -37,9 +24,26 @@ Updated: 2026-09-02 18:56 UTC
 
 ## Remote command agent
 
-Control this Mac Studio from any device after tunnels are up. Until then use local `http://127.0.0.1:8000/api/agent`.
+Control this Mac Studio from any device (phone, laptop, another network).
+
+| Endpoint | URL |
+|----------|-----|
+| Agent health (open) | `https://urban-install-big-noticed.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://urban-install-big-noticed.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://urban-install-big-noticed.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
+
+**Example from phone/laptop:**
+
+```bash
+export TOKEN="your-token-from-env"
+curl -s "https://urban-install-big-noticed.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://urban-install-big-noticed.trycloudflare.com/api/agent/command" \
+  -H "Authorization: Bearer $TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{"command":"health"}'
+```
 
 Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
 
@@ -49,7 +53,7 @@ Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, 
 |---------|-----|
 | Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |
 | Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |
-| Stale Link on GitHub | `bash scripts/bring_up_public_links.sh` then `cat data/run/github_url_push.status` |
+| Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |
 
 See also: [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
@@ -59,5 +63,4 @@ Safe changes push to [github.com/dipak5501/uml-generation-pipeline](https://gith
 
 - Manual full sync: `bash scripts/auto_sync_all.sh`
 - Git only: `bash scripts/git_auto_push.sh`
-- Live URLs: `bash scripts/git_push_live_urls.sh`
 - See [docs/git_sync.md](docs/git_sync.md)
