@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://individual-cinema-uri-checkout.trycloudflare.com
+(no live Cloudflare hostname — last public tunnels died 2026-08-31)
 
-UI:    https://individual-cinema-uri-checkout.trycloudflare.com
-API:   https://hypothetical-advanced-meanwhile-wow.trycloudflare.com
-Agent: https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent
+UI:    (offline) run on the Mac: bash scripts/bring_up_public_links.sh
+API:   (offline)
+Agent: (offline)
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-08-31 14:52 UTC
-URLs change when Cloudflare quick tunnels restart.
+Updated: 2026-09-02 18:56 UTC
+Public trycloudflare.com URLs are created only on the Mac Studio.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

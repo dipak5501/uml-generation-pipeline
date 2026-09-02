@@ -12,13 +12,7 @@ This repository implements the system described in **Automated UML Dataset Gener
 **Full architecture:** [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-08-31):**
-
-- **UI:** [https://individual-cinema-uri-checkout.trycloudflare.com](https://individual-cinema-uri-checkout.trycloudflare.com)
-- **API:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com)
-- **Agent:** [https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent](https://hypothetical-advanced-meanwhile-wow.trycloudflare.com/api/agent)
-
-Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [Link.md](Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
+**Live demo (as of 2026-09-02):** **offline** (no public trycloudflare hostname). Last published URLs from 2026-08-31 do not resolve. On the Mac Studio run `bash scripts/bring_up_public_links.sh`; this block is rewritten with the new UI/API/agent URLs and pushed to GitHub `main`. Always-current copy: [Link.md](Link.md). Canonical files on the Mac: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
 
 ---
