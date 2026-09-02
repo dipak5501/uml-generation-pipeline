@@ -127,6 +127,11 @@ def test_detect_finetuned_backend_peft_vs_mlx(tmp_path):
     mlx_dir = tmp_path / "mlx"
     mlx_dir.mkdir()
     (mlx_dir / "adapters.safetensors").write_bytes(b"x")
+    # mlx_lm also writes adapter_config.json — must still detect as mlx
+    (mlx_dir / "adapter_config.json").write_text(
+        '{"fine_tune_type":"lora","model":"mlx-community/Qwen2.5-0.5B-Instruct-4bit"}',
+        encoding="utf-8",
+    )
     assert detect_finetuned_backend(mlx_dir, "mlx-community/Qwen2.5-0.5B-Instruct-4bit") == "mlx"
     mlx_provider = build_finetuned_provider(
         "mlx-community/Qwen2.5-0.5B-Instruct-4bit", mlx_dir

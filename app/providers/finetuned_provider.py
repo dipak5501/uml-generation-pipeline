@@ -24,15 +24,35 @@ def peft_base_model_id(model_id: str) -> str:
 
 
 def detect_finetuned_backend(adapter_path: Path, base_model: str = "") -> str:
-    """Return ``peft`` (NVIDIA/HF) or ``mlx`` (Apple Silicon) from adapter files."""
+    """Return ``peft`` (NVIDIA/HF) or ``mlx`` (Apple Silicon) from adapter files.
+
+    MLX LoRA checkpoints often include ``adapter_config.json`` (mlx_lm) *and*
+    ``adapters.safetensors``. Prefer MLX weight files over a PEFT guess from
+    config alone.
+    """
+    import json
+
     path = Path(adapter_path)
-    if (path / "adapter_config.json").is_file():
-        return "peft"
+    # Weight files are authoritative (mlx_lm also writes adapter_config.json).
+    if (path / "adapters.safetensors").is_file() or list(path.glob("*_adapters.safetensors")):
+        return "mlx"
     if (path / "adapter_model.safetensors").is_file() or (path / "adapter_model.bin").is_file():
         return "peft"
-    mlx_adapter = path / "adapters.safetensors"
-    if mlx_adapter.is_file() or list(path.glob("*_adapters.safetensors")):
-        return "mlx"
+
+    cfg_path = path / "adapter_config.json"
+    cfg: dict = {}
+    if cfg_path.is_file():
+        try:
+            cfg = json.loads(cfg_path.read_text(encoding="utf-8"))
+        except Exception:  # noqa: BLE001
+            cfg = {}
+        model = str(cfg.get("model") or "")
+        if cfg.get("fine_tune_type") or "mlx-community" in model.lower():
+            return "mlx"
+        # HF PEFT config (possibly empty stub in tests) → peft even if base id is mlx-*
+        if cfg.get("peft_type") is not None or cfg_path.is_file():
+            return "peft"
+
     if "mlx-community" in (base_model or "").lower():
         return "mlx"
     return "peft"
