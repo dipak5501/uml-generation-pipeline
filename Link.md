@@ -4,19 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://winning-med-sandy-promises.trycloudflare.com](https://winning-med-sandy-promises.trycloudflare.com)
+**Live UI:** [https://robots-tears-logging-pressed.trycloudflare.com](https://robots-tears-logging-pressed.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://winning-med-sandy-promises.trycloudflare.com |
-| Public API (docs / exports) | https://sticks-cho-promo-calls.trycloudflare.com |
-| Remote command agent | https://sticks-cho-promo-calls.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://robots-tears-logging-pressed.trycloudflare.com |
+| Public API (docs / exports) | https://thursday-automatically-furnished-contracting.trycloudflare.com |
+| Remote command agent | https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-09-02 19:14 UTC
+Updated: 2026-09-02 19:19 UTC
 
 ## Authentication
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://sticks-cho-promo-calls.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://sticks-cho-promo-calls.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://sticks-cho-promo-calls.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://sticks-cho-promo-calls.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://sticks-cho-promo-calls.trycloudflare.com/api/agent/command" \
+curl -s "https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://thursday-automatically-furnished-contracting.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'
@@ -51,6 +51,7 @@ Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, 
 
 | Symptom | Fix |
 |---------|-----|
+| Cloudflare **1033 / 530** | `cloudflared` died — `bash scripts/start_public_tunnels.sh` |
 | Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |
 | Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |
 | Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |
