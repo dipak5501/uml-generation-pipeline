@@ -2,7 +2,7 @@ import time
 
 import streamlit as st
 
-from ui.api_client import api_auth_mismatch_message, api_get, api_get_bytes, api_post
+from ui.artifact_view import render_artifact_grid, render_artifact_result, vlm_skipped
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -11,35 +11,16 @@ from ui.jobs import (
     render_active_job_banner,
     track_job,
 )
-from ui.theme import apply_theme, hero, panel, show_image
-
-
-def _vlm_skipped(artifact: dict) -> bool:
-    msgs = str(artifact.get("validation_messages") or "")
-    if "VLM ensemble skipped" in msgs or "VLM scoring skipped" in msgs:
-        return True
-    scores = artifact.get("model_scores") or []
-    return bool(scores) and all(not s.get("available", True) for s in scores)
+from ui.theme import apply_theme, hero
+from ui.api_client import api_post
 
 st.set_page_config(page_title="UML-Pipeline · Generate", layout="wide", page_icon="▦")
 apply_theme(show_job_banner=False)
 
 hero(
-    "Generate from text or source code",
-    "Paste a requirement paragraph or software source. UML-Pipeline builds a "
-    "technical specification, a labeled PlantUML diagram with a plain-English guide, "
-    "a render gate, and multimodal validation scores. Use the picture to track design "
-    "as the software grows.",
-    chips=["Requirements", "Source code", "Verification", "SDLC"],
-)
-
-st.info(
-    "**How these UML types track the software lifecycle**  \n"
-    "- **Class** — design / domain model (types, fields, relationships). Update when you add features.  \n"
-    "- **Object** — a snapshot of instances at runtime.  \n"
-    "- **Component** — architecture (services, interfaces, dependencies).  \n"
-    "- **Package** — modules/folders and how they depend on each other.  \n"
-    "Every diagram includes a title, a ‘what this shows’ note, English arrow labels, and a symbol legend."
+    "Generate",
+    "Requirement or source code → PlantUML → render → VLM scores (S, A, dataset gate).",
+    chips=["class", "object", "component", "package"],
 )
 
 REQ_EXAMPLES = {
@@ -92,14 +73,6 @@ class PaymentService:
         return amount > 0
 '''
 
-panel(
-    "Input",
-    "Choose Requirement text or Source code, then generate. Pipeline: CoT PlantUML → "
-    "validation → render gate → 3 VLMs → weighted composite S + majority vote A (τ=4) → "
-    "dataset gate (A=1 and S≥3). The four paper UML types: class, object, component, package. "
-    "Turn on **Score with VLMs** to compute composite S (takes longer). Generation runs in the background."
-)
-
 input_mode_label = st.radio(
     "Input type",
     ["Requirement / paragraph", "Software source code"],
@@ -107,14 +80,13 @@ input_mode_label = st.radio(
 )
 input_mode = "source_code" if input_mode_label.startswith("Software") else "requirement"
 
-# Example selection must happen before text widgets are created
 if "pending_example" in st.session_state:
     st.session_state["free_requirement_input"] = st.session_state.pop("pending_example")
 if "free_requirement_input" not in st.session_state:
     st.session_state["free_requirement_input"] = ""
 
 if input_mode == "requirement":
-    example_choice = st.selectbox("Optional requirement example", list(REQ_EXAMPLES.keys()))
+    example_choice = st.selectbox("Example", list(REQ_EXAMPLES.keys()))
     if example_choice != "(type your own)":
         if st.session_state.get("_last_example_choice") != example_choice:
             st.session_state["_last_example_choice"] = example_choice
@@ -122,85 +94,53 @@ if input_mode == "requirement":
             st.rerun()
     else:
         st.session_state["_last_example_choice"] = example_choice
-else:
-    if st.button("Load sample checkout code"):
-        st.session_state["pending_example"] = CODE_EXAMPLE
-        st.rerun()
+elif st.button("Load sample checkout code"):
+    st.session_state["pending_example"] = CODE_EXAMPLE
+    st.rerun()
 
 requirement = st.text_area(
-    "Your requirement or source code",
-    height=260,
-    placeholder=(
-        "Requirement mode: describe a feature in plain English…\n\n"
-        "Code mode: paste Python/Java/JS classes and functions…"
-    ),
+    "Requirement or source code",
+    height=220,
+    placeholder="Describe a feature, or paste Python / Java / C…",
     label_visibility="collapsed",
     key="free_requirement_input",
-)
-st.caption(
-    "Tips for reliable runs: use 2–8 clear sentences (or a focused class file), pick one "
-    "diagram type that matches the content, and avoid pasting entire repos. Long inputs are "
-    "auto-clipped for the model but still grounded structurally. Leave **Score with VLMs** "
-    "on to get Qwen / LLaMA / Aya scores; uncheck it only if you want a fast diagram with no S."
 )
 
 left, right = st.columns([1.2, 1])
 with left:
-    diagram_type = st.selectbox(
-        "Diagram type",
-        ["class", "object", "component", "package"],
-    )
+    diagram_type = st.selectbox("Diagram type", ["class", "object", "component", "package"])
 with right:
-    gen_all = st.checkbox("Also generate the other diagram types", value=False)
-    score_vlm = st.checkbox(
-        "Score with VLMs (paper composite S)",
-        value=True,
-        help="If off, PlantUML still renders but S stays unscored (shown as 0 / —). "
-        "If on, generation waits for vision models (~1–2 minutes).",
-    )
+    gen_all = st.checkbox("Also generate the other three types", value=False)
+    score_vlm = st.checkbox("Score with VLMs", value=True)
     skip_repair = False
     skip_majority = False
-    with st.expander("Ablations (committee)"):
-        skip_repair = st.checkbox(
-            "Skip repair loop",
-            value=False,
-            help="Raw generator only — no repair iterations and no template fallback.",
-        )
-        skip_majority = st.checkbox(
-            "Skip majority gate A for dataset entry",
-            value=False,
-            help="Dataset uses render ∧ S≥3. Majority A is still computed and shown.",
-        )
+    with st.expander("Advanced"):
+        skip_repair = st.checkbox("Skip repair loop", value=False)
+        skip_majority = st.checkbox("Skip majority gate for dataset entry", value=False)
 
 can_run = bool((requirement or "").strip())
-busy = active_job_id() is not None and (fetch_job(active_job_id() or 0) or {}).get("status") in (
-    "pending",
-    "running",
-    None,
-)
+jid = active_job_id()
+job_now = fetch_job(jid) if jid is not None else None
+busy = bool(job_now and job_now.get("status") in ("pending", "running"))
+
 run = st.button(
-    "Generate + validate",
+    "Generate",
     type="primary",
-    disabled=not can_run or bool(busy),
+    disabled=not can_run or busy,
     use_container_width=True,
 )
 if not can_run:
-    st.caption("Enter a requirement or paste code to enable generation.")
+    st.caption("Enter a requirement or paste code.")
 elif busy:
-    st.caption("A generation job is already running — wait for it to finish or open another page.")
+    st.caption("A job is already running.")
 
 if run and can_run and not busy:
-    text = requirement.strip()
-    types = (
-        ["class", "object", "component", "package"]
-        if gen_all
-        else [diagram_type]
-    )
+    types = ["class", "object", "component", "package"] if gen_all else [diagram_type]
     try:
         result = api_post(
             "/api/generate",
             {
-                "requirement": text,
+                "requirement": requirement.strip(),
                 "diagram_type": types[0],
                 "diagram_types": types,
                 "input_mode": input_mode,
@@ -210,17 +150,11 @@ if run and can_run and not busy:
                 "skip_majority": skip_majority,
             },
         )
-        job_id = int(result["job_id"])
-        track_job(job_id, label="Generate")
-        st.success(
-            f"Started background job #{job_id} for {len(types)} diagram type(s). "
-            "You can switch to Dashboard / Settings — generation will continue."
-        )
+        track_job(int(result["job_id"]), label="Generate")
         st.rerun()
     except Exception as exc:
         st.error(str(exc))
 
-# Poll active job on this page (safe: API work is detached)
 job_id = active_job_id()
 if job_id is not None:
     job = render_active_job_banner(auto_refresh=False)
@@ -232,10 +166,12 @@ if job_id is not None:
         arts = load_job_results_into_session(job_id)
         clear_job()
         if arts:
-            st.success(f"Loaded {len(arts)} artifact(s) from job #{job_id}.")
             st.rerun()
     elif job and job.get("status") == "failed":
-        clear_job()
+        st.error(job.get("error") or "Generation failed")
+        if st.button("Dismiss failed job"):
+            clear_job()
+            st.rerun()
 
 artifact = st.session_state.get("last_artifact")
 if not artifact:
@@ -243,164 +179,16 @@ if not artifact:
 
 st.divider()
 st.subheader("Result")
-st.markdown("**Your input**")
-source_lang = artifact.get("source_language")
-artifact_input_mode = artifact.get("input_mode") or input_mode
-if artifact_input_mode == "source_code" or source_lang:
-    lang = source_lang or "unknown"
-    st.caption(f"Input mode: `{artifact_input_mode}` · detected language: `{lang}`")
-    st.code(
-        artifact["source_requirement"],
-        language=lang if lang != "unknown" else None,
-    )
-else:
-    st.caption(f"Input mode: `{artifact_input_mode}`")
-    st.write(artifact["source_requirement"])
-
-_spec_text = artifact.get("technical_spec") or ""
-if "### Purpose" in _spec_text or "### Software lifecycle" in _spec_text or "### Summary" in _spec_text:
-    with st.expander("How to read this diagram (plain English)", expanded=True):
-        st.markdown(
-            "This picture is a living design artifact: update it when the software changes. "
-            "Boxes are types or parts; labeled arrows say how they relate."
-        )
-        st.text(_spec_text[:2500])
-
-st.subheader("Paper validation pipeline")
-render_ok = artifact["render_status"] == "success"
-syntax_ok = not (artifact.get("validation_messages") or "").strip()
-scores = artifact.get("model_scores") or []
-available = [s for s in scores if s.get("available", True)]
-vlm_skipped = _vlm_skipped(artifact)
-vlm_ok = bool(available) and render_ok
-composite = artifact.get("composite_score", 0)
-majority_ok = bool(artifact.get("majority_accepted"))
-dataset_ok = bool(artifact.get("dataset_accepted"))
-votes = artifact.get("affirmative_votes", 0)
-tau = artifact.get("acceptance_tau", 4.0)
-
-v1, v2, v3, v4, v5 = st.columns(5)
-v1.metric("1. Spec + CoT", "Pass" if artifact.get("used_cot", True) else "Spec only")
-v2.metric("2. PlantUML syntax", "Pass" if syntax_ok else "Flags")
-v3.metric("3. Render gate", "Pass" if render_ok else "Fail → score 0")
-v4.metric("4. Composite S", "not scored" if vlm_skipped else f"{composite:.2f}")
-v5.metric("5. Majority A", "not scored" if vlm_skipped else f"{'Yes' if majority_ok else 'No'} ({votes}/3 ≥τ={tau:g})")
-
-st.caption(
-    f"Dataset entry accepted: **{'Yes' if dataset_ok else 'No'}** "
-    f"(requires majority A=1 and composite S ≥ 3.0)."
-)
-
-if artifact.get("validation_messages"):
-    st.warning(artifact["validation_messages"])
-
-c1, c2 = st.columns([1.1, 0.9])
-with c1:
-    st.markdown("**Technical specification**")
-    if source_lang:
-        st.caption(f"Source-code mode · detected language: `{source_lang}`")
-    st.text(artifact["technical_spec"])
-    st.markdown("**PlantUML**")
-    st.code(artifact["plantuml_code"], language="text")
-    st.download_button("Download PlantUML", artifact["plantuml_code"], file_name="diagram.puml")
-with c2:
-    st.metric(
-        "Final weighted score",
-        "not scored" if _vlm_skipped(artifact) else f"{artifact['composite_score']:.3f}",
-    )
-    if artifact.get("render_status") == "success":
-        _auth_warn = api_auth_mismatch_message()
-        if _auth_warn:
-            st.warning(_auth_warn)
-        if st.button("Rescore with VLMs", key=f"rescore-{artifact['id']}"):
-            try:
-                updated = api_post(f"/api/artifacts/{artifact['id']}/rescore", {})
-                st.session_state["last_artifact"] = updated
-                st.success("VLM scoring finished.")
-                st.rerun()
-            except Exception as exc:
-                st.error(str(exc))
-    st.caption(
-        "Weights (MMMU): Qwen 53.1 · LLaMA-Vision 50.7 · Aya-Vision 39.9 · "
-        "render failure forces S=0; majority vote τ=4 (≥2 VLMs)."
-    )
-    st.markdown(
-        f"**Render:** `{artifact['render_status']}` · **Type:** `{artifact['diagram_type']}` · "
-        f"**Input:** `{artifact_input_mode}`"
-        + (f" · **Lang:** `{source_lang}`" if source_lang else "")
-        + f" · **Dataset:** `{'accepted' if dataset_ok else 'rejected'}`"
-    )
-    if artifact["render_status"] == "success":
-        try:
-            img = api_get_bytes(f"/api/artifacts/{artifact['id']}/image")
-            show_image(img, caption="Rendered + multimodal-validated diagram")
-            st.download_button(
-                "Download image",
-                img,
-                file_name=f"diagram.{artifact.get('image_format', 'png')}",
-            )
-        except Exception as exc:
-            st.error(f"Image load failed: {exc}")
-    else:
-        st.error("Render failed — paper rule: composite score = 0. PlantUML still available.")
-        if artifact_input_mode == "source_code":
-            st.info(
-                "Source-code tips: paste a focused class, struct, or interface with named fields and "
-                "methods. Bare scripts without type declarations often fail render or score poorly."
-            )
-
-if (
-    artifact_input_mode == "source_code"
-    and render_ok
-    and not vlm_skipped
-    and composite < 3.0
-):
-    st.info(
-        "Score below 3.0: try a richer snippet (multiple classes, inheritance, or associations) "
-        "or switch diagram type to match the code structure."
-    )
-
-st.subheader("Per-model VLM scores")
-model_scores = artifact.get("model_scores") or []
-if model_scores:
-    st.dataframe(model_scores, use_container_width=True, hide_index=True)
-    for row in model_scores:
-        label = f"{row.get('model_name') or row.get('model_key')} · score {row.get('score')}"
-        with st.expander(label, expanded=bool(row.get("explanation")) and row.get("available", True)):
-            st.write(row.get("explanation") or "(no explanation returned)")
-else:
-    st.info("No per-model scores yet.")
-
-if artifact.get("repair_attempts"):
-    st.subheader("Repair attempts")
-    st.table(artifact["repair_attempts"])
-
-try:
-    adapt = api_get(f"/api/artifacts/{artifact['id']}/adaptation")
-except Exception:
-    adapt = None
-if adapt and (adapt.get("events") or adapt.get("generator")):
-    st.subheader("Self-adaptation")
-    st.caption(adapt.get("generator_reason") or "")
-    st.write(
-        f"Generator: `{adapt.get('generator') or '—'}` · "
-        f"strategies tried: `{', '.join(adapt.get('tried_strategies') or []) or 'none'}`"
-    )
-    events = adapt.get("events") or []
-    if events:
-        st.dataframe(events, use_container_width=True, hide_index=True)
+render_artifact_result(artifact, key_prefix="gen")
 
 extras = st.session_state.get("last_artifacts") or []
 if len(extras) > 1:
-    st.subheader("Other diagram types")
-    st.table(
-        [
-            {
-                "id": a["id"],
-                "diagram_type": a["diagram_type"],
-                "render_status": a["render_status"],
-                "composite_score": a["composite_score"],
-            }
-            for a in extras
-        ]
-    )
+    st.subheader("All types from this run")
+    render_artifact_grid(extras, key_prefix="gen-grid")
+    if (
+        artifact.get("input_mode") == "source_code"
+        and artifact.get("render_status") == "success"
+        and not vlm_skipped(artifact)
+        and float(artifact.get("composite_score") or 0) < 3.0
+    ):
+        st.caption("S < 3: a richer snippet (several types and relationships) usually scores higher.")

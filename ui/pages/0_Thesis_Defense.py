@@ -8,6 +8,7 @@ import pandas as pd
 import streamlit as st
 
 from ui.api_client import api_get, api_get_bytes, api_post
+from ui.artifact_view import render_artifact_grid, render_artifact_result
 from ui.jobs import (
     active_job_id,
     clear_job,
@@ -16,7 +17,7 @@ from ui.jobs import (
     render_active_job_banner,
     track_job,
 )
-from ui.theme import apply_theme, hero, panel, show_image, stats_row
+from ui.theme import apply_theme, hero, panel, stats_row
 
 st.set_page_config(page_title="UML-Pipeline · Thesis Defense", layout="wide", page_icon="▦")
 apply_theme(show_job_banner=False)
@@ -143,28 +144,21 @@ if job_id is not None:
         arts = load_job_results_into_session(job_id)
         clear_job()
         if arts:
-            st.success(f"Loaded {len(arts)} artifact(s) from job #{job_id}.")
+            st.rerun()
+    elif job and job.get("status") == "failed":
+        st.error(job.get("error") or "Demo failed")
+        if st.button("Dismiss failed job"):
+            clear_job()
             st.rerun()
 
 arts = st.session_state.get("last_artifacts") or []
 if st.session_state.get("last_artifact") and not arts:
     arts = [st.session_state["last_artifact"]]
 if arts:
-    st.subheader("Latest demo artifacts")
-    for art in arts:
-        with st.container(border=True):
-            m1, m2, m3, m4 = st.columns(4)
-            m1.metric("Type", art.get("diagram_type", "—"))
-            m2.metric("Render", art.get("render_status", "—"))
-            m3.metric("S", f"{art.get('composite_score', 0):.2f}")
-            m4.metric("A / dataset", f"{'A' if art.get('majority_accepted') else '—'} / {'in' if art.get('dataset_accepted') else 'out'}")
-            if art.get("render_status") == "success":
-                try:
-                    show_image(api_get_bytes(f"/api/artifacts/{art['id']}/image"), caption=f"#{art['id']}")
-                except Exception:
-                    st.caption("Image unavailable")
-            with st.expander("PlantUML"):
-                st.code(art.get("plantuml_code") or "", language="text")
+    st.subheader("Latest run")
+    render_artifact_result(arts[0], key_prefix="def")
+    if len(arts) > 1:
+        render_artifact_grid(arts, key_prefix="def-grid")
 
 st.subheader("RQ3 · Package failures on this server")
 st.caption(

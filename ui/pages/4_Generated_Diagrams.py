@@ -12,6 +12,7 @@ from ui.jobs import (
     fetch_job_artifacts,
     track_job,
 )
+from ui.nav import go_eval
 from ui.theme import apply_theme, hero, show_image
 
 st.set_page_config(page_title="UML-Pipeline · Generated Diagrams", layout="wide", page_icon="▦")
@@ -31,7 +32,13 @@ hero(
 _job_id = active_job_id()
 if _job_id is not None:
     _job = fetch_job(_job_id)
-    if _job and _job.get("status") == "completed":
+    if _job and _job.get("status") in ("pending", "running"):
+        st.info(f"Job #{_job_id}: {_job.get('status')} — {_job.get('completed')}/{_job.get('total')}")
+        import time
+
+        time.sleep(2.0)
+        st.rerun()
+    elif _job and _job.get("status") == "completed":
         arts = fetch_job_artifacts(_job_id)
         clear_job()
         if arts:
@@ -40,7 +47,9 @@ if _job_id is not None:
         st.rerun()
     elif _job and _job.get("status") == "failed":
         st.error(_job.get("error") or "Generation failed")
-        clear_job()
+        if st.button("Dismiss failed job", key="gallery-fail-dismiss"):
+            clear_job()
+            st.rerun()
 
 
 @st.cache_data(show_spinner=False, ttl=90)
@@ -178,6 +187,7 @@ if opened:
                 try:
                     updated = api_post(f"/api/artifacts/{opened['id']}/rescore", {})
                     st.session_state["gallery_selected"] = updated["id"]
+                    _diagram_png.clear()
                     st.success("VLM scoring finished.")
                     st.rerun()
                 except Exception as exc:
@@ -200,6 +210,8 @@ if opened:
             value=True,
             key=f"more-vlm-{opened['id']}",
         )
+        if st.button("Rate this diagram", key=f"gallery-rate-{opened['id']}", use_container_width=True):
+            go_eval(opened["id"])
         busy = active_job_id() is not None
         if st.button(
             "Generate selected type(s)",
@@ -253,16 +265,19 @@ for i, art in enumerate(items):
             else:
                 st.caption(f"No image ({art.get('render_status')})")
             bits = [
-                f"score {float(art.get('composite_score') or 0):.2f}",
+                f"S {float(art.get('composite_score') or 0):.2f}",
+                "A yes" if art.get("majority_accepted") else "A no",
                 "dataset" if art.get("dataset_accepted") else "held out",
             ]
             if art.get("created_at"):
                 bits.append(str(art["created_at"]).replace("T", " ")[:16])
             st.caption(" · ".join(bits))
-            if st.button("Open", key=f"open-{art['id']}", use_container_width=True):
+            o1, o2 = st.columns(2)
+            if o1.button("Open", key=f"open-{art['id']}", use_container_width=True):
                 st.session_state["gallery_selected"] = art["id"]
                 st.rerun()
-            st.caption("Open → generate another UML type from this input")
+            if o2.button("Rate", key=f"rate-{art['id']}", use_container_width=True):
+                go_eval(art["id"])
 
 nav1, nav2, nav3 = st.columns([1, 2, 1])
 with nav1:

@@ -1,11 +1,12 @@
-"""UML-Pipeline — Streamlit entry."""
+"""UML-Pipeline — Streamlit home."""
 
 from __future__ import annotations
 
 import streamlit as st
 
-from ui.api_client import API_BASE, api_auth_mismatch_message, api_get
-from ui.theme import apply_theme, footer, hero, panel, stats_row
+from ui.api_client import API_BASE, api_auth_mismatch_message, api_get, api_get_bytes
+from ui.nav import go_eval, go_gallery, go_generate
+from ui.theme import apply_theme, footer, hero, show_image, stats_row
 
 st.set_page_config(
     page_title="UML-Pipeline",
@@ -30,51 +31,61 @@ else:
 apply_theme(live=live)
 
 hero(
-    "From requirements to verified UML diagrams",
-    "Generate class, object, component, and package diagrams from natural "
-    "language or source code — with PlantUML rendering, multimodal scores, and dataset gating.",
-    chips=["Mac Studio server", "Dipak Yadav · Yutong Zhao", "PlantUML + VLM ensemble"],
+    "From requirements to verified UML",
+    "Generate, inspect, and rate class / object / component / package diagrams.",
+    chips=["Mac Studio", "PlantUML", "3 VLMs"],
 )
 
-if live and health and summary:
-    stats_row(
-        [
-            ("Artifacts", str(summary.get("total_artifacts", 0))),
-            ("Dataset accepted", str(summary.get("dataset_accepted_count", 0))),
-            ("Majority OK", str(summary.get("majority_accepted_count", 0))),
-            ("Provider", str(health.get("provider_summary") or health.get("provider", "?")).upper()),
-        ]
-    )
-    st.success(f"Connected · {API_BASE}")
-elif not live:
-    panel(
-        "API offline",
-        f"Cannot reach API at <code>{API_BASE}</code>. "
-        f"{('Details: ' + _api_error) if _api_error else 'Start the API, then refresh.'}",
-    )
+if not live:
+    st.error(f"API offline at `{API_BASE}`. {_api_error or ''}")
     footer()
     st.stop()
+
+assert health is not None and summary is not None
+stats_row(
+    [
+        ("Artifacts", str(summary.get("total_artifacts", 0))),
+        ("Dataset in", str(summary.get("dataset_accepted_count", 0))),
+        ("Majority OK", str(summary.get("majority_accepted_count", 0))),
+        ("Provider", str(health.get("provider_summary") or health.get("provider", "?")).upper()),
+    ]
+)
 
 _auth_warn = api_auth_mismatch_message()
 if _auth_warn:
     st.warning(_auth_warn)
 
-n1, n2, n3, n4 = st.columns(4)
-with n1:
-    panel("Thesis defense", "Committee tour: paper vs this Mac Studio, RQ demos, package failures, take-home snapshot.")
-with n2:
-    panel("Generate", "Turn a requirement or source file into a scored UML diagram.")
-with n3:
-    panel("Generated diagrams", "Browse every previously generated UML image, PlantUML file, and score.")
-with n4:
-    panel("System design", "Architecture: pipeline stages, providers, verification, and storage.")
+b1, b2, b3 = st.columns(3)
+if b1.button("Generate", type="primary", use_container_width=True):
+    go_generate()
+if b2.button("Diagrams", use_container_width=True):
+    go_gallery()
+if b3.button("Rate diagrams", use_container_width=True):
+    go_eval()
 
-c1, c2, c3 = st.columns(3)
-with c1:
-    panel("1 · Write a requirement", "Open Generate. Free text is the primary input; examples are optional.")
-with c2:
-    panel("2 · Choose a diagram", "Class, object, component, or package — rendered with PlantUML.")
-with c3:
-    panel("3 · Inspect quality", "Per-model scores, composite score, repairs, and human review.")
+st.subheader("Recent")
+try:
+    recent = api_get("/api/artifacts", limit=6) or []
+except Exception:
+    recent = []
+if not recent:
+    st.info("Nothing stored yet. Generate a diagram.")
+else:
+    cols = st.columns(3)
+    for i, art in enumerate(recent[:6]):
+        with cols[i % 3]:
+            with st.container(border=True):
+                st.markdown(f"**#{art['id']} · {art['diagram_type']}**")
+                st.caption(f"S {float(art.get('composite_score') or 0):.2f}")
+                if art.get("render_status") == "success":
+                    try:
+                        show_image(api_get_bytes(f"/api/artifacts/{art['id']}/image"))
+                    except Exception:
+                        pass
+                a1, a2 = st.columns(2)
+                if a1.button("Open", key=f"home-open-{art['id']}", use_container_width=True):
+                    go_gallery(art["id"])
+                if a2.button("Rate", key=f"home-rate-{art['id']}", use_container_width=True):
+                    go_eval(art["id"])
 
 footer()
