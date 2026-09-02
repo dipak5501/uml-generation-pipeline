@@ -30,6 +30,14 @@ GIT_SYNC_INTERVAL_SEC=1800 bash scripts/install_git_sync.sh
 
 When Cloudflare **quick tunnels** rotate, `scripts/tunnel_notify.py` rewrites `Link`, `Link.md`, and the marked Live demo blocks, then `scripts/git_push_live_urls.sh` **always pushes those URL files to `origin/main`**, even if the Mac checkout is on another branch. That is separate from `git_auto_push.sh` (which still skips when not on `main`, and runs pytest).
 
+`git_push_live_urls.sh` reads `GH_TOKEN` with `scripts/read_env_key.sh` (it does **not** `source .env`, so Outlook signatures cannot abort the push). It strips `\r` from Windows/Outlook copies.
+
+If GitHub `Link.md` stays stale after tunnels restart:
+
+1. On the Mac: `cat /tmp/uml-git-live-urls.log data/run/github_url_push.status`
+2. Auth 401/403: create a **new** PAT (Contents: Read and write), put it only in `.env` on the Mac. Do not paste tokens into chat or email.
+3. `git checkout main && git pull origin main && bash scripts/git_push_live_urls.sh`
+
 Manual live-URL push:
 
 ```bash

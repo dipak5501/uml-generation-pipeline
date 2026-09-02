@@ -18,7 +18,8 @@ DEST="$GEN_DIR/${LABEL}.plist"
 
 chmod +x "$PROGRAM" "$ROOT/scripts/ensure_public_tunnel.sh" "$ROOT/scripts/tunnel_notify.py" \
   "$ROOT/scripts/git_auto_push.sh" "$ROOT/scripts/git_push_live_urls.sh" \
-  "$ROOT/scripts/bring_up_public_links.sh" "$ROOT/scripts/auto_sync_all.sh"
+  "$ROOT/scripts/read_env_key.sh" "$ROOT/scripts/bring_up_public_links.sh" \
+  "$ROOT/scripts/auto_sync_all.sh"
 mkdir -p "$AGENT_DIR" "$GEN_DIR"
 
 sed \

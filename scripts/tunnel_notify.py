@@ -66,6 +66,8 @@ def git_push_link_update() -> None:
     out = ((proc.stdout or "") + (proc.stderr or "")).strip()
     if proc.returncode != 0:
         print(f"git live-url push failed (exit {proc.returncode}): {out[-2000:]}")
+        print("GitHub Link.md was NOT updated. See /tmp/uml-git-live-urls.log")
+        print("and data/run/github_url_push.status (rotate GH_TOKEN on the Mac; do not paste it).")
     elif out:
         print(out[-800:])
 

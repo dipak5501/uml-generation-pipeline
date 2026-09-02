@@ -253,6 +253,7 @@ curl -s -X POST "$API_URL/api/generate" \
 |---------|-----|
 | Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` on Mac |
 | 401 Unauthorized | Token mismatch — re-read from Mac `.env`, never from chat history |
+| Stale URLs on GitHub | On Mac: `cat /tmp/uml-git-live-urls.log data/run/github_url_push.status`; rotate `GH_TOKEN` in `.env` (do not paste); `bash scripts/git_push_live_urls.sh` |
 | Stale URLs | `bash scripts/ensure_public_tunnel.sh` or check `Link` |
 | Local services down | `bash scripts/macos_server_status.sh` on Mac |
 | Task stuck `queued` | Another long task may be running; poll or wait |
