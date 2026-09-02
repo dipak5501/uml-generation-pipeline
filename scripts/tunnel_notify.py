@@ -214,7 +214,8 @@ def _agent_section(api_url: str) -> list[str]:
         "```",
         "",
         "Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, "
-        "`smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).",
+        "`publish-urls`, `pull-main`, `smoke-test`, `generate`, `training-status`, "
+        "`server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).",
         "",
     ]
 

@@ -109,6 +109,8 @@ curl -s -X POST "$AGENT/command" \
   -d '{"command":"server-status"}'
 ```
 
+Screen lock is fine; do **not** Log Out. After code lands on GitHub, `pull-main` then `restart-api` loads it without a Terminal session. `publish-urls` pushes the current Cloudflare hostnames to `Link.md`.
+
 Rollback: point `.env` at a prior adapter (e.g. `models/uml-plantuml-lora-200k`) and `bash scripts/restart_api.sh`.
 
 ### 6. Tunnel monitoring and email alerts

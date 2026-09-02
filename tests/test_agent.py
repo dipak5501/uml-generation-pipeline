@@ -62,6 +62,8 @@ def test_agent_health_open(client):
     assert body["status"] == "ok"
     assert "health" in body["allowed_commands"]
     assert "restart-tunnels" in body["allowed_commands"]
+    assert "publish-urls" in body["allowed_commands"]
+    assert "pull-main" in body["allowed_commands"]
     assert body["auth_required"] is False
 
 
@@ -109,6 +111,25 @@ def test_health_command_completes(mock_health, client):
         time.sleep(0.05)
     assert task["status"] == "completed"
     assert task["result"]["status"] == "ok"
+
+
+@patch("app.services.remote_agent._run_script")
+def test_publish_urls_and_pull_main_commands(mock_run, client):
+    mock_run.return_value = (0, "ok")
+    for command, script in (
+        ("publish-urls", "scripts/git_push_live_urls.sh"),
+        ("pull-main", "scripts/pull_main.sh"),
+    ):
+        r = client.post("/api/agent/command", json={"command": command})
+        assert r.status_code == 200, r.text
+        task_id = r.json()["task_id"]
+        for _ in range(40):
+            task = client.get(f"/api/agent/tasks/{task_id}").json()
+            if task["status"] in {"completed", "failed"}:
+                break
+            time.sleep(0.05)
+        assert task["status"] == "completed", task
+        mock_run.assert_any_call(script, timeout=120 if command == "pull-main" else 180)
 
 
 @patch("app.services.remote_agent._training_status")

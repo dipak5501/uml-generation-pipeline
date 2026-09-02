@@ -239,7 +239,7 @@ class HealthResponse(BaseModel):
 class AgentCommandRequest(BaseModel):
     command: str = Field(
         description="Allowlisted command: health, restart-api, restart-ui, restart-tunnels, "
-        "smoke-test, generate, training-status, server-status, agent-prompt"
+        "publish-urls, pull-main, smoke-test, generate, training-status, server-status, agent-prompt"
     )
     args: dict = Field(default_factory=dict, description="Command-specific arguments")
 

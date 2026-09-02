@@ -45,7 +45,7 @@ curl -s -X POST "https://thursday-automatically-furnished-contracting.trycloudfl
   -d '{"command":"health"}'
 ```
 
-Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
+Allowlisted commands: `health`, `restart-api`, `restart-ui`, `restart-tunnels`, `publish-urls`, `pull-main`, `smoke-test`, `generate`, `training-status`, `server-status`, `agent-prompt` (needs `CURSOR_API_KEY`).
 
 ## Troubleshooting
 
