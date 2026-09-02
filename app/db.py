@@ -27,6 +27,15 @@ def init_db() -> None:
     SQLModel.metadata.create_all(get_engine())
     _migrate_sqlite_columns()
     _ensure_default_project()
+    try:
+        from app.services.gallery_history import auto_import_gallery_history
+
+        auto_import_gallery_history()
+    except Exception:
+        # History import must never block API startup.
+        import logging
+
+        logging.getLogger(__name__).exception("gallery history import failed (non-fatal)")
 
 
 def _migrate_sqlite_columns() -> None:
