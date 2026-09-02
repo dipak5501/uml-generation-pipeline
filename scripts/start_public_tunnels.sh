@@ -51,8 +51,11 @@ start_one_tunnel() {
   local attempt pid url
   for attempt in 1 2 3 4 5; do
     : >"$log"
-    cloudflared tunnel --protocol http2 --url "http://127.0.0.1:${port}" >"$log" 2>&1 &
+    # nohup: the parent script exits; without this, bash SIGHUPs cloudflared
+    # (Cloudflare 1033 — tunnel name exists, connector gone).
+    nohup cloudflared tunnel --protocol http2 --url "http://127.0.0.1:${port}" >"$log" 2>&1 &
     pid=$!
+    disown "$pid" 2>/dev/null || true
     echo "$pid" >"$pidfile"
     # Write URL to file once; do not double-echo into command substitution.
     if extract_url "$log" "${log}.url" >/dev/null; then

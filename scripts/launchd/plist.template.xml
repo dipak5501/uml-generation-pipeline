@@ -6,6 +6,7 @@
   <string>LABEL_PLACEHOLDER</string>
   <key>ProgramArguments</key>
   <array>
+    <string>/bin/bash</string>
     <string>PROGRAM_PLACEHOLDER</string>
   </array>
   <key>WorkingDirectory</key>

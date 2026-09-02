@@ -46,4 +46,5 @@ def test_start_public_tunnels_does_not_hide_github_push():
     text = (ROOT / "scripts" / "start_public_tunnels.sh").read_text(encoding="utf-8")
     assert "git_push_live_urls.sh" in text
     assert 'git_push_live_urls.sh" >/dev/null' not in text
+    assert "nohup cloudflared" in text
     assert "GitHub Link.md was NOT updated" in text

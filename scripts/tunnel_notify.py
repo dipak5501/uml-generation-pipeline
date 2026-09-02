@@ -307,6 +307,7 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
             "",
             "| Symptom | Fix |",
             "|---------|-----|",
+            "| Cloudflare **1033 / 530** | `cloudflared` died — `bash scripts/start_public_tunnels.sh` |",
             "| Cloudflare **429 / 1015** | Wait 15–30 min, then `bash scripts/start_public_tunnels.sh` |",
             "| Local UI/API down | `bash scripts/macos_server_status.sh` or reinstall LaunchAgents |",
             "| Stale Link | `bash scripts/ensure_public_tunnel.sh` (or wait for tunnel-monitor) |",
