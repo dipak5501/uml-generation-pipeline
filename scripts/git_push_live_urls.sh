@@ -4,7 +4,7 @@
 #
 # Does NOT `source .env` (Outlook signatures / stray lines abort the push).
 # Stays in the repo root (never cd into the worktree) so a concurrent cleanup
-# cannot getcwd-fail the push. Unique worktree + flock avoid two LaunchAgents
+# cannot getcwd-fail the push. Unique worktree + mkdir lock avoid two LaunchAgents
 # deleting each other's directory.
 set -euo pipefail
 
@@ -13,7 +13,7 @@ cd "$ROOT"
 LOG_TAG="[git-live-urls]"
 LOG_FILE="${UML_LIVE_URL_LOG:-/tmp/uml-git-live-urls.log}"
 STATUS_FILE="${UML_LIVE_URL_STATUS:-$ROOT/data/run/github_url_push.status}"
-LOCK_FILE="${UML_LIVE_URL_LOCK:-$ROOT/data/run/git_push_live_urls.lock}"
+LOCK_DIR="${UML_LIVE_URL_LOCK:-$ROOT/data/run/git_push_live_urls.lockdir}"
 WT="${UML_LIVE_URL_WORKTREE:-$ROOT/.live-url-worktree.$$}"
 BRANCH_TMP="_live-url-push.$$"
 
@@ -25,8 +25,16 @@ write_status() {
 }
 
 mkdir -p "$ROOT/data/run"
-exec 9>"$LOCK_FILE"
-if ! flock -w 180 9; then
+# Portable lock (macOS has no flock). mkdir is atomic.
+acquired=0
+for _ in $(seq 1 180); do
+  if mkdir "$LOCK_DIR" 2>/dev/null; then
+    acquired=1
+    break
+  fi
+  sleep 1
+done
+if [ "$acquired" -ne 1 ]; then
   log "Could not acquire live-url push lock."
   write_status "failed: lock timeout"
   exit 1
@@ -83,6 +91,7 @@ cleanup() {
   git worktree remove --force "$WT" 2>/dev/null || true
   rm -rf "$WT"
   git branch -D "$BRANCH_TMP" 2>/dev/null || true
+  rmdir "$LOCK_DIR" 2>/dev/null || true
 }
 trap cleanup EXIT
 

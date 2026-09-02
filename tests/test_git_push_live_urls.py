@@ -15,7 +15,8 @@ def test_git_push_live_urls_script_targets_main():
     assert "push origin" in text
     assert "git -C" in text
     assert 'cd "$WT"' not in text
-    assert "flock" in text
+    assert "LOCK_DIR" in text
+    assert "flock -w" not in text
     assert "git_auto_push.sh" not in text
     assert "Link.md" in text
     assert "read_env_key.sh" in text
