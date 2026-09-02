@@ -587,6 +587,8 @@ def run_single_generation(
     settings: Settings | None = None,
     input_mode: str = "requirement",
     skip_vlm: bool = False,
+    skip_repair: bool = False,
+    skip_majority: bool = False,
 ) -> UMLArtifact:
     settings = settings or get_settings()
     settings.artifact_dir.mkdir(parents=True, exist_ok=True)
@@ -700,6 +702,7 @@ def run_single_generation(
     last_err: str | None = None
     repair_notes = ""
     last_category = FAILURE_SYNTAX
+    max_repairs = 0 if skip_repair else settings.max_repair_attempts
 
     def _apply_repair(errors: list[str], category: str) -> None:
         nonlocal attempt, repair_notes, last_category
@@ -742,9 +745,9 @@ def run_single_generation(
         session.commit()
         attempt += 1
 
-    while attempt <= settings.max_repair_attempts:
+    while attempt <= max_repairs:
         v = validate_diagram(artifact.plantuml_code, diagram_type)
-        if not v.ok and attempt < settings.max_repair_attempts:
+        if not v.ok and attempt < max_repairs:
             joined = " ".join(v.messages).lower()
             if "package" in joined or "nested" in joined or "containment" in joined:
                 cat = FAILURE_PACKAGE
@@ -758,7 +761,7 @@ def run_single_generation(
         compile_ok, compile_err = check_plantuml_syntax(
             artifact.plantuml_code, jar, work_dir=out_dir / "syntax"
         )
-        if not compile_ok and attempt < settings.max_repair_attempts:
+        if not compile_ok and attempt < max_repairs:
             _apply_repair([compile_err or "PlantUML compile failed"], FAILURE_COMPILE)
             continue
 
@@ -785,7 +788,7 @@ def run_single_generation(
             env_fail = (err or "").lower()
             if "java" in env_fail or "runtime" in env_fail or "jdk" in env_fail:
                 break
-            if attempt >= settings.max_repair_attempts:
+            if attempt >= max_repairs:
                 break
             _apply_repair([err or "render failed"], FAILURE_RENDER)
             continue
@@ -805,7 +808,7 @@ def run_single_generation(
         )
         if report.accepted:
             break
-        if attempt >= settings.max_repair_attempts:
+        if attempt >= max_repairs:
             break
         msgs = []
         for g in report.gates:
@@ -814,8 +817,8 @@ def run_single_generation(
         _apply_repair(msgs or [report.failure_category or "semantic"], report.failure_category or FAILURE_SYNTAX)
         image_path = None
 
-    # Last resort: deterministic template if still not renderable
-    if image_path is None:
+    # Last resort: deterministic template if still not renderable (not an ablation skip)
+    if image_path is None and not skip_repair:
         safe = _safe_template_plantuml(spec_text, diagram_type, spec_json)
         if safe.strip() and safe.strip() != (artifact.plantuml_code or "").strip():
             img, err = render_plantuml(safe, out_dir, jar, fmt=settings.image_format)
@@ -923,11 +926,25 @@ def run_single_generation(
             )
 
     apply_verification(artifact, scores, meta, verification, session)
+    if skip_repair:
+        extra = "Ablation: repair loop off (raw generator, no template fallback)"
+        artifact.validation_messages = "\n".join(
+            [m for m in ((artifact.validation_messages or "").splitlines() + [extra]) if m]
+        )
     if skip_vlm:
         artifact.dataset_accepted = False
         artifact.majority_accepted = False
     if not final_report.accepted:
         artifact.dataset_accepted = False
+    elif skip_majority and not skip_vlm:
+        artifact.dataset_accepted = bool(
+            artifact.render_status == "success"
+            and artifact.composite_score >= settings.min_composite_for_dataset
+        )
+        extra = "Ablation: majority gate off — dataset uses render ∧ S≥3 (A still recorded)"
+        artifact.validation_messages = "\n".join(
+            [m for m in ((artifact.validation_messages or "").splitlines() + [extra]) if m]
+        )
     session.add(artifact)
     session.commit()
     session.refresh(artifact)

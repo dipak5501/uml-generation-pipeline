@@ -139,10 +139,11 @@ class HumanReview(SQLModel, table=True):
     id: Optional[int] = Field(default=None, primary_key=True)
     artifact_id: int = Field(foreign_key="umlartifact.id", index=True)
     reviewer_id: int = Field(foreign_key="reviewer.id")
-    semantic_correctness: int = Field(ge=1, le=5)
-    structural_completeness: int = Field(ge=1, le=5)
-    syntactic_accuracy: int = Field(ge=1, le=5)
-    overall_coherence: int = Field(ge=1, le=5)
+    semantic_correctness: int = Field(ge=0, le=6)
+    structural_completeness: int = Field(ge=0, le=6)
+    syntactic_accuracy: int = Field(ge=0, le=6)
+    overall_coherence: int = Field(ge=0, le=6)
+    score_scale: int = 6
     comments: str = ""
     created_at: datetime = Field(default_factory=utcnow)
 

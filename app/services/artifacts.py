@@ -77,6 +77,7 @@ def artifact_detail(session: Session, artifact_id: int) -> ArtifactDetail | None
                 structural_completeness=r.structural_completeness,
                 syntactic_accuracy=r.syntactic_accuracy,
                 overall_coherence=r.overall_coherence,
+                score_scale=getattr(r, "score_scale", 6) or 6,
                 mean_score=r.mean_score,
                 comments=r.comments,
                 created_at=r.created_at,

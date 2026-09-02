@@ -37,6 +37,8 @@ if by:
             "count": v.get("count"),
             "mean_score": v.get("mean_score"),
             "failures": v.get("failures"),
+            "majority_ok": v.get("majority"),
+            "dataset": v.get("dataset"),
         }
         for k, v in by.items()
     ]

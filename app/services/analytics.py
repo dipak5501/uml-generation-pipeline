@@ -12,6 +12,7 @@ from sqlmodel import Session, select
 
 from app.models import HumanReview, RepairAttempt, Reviewer, UMLArtifact
 from app.services.package_failures import package_failure_report
+from app.services.thesis import human_alignment
 
 
 def analytics_summary(session: Session) -> dict[str, Any]:
@@ -20,12 +21,16 @@ def analytics_summary(session: Session) -> dict[str, Any]:
     for a in artifacts:
         bucket = by_type.setdefault(
             a.diagram_type,
-            {"count": 0, "mean_score": 0.0, "scores": [], "failures": 0},
+            {"count": 0, "mean_score": 0.0, "scores": [], "failures": 0, "majority": 0, "dataset": 0},
         )
         bucket["count"] += 1
         bucket["scores"].append(a.composite_score)
         if a.render_status != "success":
             bucket["failures"] += 1
+        if a.majority_accepted:
+            bucket["majority"] += 1
+        if a.dataset_accepted:
+            bucket["dataset"] += 1
 
     for v in by_type.values():
         scores = v.pop("scores")
@@ -34,27 +39,8 @@ def analytics_summary(session: Session) -> dict[str, Any]:
     repairs = session.exec(select(RepairAttempt)).all()
     repair_successes = sum(1 for r in repairs if r.success)
     reviews = session.exec(select(HumanReview)).all()
-
-    correlation = None
-    if reviews:
-        pairs: list[tuple[float, float]] = []
-        for rev in reviews:
-            art = session.get(UMLArtifact, rev.artifact_id)
-            if art is None:
-                continue
-            human_mean = (
-                rev.semantic_correctness
-                + rev.structural_completeness
-                + rev.syntactic_accuracy
-                + rev.overall_coherence
-            ) / 4.0
-            # Scale human 1-5 roughly onto 0-6 for correlation
-            human_scaled = (human_mean - 1) * (6 / 4)
-            pairs.append((art.composite_score, human_scaled))
-        if len(pairs) >= 2:
-            xs = [p[0] for p in pairs]
-            ys = [p[1] for p in pairs]
-            correlation = float(pd.Series(xs).corr(pd.Series(ys)))
+    alignment = human_alignment(session)
+    correlation = alignment.get("pearson_r")
 
     package_failures = sum(
         1 for a in artifacts if a.diagram_type == "package" and a.render_status != "success"
@@ -75,6 +61,8 @@ def analytics_summary(session: Session) -> dict[str, Any]:
         "package_failure_taxonomy": pkg_report.get("by_category") or {},
         "human_review_count": len(reviews),
         "human_vs_ai_correlation": correlation,
+        "human_vs_ai_spearman": alignment.get("spearman_rho"),
+        "human_vs_ai_n": alignment.get("n_pairs") or 0,
         "majority_accepted_count": maj_count,
         "dataset_accepted_count": ds_count,
         "majority_acceptance_rate": (maj_count / n) if n else None,

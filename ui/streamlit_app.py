@@ -33,7 +33,7 @@ hero(
     "From requirements to verified UML diagrams",
     "Generate class, object, component, and package diagrams from natural "
     "language or source code — with PlantUML rendering, multimodal scores, and dataset gating.",
-    chips=["Dipak Yadav · Yutong Zhao", "Design-phase modeling", "PlantUML + VLM ensemble"],
+    chips=["Mac Studio server", "Dipak Yadav · Yutong Zhao", "PlantUML + VLM ensemble"],
 )
 
 if live and health and summary:
@@ -61,9 +61,9 @@ if _auth_warn:
 
 n1, n2, n3, n4 = st.columns(4)
 with n1:
-    panel("Generate", "Turn a requirement or source file into a scored UML diagram.")
+    panel("Thesis defense", "Committee tour: paper vs this Mac Studio, RQ demos, package failures, take-home snapshot.")
 with n2:
-    panel("Batch", "Run multi-type generation jobs and build evaluation sets.")
+    panel("Generate", "Turn a requirement or source file into a scored UML diagram.")
 with n3:
     panel("Generated diagrams", "Browse every previously generated UML image, PlantUML file, and score.")
 with n4:

@@ -89,6 +89,8 @@ def generate(
             project_id=project_id,
             mode="single" if len(types) == 1 else "multi",
             skip_vlm=req.skip_vlm,
+            skip_repair=req.skip_repair,
+            skip_majority=req.skip_majority,
         )
         from app.models import GenerationJob
 
@@ -111,6 +113,8 @@ def generate(
             settings=settings,
             input_mode=req.input_mode,
             skip_vlm=req.skip_vlm,
+            skip_repair=req.skip_repair,
+            skip_majority=req.skip_majority,
         )
         update_job(session, job, status="completed", completed=1)
         detail = artifact_detail(session, artifact.id)

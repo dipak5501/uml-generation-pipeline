@@ -51,6 +51,9 @@ def _migrate_sqlite_columns() -> None:
             ("dataset_accepted", "BOOLEAN DEFAULT 0"),
             ("tau", "FLOAT DEFAULT 4.0"),
         ],
+        "humanreview": [
+            ("score_scale", "INTEGER DEFAULT 5"),
+        ],
     }
     with engine.begin() as conn:
         for table, cols in additions.items():

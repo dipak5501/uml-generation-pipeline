@@ -1,6 +1,6 @@
-# Human evaluation rubric (thesis-aligned)
+# Human evaluation rubric (thesis-aligned, 0–6)
 
-Rate each dimension from 1 (poor) to 5 (excellent):
+Rate each dimension from 0 (unusable) to 6 (excellent), the same integer scale the VLMs use:
 
 1. Semantic correctness — Does the diagram correctly represent the meaning of the requirements/spec?
 2. Structural completeness — Are expected entities, relationships, and structure present?
@@ -8,3 +8,5 @@ Rate each dimension from 1 (poor) to 5 (excellent):
 4. Overall coherence — Is the diagram clear, consistent, and free of contradictions?
 
 Optional free-text comments for qualitative notes.
+
+Do not treat a saved review as the paper's 80-rater study. Quote live Pearson r only after enough reviews exist on this Mac Studio.

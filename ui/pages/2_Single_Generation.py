@@ -47,6 +47,12 @@ REQ_EXAMPLES = {
     "Bookstore checkout": (
         "As a shopper, I want to add books to a cart and checkout with saved payment methods."
     ),
+    "Campus parking office": (
+        "Campus parking office: students and staff register vehicles, purchase permits, "
+        "and receive citations for violations. Officers record citations against a vehicle "
+        "and a permit. A payment clerk records payments. The system tracks lots, spaces, "
+        "and whether a permit is valid for a given lot."
+    ),
     "Hospital appointments": (
         "Patients book appointments with doctors across multiple clinics and receive reminders."
     ),
@@ -152,6 +158,19 @@ with right:
         help="If off, PlantUML still renders but S stays unscored (shown as 0 / —). "
         "If on, generation waits for vision models (~1–2 minutes).",
     )
+    skip_repair = False
+    skip_majority = False
+    with st.expander("Ablations (committee)"):
+        skip_repair = st.checkbox(
+            "Skip repair loop",
+            value=False,
+            help="Raw generator only — no repair iterations and no template fallback.",
+        )
+        skip_majority = st.checkbox(
+            "Skip majority gate A for dataset entry",
+            value=False,
+            help="Dataset uses render ∧ S≥3. Majority A is still computed and shown.",
+        )
 
 can_run = bool((requirement or "").strip())
 busy = active_job_id() is not None and (fetch_job(active_job_id() or 0) or {}).get("status") in (
@@ -187,6 +206,8 @@ if run and can_run and not busy:
                 "input_mode": input_mode,
                 "async_mode": True,
                 "skip_vlm": not score_vlm,
+                "skip_repair": skip_repair,
+                "skip_majority": skip_majority,
             },
         )
         job_id = int(result["job_id"])

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 from concurrent.futures import ThreadPoolExecutor
+from dataclasses import dataclass
 
 from sqlmodel import Session
 
@@ -15,8 +16,15 @@ from app.settings import get_settings
 logger = logging.getLogger(__name__)
 _executor = ThreadPoolExecutor(max_workers=4)
 
-# (requirement, diagram_type, input_mode, skip_vlm)
-JobItem = tuple[str, str, str, bool]
+
+@dataclass(frozen=True)
+class JobItem:
+    requirement: str
+    diagram_type: str
+    input_mode: str
+    skip_vlm: bool = False
+    skip_repair: bool = False
+    skip_majority: bool = False
 
 
 def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
@@ -28,16 +36,18 @@ def _batch_worker(job_id: int, items: list[JobItem], project_id: int) -> None:
         update_job(session, job, status="running")
         completed = 0
         try:
-            for requirement, diagram_type, input_mode, skip_vlm in items:
+            for item in items:
                 run_single_generation(
                     session,
-                    requirement=requirement,
-                    diagram_type=diagram_type,
+                    requirement=item.requirement,
+                    diagram_type=item.diagram_type,
                     project_id=project_id,
                     job_id=job_id,
                     settings=settings,
-                    input_mode=input_mode,
-                    skip_vlm=skip_vlm,
+                    input_mode=item.input_mode,
+                    skip_vlm=item.skip_vlm,
+                    skip_repair=item.skip_repair,
+                    skip_majority=item.skip_majority,
                 )
                 completed += 1
                 job = session.get(GenerationJob, job_id)
@@ -65,6 +75,8 @@ def enqueue_batch(
     *,
     input_mode: str = "requirement",
     skip_vlm: bool = False,
+    skip_repair: bool = False,
+    skip_majority: bool = False,
 ) -> int:
     if project_id is None:
         project_id = get_or_create_default_project(session).id
@@ -73,7 +85,16 @@ def enqueue_batch(
     items: list[JobItem] = []
     for req in requirements:
         for dt in diagram_types:
-            items.append((req, dt, input_mode, skip_vlm))
+            items.append(
+                JobItem(
+                    requirement=req,
+                    diagram_type=dt,
+                    input_mode=input_mode,
+                    skip_vlm=skip_vlm,
+                    skip_repair=skip_repair,
+                    skip_majority=skip_majority,
+                )
+            )
 
     job = create_job(session, mode="batch", total=len(items), project_id=project_id)
     submit_batch(job.id, items, project_id)
@@ -89,6 +110,8 @@ def enqueue_generation(
     project_id: int | None = None,
     mode: str = "single",
     skip_vlm: bool = False,
+    skip_repair: bool = False,
+    skip_majority: bool = False,
 ) -> int:
     """Queue one requirement across one or more diagram types (runs in background)."""
     if project_id is None:
@@ -97,7 +120,17 @@ def enqueue_generation(
     types = [dt for dt in diagram_types if dt]
     if not types:
         types = ["class"]
-    items: list[JobItem] = [(requirement, dt, input_mode, skip_vlm) for dt in types]
+    items = [
+        JobItem(
+            requirement=requirement,
+            diagram_type=dt,
+            input_mode=input_mode,
+            skip_vlm=skip_vlm,
+            skip_repair=skip_repair,
+            skip_majority=skip_majority,
+        )
+        for dt in types
+    ]
     job = create_job(session, mode=mode, total=len(items), project_id=project_id)
     submit_batch(job.id, items, project_id)
     return job.id

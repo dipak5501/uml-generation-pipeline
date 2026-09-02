@@ -29,6 +29,7 @@ def create_human_review(
         structural_completeness=payload.structural_completeness,
         syntactic_accuracy=payload.syntactic_accuracy,
         overall_coherence=payload.overall_coherence,
+        score_scale=payload.score_scale,
         comments=payload.comments,
     )
     session.add(review)
@@ -43,6 +44,7 @@ def create_human_review(
         structural_completeness=review.structural_completeness,
         syntactic_accuracy=review.syntactic_accuracy,
         overall_coherence=review.overall_coherence,
+        score_scale=getattr(review, "score_scale", 6) or 6,
         mean_score=review.mean_score,
         comments=review.comments,
         created_at=review.created_at,

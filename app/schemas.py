@@ -40,6 +40,9 @@ class GenerateRequest(BaseModel):
     async_mode: bool = True
     # Skip the 3-VLM ensemble (Qwen/LLaMA/Aya). Diagram + acceptance still run.
     skip_vlm: bool = False
+    # Ablations for committee demos (verification-as-first-class).
+    skip_repair: bool = False
+    skip_majority: bool = False
 
     @field_validator("requirement", mode="before")
     @classmethod
@@ -135,10 +138,11 @@ class HumanReviewCreate(BaseModel):
     artifact_id: int
     reviewer_name: str
     reviewer_role: str = "expert"
-    semantic_correctness: int = Field(ge=1, le=5)
-    structural_completeness: int = Field(ge=1, le=5)
-    syntactic_accuracy: int = Field(ge=1, le=5)
-    overall_coherence: int = Field(ge=1, le=5)
+    semantic_correctness: int = Field(ge=0, le=6)
+    structural_completeness: int = Field(ge=0, le=6)
+    syntactic_accuracy: int = Field(ge=0, le=6)
+    overall_coherence: int = Field(ge=0, le=6)
+    score_scale: int = Field(default=6, ge=5, le=6)
     comments: str = Field(default="", max_length=4000)
 
 
@@ -151,6 +155,7 @@ class HumanReviewOut(BaseModel):
     structural_completeness: int
     syntactic_accuracy: int
     overall_coherence: int
+    score_scale: int = 6
     mean_score: float
     comments: str
     created_at: datetime
@@ -215,6 +220,8 @@ class AnalyticsSummary(BaseModel):
     package_failure_taxonomy: dict[str, int] = Field(default_factory=dict)
     human_review_count: int
     human_vs_ai_correlation: Optional[float] = None
+    human_vs_ai_spearman: Optional[float] = None
+    human_vs_ai_n: int = 0
     majority_accepted_count: int = 0
     dataset_accepted_count: int = 0
     majority_acceptance_rate: Optional[float] = None
