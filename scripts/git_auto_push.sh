@@ -19,8 +19,8 @@ fi
 
 export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 
-git config user.name "dipak5501"
-git config user.email "dipak5501@users.noreply.github.com"
+git config user.name "Dipak Yadav"
+git config user.email "71300693+dipak5501@users.noreply.github.com"
 
 BRANCH="$(git rev-parse --abbrev-ref HEAD)"
 if [ "$BRANCH" != "main" ]; then

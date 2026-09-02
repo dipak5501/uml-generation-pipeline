@@ -48,8 +48,8 @@ export GH_TOKEN="${GH_TOKEN:-${GITHUB_TOKEN:-}}"
 GH_TOKEN="$(printf '%s' "$GH_TOKEN" | tr -d '\r')"
 export GH_TOKEN
 
-git config user.name "dipak5501"
-git config user.email "dipak5501@users.noreply.github.com"
+git config user.name "Dipak Yadav"
+git config user.email "71300693+dipak5501@users.noreply.github.com"
 
 CANDIDATES=(
   Link
