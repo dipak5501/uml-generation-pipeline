@@ -77,6 +77,44 @@ def _wait_job(client: httpx.Client, job_id: int, timeout_s: float = 180.0) -> di
     return {"id": job_id, "status": "timeout", "error": f"waited {timeout_s}s"}
 
 
+def _checkpoint(results: list[dict], ids: list[int], args: argparse.Namespace) -> None:
+    STATE.parent.mkdir(parents=True, exist_ok=True)
+    STATE.write_text(
+        json.dumps(
+            {
+                "results": results,
+                "ids": ids,
+                "skip_first": args.skip_first,
+                "offset": args.offset,
+                "per_type": args.per_type,
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+    prior: list[int] = []
+    if ID_LIST.is_file():
+        try:
+            prior = list(json.loads(ID_LIST.read_text(encoding="utf-8")).get("ids") or [])
+        except Exception:  # noqa: BLE001
+            prior = []
+    merged = prior + [i for i in ids if i not in prior]
+    ID_LIST.write_text(
+        json.dumps(
+            {
+                "ids": merged,
+                "via": "api",
+                "skip_first": args.skip_first,
+                "offset": args.offset,
+                "per_type": args.per_type,
+                "checkpoint_n": len(results),
+            },
+            indent=2,
+        ),
+        encoding="utf-8",
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("--per-type", type=int, default=25)
@@ -166,9 +204,11 @@ def main() -> int:
                 )
                 print(f"[{i}/{len(jobs)}] FAIL {type(exc).__name__}:{exc}", flush=True)
 
+            if i % 10 == 0 or i == len(jobs):
+                _checkpoint(results, ids, args)
+
     STATE.parent.mkdir(parents=True, exist_ok=True)
-    STATE.write_text(json.dumps({"results": results, "ids": ids}, indent=2), encoding="utf-8")
-    # merge with any prior ids file
+    _checkpoint(results, ids, args)
     prior: list[int] = []
     if ID_LIST.is_file():
         try:

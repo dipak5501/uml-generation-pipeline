@@ -118,3 +118,7 @@ echo "=========================================="
 # Tunnel watchdog + GitHub Link.md publisher (was a separate install; required
 # for always-on public URLs). Safe to re-run.
 bash "$ROOT/scripts/install_auto_sync.sh"
+
+# VLM accuracy scoring for the latest eval batch (KeepAlive; survives reboots
+# while this user stays logged in).
+bash "$ROOT/scripts/install_batch_rescore.sh"
