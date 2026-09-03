@@ -51,9 +51,36 @@ def export(
 
 @router.get("/adaptation/status")
 def adaptation_status():
-    from app.services.adaptation import AdaptationMemory
+    import json
 
-    return AdaptationMemory().snapshot()
+    from app.services.adaptation import AdaptationMemory
+    from app.settings import ROOT
+
+    snap = AdaptationMemory().snapshot()
+    self_train: dict = {"enabled": False}
+    state_path = ROOT / "data" / "run" / "self_train_state.json"
+    harvest_path = ROOT / "data" / "training" / "accepted_harvest_manifest.json"
+    if state_path.is_file():
+        try:
+            self_train = {"enabled": True, **json.loads(state_path.read_text(encoding="utf-8"))}
+        except (OSError, json.JSONDecodeError):
+            self_train = {"enabled": True, "status": "unreadable_state"}
+    if harvest_path.is_file():
+        try:
+            self_train["harvest"] = json.loads(harvest_path.read_text(encoding="utf-8"))
+        except (OSError, json.JSONDecodeError):
+            pass
+    adapter_dir = ROOT / "models" / "uml-plantuml-lora-adaptation"
+    self_train["adaptation_adapter_present"] = (
+        adapter_dir / "adapters.safetensors"
+    ).is_file() or any(adapter_dir.glob("*_adapters.safetensors"))
+    snap["self_training"] = self_train
+    snap["live_adapter_note"] = (
+        "Keep FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k until "
+        "industrial (or adaptation) adapter completes evaluation; then point .env at the "
+        "new path and restart the API."
+    )
+    return snap
 
 
 @router.get("/settings/health", response_model=HealthResponse)

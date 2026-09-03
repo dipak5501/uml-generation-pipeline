@@ -149,7 +149,9 @@ When `USE_FINETUNED_CODE=true`, `build_code_provider()` loads the LoRA adapter f
 3. Grounded spec-builder (`plantuml_from_spec`) for validation/fidelity failures
 4. Typed safe template as last resort
 
-**Adaptation memory** (`data/adaptation_memory.json`) records generator/strategy choices per diagram type for incremental improvement.
+**Adaptation memory** (`data/adaptation_memory.json`) records generator/strategy choices per diagram type for incremental improvement. After ≥3 samples for a (diagram type, failure category, strategy) or generator, the pipeline reorders repairs and may prefer spec-builder over a weak LoRA path (`MIN_SAMPLES_TO_ADAPT = 3` in `app/services/adaptation.py`). Status: `GET /api/adaptation/status`.
+
+**Self-training (continual LoRA):** LaunchAgent `com.uml.pipeline.self-train` periodically harvests `dataset_accepted` / `majority_accepted` / human-reviewed artifacts from the live DB into `data/training/uml_accepted_live_topup.parquet`, mixes them with industrial + source-code corpora (`scripts/build_adaptation_finetune_mix.py` → `data/finetune_adaptation/`), and resumes MLX LoRA on `models/uml-plantuml-lora-adaptation` **only when idle** (yields to `com.uml.pipeline.finetune-industrial` and running API jobs). Live `.env` adapter stays on `models/uml-plantuml-lora-sourcecode-30k` until you deliberately switch.
 
 ### Stage 2b — Validate and repair
 
@@ -348,8 +350,12 @@ Splits: `data/finetune/train.jsonl`, `valid.jsonl`, `test.jsonl`. With 100k corp
 | `models/uml-plantuml-lora-200k` | Superseded | 20,000 | Qwen2.5-0.5B 4-bit |
 | `models/uml-plantuml-lora-source10k` | Superseded (interim) | 4,000 | Qwen2.5-0.5B 4-bit |
 | `models/uml-plantuml-lora-sourcecode-30k` | **Production default** | 6,000 | Qwen2.5-0.5B 4-bit (warm-started from 200k) |
+| `models/uml-plantuml-lora-industrial-complete` | Training (LaunchAgent) | → 8,000 | Warm-start from sourcecode-30k; **do not** point live API here until complete + eval |
+| `models/uml-plantuml-lora-adaptation` | Continual self-train | +400 iters/cycle | Live accepted top-up + corpus mix; idle-only |
 
 **Production:** `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k` — 30k Java/Python/C corpus (10k each), 6,000 training iterations. Prior adapters (50k, 100k, 200k, source10k) remain on disk for rollback.
+
+**When to switch live adapter:** After industrial (or adaptation) training finishes, `adapters.safetensors` exists, and a smoke/eval batch looks good, set `FINETUNED_ADAPTER_PATH` to that folder in `.env` and run `bash scripts/restart_api.sh`. Until then keep sourcecode-30k.
 
 Training commands:
 

@@ -5,6 +5,7 @@ set -euo pipefail
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 cd "$ROOT"
 export PATH="$ROOT/.venv/bin:$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin"
+export PYTHONPATH="$ROOT${PYTHONPATH:+:$PYTHONPATH}"
 
 IDS_FILE="$ROOT/data/run/batch_new_eval_200_ids.json"
 LOG="$ROOT/data/run/batch_rescore_supervisor.log"
@@ -47,11 +48,48 @@ with Session(get_engine()) as s:
 PY
 )
 
-if [ "${pending:-0}" -eq 0 ]; then
-  log "all batch artifacts scored — sleeping 30m before recheck"
+if [ "${pending:-0}" -gt 0 ]; then
+  log "pending_vlm_scores=$pending (batch-200 list)"
+  exec "$ROOT/.venv/bin/python" "$ROOT/scripts/batch_new_eval_200.py" --rescore-only 2>&1 | tee -a "$LOG"
+fi
+
+gallery_pending=$("$ROOT/.venv/bin/python" - <<'PY'
+from sqlmodel import Session, select
+from app.db import get_engine
+from app.models import ModelScore, UMLArtifact
+
+def mock_ids(session):
+    found = set()
+    for row in session.exec(select(ModelScore)).all():
+        text = (row.raw_output or row.explanation or "").lower()
+        if "mock vlm" in text:
+            found.add(row.artifact_id)
+    return found
+
+with Session(get_engine()) as s:
+    n = 0
+    mocks = mock_ids(s)
+    arts = s.exec(select(UMLArtifact).where(UMLArtifact.render_status == "success")).all()
+    for a in arts:
+        if a.id in mocks or not (a.composite_score and a.composite_score > 0):
+            n += 1
+    print(n)
+PY
+)
+
+if [ "${gallery_pending:-0}" -eq 0 ]; then
+  log "all successful gallery renders scored — sleeping 30m before recheck"
   sleep 1800
   exit 0
 fi
 
-log "pending_vlm_scores=$pending"
-exec "$ROOT/.venv/bin/python" "$ROOT/scripts/batch_new_eval_200.py" --rescore-only 2>&1 | tee -a "$LOG"
+TOKEN="$(bash "$ROOT/scripts/read_env_key.sh" API_ACCESS_TOKEN "$ROOT/.env" || true)"
+if [ -z "$TOKEN" ]; then
+  log "API_ACCESS_TOKEN missing — cannot POST /rescore; sleeping 5m"
+  sleep 300
+  exit 1
+fi
+export API_ACCESS_TOKEN="$TOKEN"
+
+log "gallery_unscored=$gallery_pending — API rescore --unscored-only"
+exec "$ROOT/.venv/bin/python" "$ROOT/scripts/rescore_via_api.py" --unscored-only 2>&1 | tee -a "$LOG"

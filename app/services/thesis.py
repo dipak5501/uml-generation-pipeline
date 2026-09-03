@@ -114,9 +114,12 @@ def _pearson(xs: list[float], ys: list[float]) -> float | None:
 
 
 def _spearman(xs: list[float], ys: list[float]) -> float | None:
+    """Spearman ρ via average ranks + Pearson (no scipy; pandas method='spearman' imports it)."""
     if len(xs) < 2:
         return None
-    value = float(pd.Series(xs).corr(pd.Series(ys), method="spearman"))
+    rx = pd.Series(xs).rank(method="average")
+    ry = pd.Series(ys).rank(method="average")
+    value = float(rx.corr(ry, method="pearson"))
     return None if math.isnan(value) else value
 
 

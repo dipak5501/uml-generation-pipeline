@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k train-industrial-complete thesis-pdf app-report-pdf install-gdrive-backup gdrive-backup
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k train-industrial-complete self-train-harvest self-train-once install-self-train thesis-pdf app-report-pdf install-gdrive-backup gdrive-backup
 
 install:
 	python3 -m venv .venv
@@ -156,6 +156,18 @@ train-industrial-complete:
 	bash scripts/run_finetune_resilient.sh
 	@echo "When training finishes (do NOT do this until adapters exist):"
 	@echo "  set FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-industrial-complete in .env and restart API"
+
+# Harvest accepted gallery → adaptation mix JSONL (no GPU). Idle LoRA via LaunchAgent.
+self-train-harvest:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/harvest_accepted_for_finetune.py
+	. .venv/bin/activate && PYTHONPATH=. python scripts/build_adaptation_finetune_mix.py
+
+self-train-once:
+	bash scripts/run_self_training_loop.sh
+
+install-self-train:
+	chmod +x scripts/install_self_train_agent.sh scripts/run_self_training_loop.sh scripts/launchd/run_self_train.sh
+	bash scripts/install_self_train_agent.sh
 
 # Autonomous: wait for 100k → deploy → collect v2 → train 200k
 pipeline-after-100k:
