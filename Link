@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://numerical-archive-trusts-treo.trycloudflare.com
+https://passive-zus-mile-net.trycloudflare.com
 
-UI:    https://numerical-archive-trusts-treo.trycloudflare.com
-API:   https://edmonton-newcastle-inspection-affiliated.trycloudflare.com
-Agent: https://edmonton-newcastle-inspection-affiliated.trycloudflare.com/api/agent
+UI:    https://passive-zus-mile-net.trycloudflare.com
+API:   https://driving-incorporate-associate-wet.trycloudflare.com
+Agent: https://driving-incorporate-associate-wet.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-03 20:24 UTC
+Updated: 2026-09-03 20:25 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

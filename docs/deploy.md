@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-03):**
 
-- **UI:** [https://numerical-archive-trusts-treo.trycloudflare.com](https://numerical-archive-trusts-treo.trycloudflare.com)
-- **API:** [https://edmonton-newcastle-inspection-affiliated.trycloudflare.com](https://edmonton-newcastle-inspection-affiliated.trycloudflare.com)
-- **Agent:** [https://edmonton-newcastle-inspection-affiliated.trycloudflare.com/api/agent](https://edmonton-newcastle-inspection-affiliated.trycloudflare.com/api/agent)
+- **UI:** [https://passive-zus-mile-net.trycloudflare.com](https://passive-zus-mile-net.trycloudflare.com)
+- **API:** [https://driving-incorporate-associate-wet.trycloudflare.com](https://driving-incorporate-associate-wet.trycloudflare.com)
+- **Agent:** [https://driving-incorporate-associate-wet.trycloudflare.com/api/agent](https://driving-incorporate-associate-wet.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
