@@ -1,0 +1,39 @@
+# Excludes for Mac Studio login backup (user 033783670).
+# Never upload secrets, caches, or other users' homes.
+
+- .env
+- .env.*
+- **/.env
+- **/.env.*
+- **/.env.local
+- **/.env.production
+- **/.ssh/**
+- **/.Trash/**
+- **/.cache/**
+- **/.huggingface/**
+- **/Caches/**
+- **/.venv/**
+- **/venv/**
+- **/node_modules/**
+- **/.git/**
+- **/__pycache__/**
+- **/.pytest_cache/**
+- **/.mypy_cache/**
+- **/*.pem
+- **/*.key
+- **/*.p12
+- **/*.kdbx
+- **/credentials.json
+- **/service_account.json
+- **/API_ACCESS_TOKEN
+- **/GH_TOKEN
+- **/id_rsa
+- **/id_ed25519
+- **/Keychains/**
+- **/.config/rclone/**
+- **/.bash_history
+- **/.zsh_history
+- **/.zsh_sessions/**
+- **/.bash_sessions/**
+- **/.DS_Store
+- **/*.swp

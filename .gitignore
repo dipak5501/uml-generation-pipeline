@@ -51,3 +51,6 @@ paper/*.blg
 paper/*.synctex.gz
 paper/*.fdb_latexmk
 paper/*.fls
+
+# Local Google Drive folder id (never commit)
+.gdrive_folder_id

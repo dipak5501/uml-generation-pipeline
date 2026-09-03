@@ -9,6 +9,7 @@ LABELS=(
   com.uml.pipeline.tunnels
   com.uml.pipeline.tunnel-monitor
   com.uml.pipeline.git-sync
+  com.uml.pipeline.gdrive-backup
   com.uml.pipeline.caffeinate
   com.uml.pipeline.ollama24
   com.uml.pipeline.ollama32
@@ -36,3 +37,10 @@ echo "--- processes ---"
 pgrep -lf 'uvicorn app.main|streamlit run|cloudflared tunnel|caffeinate|ollama serve' 2>/dev/null | head -20 || true
 echo "--- reminder ---"
 echo "Keep this user logged in. Others: Fast User Switch. Do NOT Log Out."
+
+echo "--- google drive backup (this login) ---"
+if [ -f "$ROOT/data/run/google_drive_backup/STATUS.txt" ]; then
+  cat "$ROOT/data/run/google_drive_backup/STATUS.txt"
+else
+  echo "(no STATUS yet)"
+fi

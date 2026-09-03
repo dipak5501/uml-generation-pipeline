@@ -1,4 +1,4 @@
-.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k thesis-pdf app-report-pdf
+.PHONY: install install-java setup api ui run demo test smoke dataset training-corpus training-corpus-50k download-all-corpora finetune finetune-quick finetune-cuda finetune-prepare train-real train-50k train-100k train-source10k train-source30k train-industrial-complete thesis-pdf app-report-pdf install-gdrive-backup gdrive-backup
 
 install:
 	python3 -m venv .venv
@@ -134,6 +134,29 @@ train-source30k:
 	ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k ITERS=6000 LOG=data/training/finetune_sourcecode_30k.log bash scripts/run_finetune_resilient.sh
 	@echo "Update .env: FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k && restart API"
 
+# Complete industrial UML (class/object/component/package) — warm-start from sourcecode-30k.
+# Does NOT swap the live API adapter. Training JSONL lives in data/finetune_industrial/.
+train-industrial-complete:
+	. .venv/bin/activate && pip install -q -r requirements-finetune.txt
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/build_industrial_complete_uml_corpus.py
+	env -i HOME="$$HOME" PATH="$$PWD/.venv/bin:/usr/bin:/bin" PYTHONPATH=. python scripts/prepare_finetune_data.py \
+		--input data/training/uml_industrial_complete.parquet \
+		--out-dir data/finetune_industrial \
+		--max-spec-chars 2800 --max-uml-chars 3500 \
+		--valid-ratio 0.04 --test-ratio 0.03 --prefer-accepted
+	mkdir -p models/uml-plantuml-lora-industrial-complete
+	@test -f models/uml-plantuml-lora-industrial-complete/adapters.safetensors \
+		|| cp models/uml-plantuml-lora-sourcecode-30k/adapters.safetensors models/uml-plantuml-lora-industrial-complete/
+	@test -f models/uml-plantuml-lora-industrial-complete/adapter_config.json \
+		|| cp models/uml-plantuml-lora-sourcecode-30k/adapter_config.json models/uml-plantuml-lora-industrial-complete/ 2>/dev/null || true
+	ADAPTER_PATH=models/uml-plantuml-lora-industrial-complete \
+	DATA=data/finetune_industrial \
+	ITERS=8000 BATCH_SIZE=8 MAX_SEQ=2048 SAVE_EVERY=100 STEPS_EVAL=100 \
+	LOG=data/training/finetune_industrial_complete.log \
+	bash scripts/run_finetune_resilient.sh
+	@echo "When training finishes (do NOT do this until adapters exist):"
+	@echo "  set FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-industrial-complete in .env and restart API"
+
 # Autonomous: wait for 100k → deploy → collect v2 → train 200k
 pipeline-after-100k:
 	nohup bash scripts/pipeline_after_100k.sh >> data/training/pipeline_after_100k.log 2>&1 &
@@ -159,3 +182,10 @@ docker-up:
 
 docker-down:
 	docker compose down
+
+# This-login Google Drive backup (033783670). Incremental; does not stop LoRA.
+install-gdrive-backup:
+	bash scripts/install_google_drive_backup.sh
+
+gdrive-backup:
+	bash scripts/backup_to_google_drive.sh

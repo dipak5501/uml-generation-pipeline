@@ -10,6 +10,7 @@ LABELS=(
   com.uml.pipeline.tunnels
   com.uml.pipeline.tunnel-monitor
   com.uml.pipeline.git-sync
+  com.uml.pipeline.gdrive-backup
   com.uml.pipeline.caffeinate
   com.uml.pipeline.ollama24
   com.uml.pipeline.ollama32

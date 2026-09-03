@@ -95,15 +95,18 @@ def main() -> None:
 
     resume_file = args.resume_adapter_file
     if resume_file is None and args.resume:
-        checkpoints = sorted(
-            args.adapter_path.glob("*_adapters.safetensors"),
-            key=lambda p: int(p.name.split("_")[0]) if p.name.split("_")[0].isdigit() else 0,
-        )
-        if checkpoints:
-            resume_file = checkpoints[-1]
-            print(f"Resuming from {resume_file}")
-        elif (args.adapter_path / "adapters.safetensors").is_file():
-            resume_file = args.adapter_path / "adapters.safetensors"
+        candidates = [
+            p
+            for p in args.adapter_path.glob("*_adapters.safetensors")
+            if p.is_file()
+        ]
+        latest = args.adapter_path / "adapters.safetensors"
+        if latest.is_file():
+            candidates.append(latest)
+        if candidates:
+            # Prefer newest mtime so a continuation that restarts MLX iter numbering
+            # does not reload a stale higher-numbered checkpoint from the prior run.
+            resume_file = max(candidates, key=lambda p: (p.stat().st_mtime, p.name))
             print(f"Resuming from {resume_file}")
 
     # If resuming a partial run, train remaining iters toward the requested total when meta exists

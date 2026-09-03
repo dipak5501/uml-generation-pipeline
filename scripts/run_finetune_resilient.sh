@@ -6,6 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT"
 OMP_PREFIX="${UML_OPENMPI_PREFIX:-$HOME/micromamba/envs/uml-openmpi}"
 ADAPTER="${ADAPTER_PATH:-models/uml-plantuml-lora-50k}"
+DATA="${DATA:-data/finetune}"
 TARGET_ITERS="${ITERS:-15000}"
 BATCH="${BATCH_SIZE:-2}"
 LOG="${LOG:-data/training/finetune_50k.log}"
@@ -16,7 +17,7 @@ if [[ ! -d "$OMP_PREFIX/lib" ]]; then
   exit 1
 fi
 
-mkdir -p "$ADAPTER" "$(dirname "$LOG")"
+mkdir -p "$ADAPTER" "$(dirname "$LOG")" "$DATA"
 
 # Keep machine awake without wrapping the python process (SIP-safe).
 if ! pgrep -f 'caffeinate -dimsu -w 1' >/dev/null 2>&1; then
@@ -40,6 +41,7 @@ run_once() {
     --steps-per-report 20
     --skip-prepare
     --adapter-path "$ADAPTER"
+    --data "$DATA"
   )
   if [[ -f "$ADAPTER/adapters.safetensors" ]] || compgen -G "$ADAPTER/*_adapters.safetensors" >/dev/null; then
     args+=(--resume)
@@ -76,7 +78,10 @@ if meta.is_file():
     except Exception:
         meta_iters = 0
 
-ckpts = sorted(adapter.glob("*_adapters.safetensors"))
+ckpts = sorted(
+    adapter.glob("*_adapters.safetensors"),
+    key=lambda p: int(p.name.split("_")[0]) if p.name.split("_")[0].isdigit() else 0,
+)
 if ckpts:
     ckpt_iters = int(ckpts[-1].name.split("_")[0])
 
@@ -84,13 +89,14 @@ if log_path.is_file():
     text = log_path.read_text(errors="replace")
     attempts = text.split("---- attempt ")
     last = attempts[-1] if attempts else text
-    resume_base = ckpt_iters
+    resume_base = 0
     m = re.search(r"Resuming from .*?(\d+)_adapters", last)
     if m:
         resume_base = int(m.group(1))
     run_iters = [int(x) for x in re.findall(r"Iter (\d+):", last)]
     if run_iters:
-        log_iters = resume_base + max(run_iters)
+        # mlx_lm restarts the Iter counter at 1 on every process start.
+        log_iters = resume_base + max(run_iters) if resume_base else max(run_iters)
 
 print(max(meta_iters, ckpt_iters, log_iters))
 PY
@@ -115,7 +121,7 @@ data = {
     "learning_rate": 1e-5,
     "num_layers": 8,
     "max_seq_length": int("${MAX_SEQ:-1536}"),
-    "data": str((Path("$ROOT") / "data" / "finetune").resolve()),
+    "data": str((Path("$ROOT") / "$DATA").resolve()),
     "task": "specification_to_plantuml",
     "target_iters": int("$TARGET_ITERS"),
     "resumed_from": str(ckpts[-1]) if ckpts else None,
