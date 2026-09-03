@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://jar-discover-compromise-step.trycloudflare.com
+https://newark-cottage-nebraska-viewer.trycloudflare.com
 
-UI:    https://jar-discover-compromise-step.trycloudflare.com
-API:   https://walker-driving-crops-yale.trycloudflare.com
-Agent: https://walker-driving-crops-yale.trycloudflare.com/api/agent
+UI:    https://newark-cottage-nebraska-viewer.trycloudflare.com
+API:   https://ooo-walking-alaska-vote.trycloudflare.com
+Agent: https://ooo-walking-alaska-vote.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-03 00:07 UTC
+Updated: 2026-09-03 00:08 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
