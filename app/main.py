@@ -9,7 +9,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db import init_db
-from app.routers import agent, analytics, artifacts, generate, human_review, thesis
+from app.routers import agent, analytics, artifacts, copilot, generate, human_review, thesis
 from app.security import cors_allow_origins
 from app.settings import get_settings
 
@@ -63,6 +63,7 @@ app.include_router(human_review.router)
 app.include_router(analytics.router)
 app.include_router(thesis.router)
 app.include_router(agent.router)
+app.include_router(copilot.router)
 
 
 @app.get("/")

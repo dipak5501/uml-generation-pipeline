@@ -243,6 +243,47 @@ class HealthResponse(BaseModel):
     messages: list[str]
 
 
+class CopilotTurnRequest(BaseModel):
+    """One chat turn for the UML Copilot (generate / correct / chat)."""
+
+    message: str = Field(min_length=1, max_length=MAX_REQUIREMENT_CHARS)
+    action: Literal["auto", "generate", "correct", "chat"] = "auto"
+    diagram_type: DiagramType = "class"
+    artifact_id: Optional[int] = None
+    history: list[dict[str, str]] = Field(default_factory=list)
+    skip_vlm: bool = True
+    input_mode: InputMode = "requirement"
+    project_id: Optional[int] = None
+
+    @field_validator("message", mode="before")
+    @classmethod
+    def _strip_message(cls, value: object) -> object:
+        if isinstance(value, str):
+            return value.strip()
+        return value
+
+
+class CopilotTurnResponse(BaseModel):
+    intent: Literal["generate", "correct", "chat"]
+    reply: str
+    job: Optional[JobResponse] = None
+    artifact: Optional[ArtifactDetail] = None
+    artifact_id: Optional[int] = None
+    copilot_model: str = "qwen2.5:7b"
+    diagram_type: DiagramType = "class"
+
+
+class CopilotHealthResponse(BaseModel):
+    status: str
+    ollama_base_url: str
+    copilot_model: str
+    reachable: bool
+    model_present: bool
+    models: list[str] = Field(default_factory=list)
+    generation_provider: str = ""
+    message: str = ""
+
+
 class AgentCommandRequest(BaseModel):
     command: str = Field(
         description="Allowlisted command: health, restart-api, restart-ui, restart-tunnels, "

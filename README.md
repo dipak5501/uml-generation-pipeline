@@ -158,6 +158,7 @@ Composite score (thesis formula): MMMU-weighted average of all three VLM scores 
 
 1. Dashboard  
 2. Single Generation (full artifact trace)  
+2b. **UML Copilot** (chat → generate / correct on Mac Studio Ollama + LoRA)  
 3. Batch Generation  
 4. Generated Diagrams (history gallery)  
 5. Human Evaluation (rubric)  
@@ -173,6 +174,8 @@ Auth (when `API_ACCESS_TOKEN` set): `Authorization: Bearer <token>` or `X-API-Ke
 
 - `POST /api/generate` — `input_mode`: `requirement` | `source_code`  
 - `POST /api/generate/batch`  
+- `POST /api/copilot/turn` — chat / generate / correct (Ollama dialogue + pipeline)  
+- `GET /api/copilot/health` — local chat model readiness  
 - `GET /api/jobs/{id}`  
 - `GET /api/artifacts/{id}` (+ `/image`, `/plantuml`)  
 - `POST /api/artifacts/{id}/rescore` / `/repair`  

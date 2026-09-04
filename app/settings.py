@@ -78,6 +78,11 @@ class Settings(BaseSettings):
     # Interactive Generate skips VLMs unless the client sets skip_vlm=false.
     interactive_skip_vlm: bool = False
 
+    # UML Copilot chat model (Ollama on :11434). Dialogue only — PlantUML still
+    # uses LoRA / code_model. Prefer qwen2.5:7b (or llama3.1:8b) for mini-ChatGPT
+    # clarifying Q&A; llama3.2:1b is a tiny fallback until you `ollama pull`.
+    copilot_model: str = "qwen2.5:7b"
+
     api_base_url: str = "http://127.0.0.1:8000"
 
     # Optional shared secret for public deploys. Empty = open (local demo).
