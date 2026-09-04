@@ -14,9 +14,9 @@ LOG="${LOG:-data/training/finetune_industrial_complete.log}"
 WARM="${WARM_START:-models/uml-plantuml-lora-sourcecode-30k}"
 PASS_ITERS="${PASS_ITERS:-4000}"
 CONTINUOUS="${CONTINUOUS:-1}"
-# Floor / ceiling for continuous targets
+# Floor; MAX_ITERS is a soft advisory — CONTINUOUS=1 always extends past it.
 MIN_TARGET="${ITERS:-8000}"
-MAX_TARGET="${MAX_ITERS:-100000}"
+MAX_TARGET="${MAX_ITERS:-500000}"
 
 mkdir -p "$ADAPTER" "$(dirname "$LOG")" "$DATA"
 
@@ -110,30 +110,30 @@ PY
   '
 }
 
-echo "==== $(date) industrial idle-aware supervisor start continuous=$CONTINUOUS min_target=$target ====" | tee -a "$LOG"
+echo "==== $(date) industrial idle-aware supervisor start continuous=$CONTINUOUS min_target=$target max_iters=$MAX_TARGET ====" | tee -a "$LOG"
 
 pass=0
 while true; do
   pass=$((pass + 1))
+  # Re-read each pass so a reloaded LaunchAgent env applies after kickstart.
+  CONTINUOUS="${CONTINUOUS:-1}"
+  PASS_ITERS="${PASS_ITERS:-4000}"
+  MAX_TARGET="${MAX_ITERS:-500000}"
   done_iters="$(completed_now | tr -d '[:space:]')"
   done_iters="${done_iters:-0}"
 
   if [[ "$done_iters" -ge "$target" ]]; then
-    if [[ "$CONTINUOUS" == "1" ]] && [[ "$target" -lt "$MAX_TARGET" ]]; then
+    if [[ "$CONTINUOUS" == "1" ]]; then
       next=$((done_iters + PASS_ITERS))
-      [[ "$next" -gt "$MAX_TARGET" ]] && next=$MAX_TARGET
+      if [[ "$next" -gt "$MAX_TARGET" ]]; then
+        echo "Continuous forever: extending past MAX_ITERS=$MAX_TARGET → next_target=$next" | tee -a "$LOG"
+      fi
       echo "Pass complete at $done_iters; bumping target $target → $next (continuous)" | tee -a "$LOG"
       target=$next
     else
       echo "Industrial training finished at $done_iters (target=$target continuous=$CONTINUOUS)" | tee -a "$LOG"
       echo "SWAP LATER (do not run until ready):" | tee -a "$LOG"
       echo "  # sed -i '' 's|^FINETUNED_ADAPTER_PATH=.*|FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-industrial-complete|' .env && bash scripts/restart_api.sh" | tee -a "$LOG"
-      # Exit 0: with KeepAlive SuccessfulExit=false this stays down; with true KeepAlive it restarts.
-      # Prefer sleep+continue when CONTINUOUS so launchd does not thrash.
-      if [[ "$CONTINUOUS" == "1" ]]; then
-        sleep 300
-        continue
-      fi
       exit 0
     fi
   fi

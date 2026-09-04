@@ -64,7 +64,7 @@ cat >"$DEST" <<EOF
     <key>PASS_ITERS</key>
     <string>4000</string>
     <key>MAX_ITERS</key>
-    <string>100000</string>
+    <string>500000</string>
     <key>CONTINUOUS</key>
     <string>1</string>
     <key>MAX_SEQ</key>
