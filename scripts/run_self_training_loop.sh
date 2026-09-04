@@ -107,8 +107,12 @@ PY
 )"
 log "self-train: harvest_rows=$harvest_n"
 
-log "self-train: building adaptation mix + JSONL"
-"$ROOT/.venv/bin/python" "$ROOT/scripts/build_adaptation_finetune_mix.py" >>"$LOG" 2>&1 || {
+log "self-train: building adaptation mix + JSONL (rich: full industrial + source30k + scenarios + harvest)"
+"$ROOT/.venv/bin/python" "$ROOT/scripts/build_adaptation_finetune_mix.py" \
+  --industrial-sample "${ADAPT_INDUSTRIAL_SAMPLE:-8901}" \
+  --source-sample "${ADAPT_SOURCE_SAMPLE:-6000}" \
+  --scenario-sample "${ADAPT_SCENARIO_SAMPLE:-1000}" \
+  >>"$LOG" 2>&1 || {
   log "mix/prepare failed; will retry later"
   write_state "harvest_only" "mix failed"
   sleep "$SLEEP_BUSY"
