@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://evaluate-accessible-shakira-prostores.trycloudflare.com
+https://kate-parents-killing-raw.trycloudflare.com
 
-UI:    https://evaluate-accessible-shakira-prostores.trycloudflare.com
-API:   https://texas-salary-repairs-infrared.trycloudflare.com
-Agent: https://texas-salary-repairs-infrared.trycloudflare.com/api/agent
+UI:    https://kate-parents-killing-raw.trycloudflare.com
+API:   https://bunch-butter-universal-innocent.trycloudflare.com
+Agent: https://bunch-butter-universal-innocent.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-05 04:42 UTC
+Updated: 2026-09-05 06:09 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
