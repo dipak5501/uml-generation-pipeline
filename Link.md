@@ -4,13 +4,13 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://southeast-encouraged-announced-microwave.trycloudflare.com](https://southeast-encouraged-announced-microwave.trycloudflare.com)
+**Live UI:** [https://pavilion-abu-tribe-sealed.trycloudflare.com](https://pavilion-abu-tribe-sealed.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://southeast-encouraged-announced-microwave.trycloudflare.com |
-| Public API (docs / exports) | https://begins-impaired-personalized-quilt.trycloudflare.com |
-| Remote command agent | https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://pavilion-abu-tribe-sealed.trycloudflare.com |
+| Public API (docs / exports) | https://weighted-types-secretary-display.trycloudflare.com |
+| Remote command agent | https://weighted-types-secretary-display.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://weighted-types-secretary-display.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://weighted-types-secretary-display.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://weighted-types-secretary-display.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent/command" \
+curl -s "https://weighted-types-secretary-display.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://weighted-types-secretary-display.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'
