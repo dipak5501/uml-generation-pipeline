@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://fastest-cleaners-entered-duncan.trycloudflare.com
+https://diameter-minus-cited-knife.trycloudflare.com
 
-UI:    https://fastest-cleaners-entered-duncan.trycloudflare.com
-API:   https://charged-existence-ids-another.trycloudflare.com
-Agent: https://charged-existence-ids-another.trycloudflare.com/api/agent
+UI:    https://diameter-minus-cited-knife.trycloudflare.com
+API:   https://nsw-dealers-what-emissions.trycloudflare.com
+Agent: https://nsw-dealers-what-emissions.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 09:53 UTC
+Updated: 2026-09-06 09:54 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
