@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://outlets-handbags-operational-transmit.trycloudflare.com
+https://html-rooms-cadillac-distribute.trycloudflare.com
 
-UI:    https://outlets-handbags-operational-transmit.trycloudflare.com
-API:   https://naples-join-noticed-ambient.trycloudflare.com
-Agent: https://naples-join-noticed-ambient.trycloudflare.com/api/agent
+UI:    https://html-rooms-cadillac-distribute.trycloudflare.com
+API:   https://reserve-laws-specifics-mary.trycloudflare.com
+Agent: https://reserve-laws-specifics-mary.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 06:19 UTC
+Updated: 2026-09-06 06:20 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
