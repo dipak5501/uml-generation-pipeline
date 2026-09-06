@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://actually-continues-coupled-forward.trycloudflare.com
+https://nsw-intensity-president-sega.trycloudflare.com
 
-UI:    https://actually-continues-coupled-forward.trycloudflare.com
-API:   https://vertical-simplified-typical-arrange.trycloudflare.com
-Agent: https://vertical-simplified-typical-arrange.trycloudflare.com/api/agent
+UI:    https://nsw-intensity-president-sega.trycloudflare.com
+API:   https://cloudy-flows-creations-aviation.trycloudflare.com
+Agent: https://cloudy-flows-creations-aviation.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 04:12 UTC
+Updated: 2026-09-06 04:13 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
