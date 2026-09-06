@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://continuity-meanwhile-distributor-ahead.trycloudflare.com
+https://suspended-dispatch-reporters-cole.trycloudflare.com
 
-UI:    https://continuity-meanwhile-distributor-ahead.trycloudflare.com
-API:   https://carries-simpsons-namespace-offerings.trycloudflare.com
-Agent: https://carries-simpsons-namespace-offerings.trycloudflare.com/api/agent
+UI:    https://suspended-dispatch-reporters-cole.trycloudflare.com
+API:   https://properly-collect-analysis-observed.trycloudflare.com
+Agent: https://properly-collect-analysis-observed.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 04:13 UTC
+Updated: 2026-09-06 04:14 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
