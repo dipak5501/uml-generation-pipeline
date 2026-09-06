@@ -4,19 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://really-optimum-nebraska-boost.trycloudflare.com](https://really-optimum-nebraska-boost.trycloudflare.com)
+**Live UI:** [https://most-languages-chris-ins.trycloudflare.com](https://most-languages-chris-ins.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://really-optimum-nebraska-boost.trycloudflare.com |
-| Public API (docs / exports) | https://novelty-bloomberg-lcd-extent.trycloudflare.com |
-| Remote command agent | https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://most-languages-chris-ins.trycloudflare.com |
+| Public API (docs / exports) | https://fastest-browsers-snow-democrat.trycloudflare.com |
+| Remote command agent | https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-09-06 13:29 UTC
+Updated: 2026-09-06 13:30 UTC
 
 ## Authentication
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://novelty-bloomberg-lcd-extent.trycloudflare.com/api/agent/command" \
+curl -s "https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'
