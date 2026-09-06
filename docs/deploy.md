@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-06):**
 
-- **UI:** [https://insulin-gay-protection-furthermore.trycloudflare.com](https://insulin-gay-protection-furthermore.trycloudflare.com)
-- **API:** [https://matter-protecting-italic-accounting.trycloudflare.com](https://matter-protecting-italic-accounting.trycloudflare.com)
-- **Agent:** [https://matter-protecting-italic-accounting.trycloudflare.com/api/agent](https://matter-protecting-italic-accounting.trycloudflare.com/api/agent)
+- **UI:** [https://fastest-cleaners-entered-duncan.trycloudflare.com](https://fastest-cleaners-entered-duncan.trycloudflare.com)
+- **API:** [https://charged-existence-ids-another.trycloudflare.com](https://charged-existence-ids-another.trycloudflare.com)
+- **Agent:** [https://charged-existence-ids-another.trycloudflare.com/api/agent](https://charged-existence-ids-another.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
