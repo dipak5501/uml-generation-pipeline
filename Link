@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://volt-linking-funny-teaches.trycloudflare.com
+https://bottles-specs-love-nine.trycloudflare.com
 
-UI:    https://volt-linking-funny-teaches.trycloudflare.com
-API:   https://deviation-flowers-feelings-herb.trycloudflare.com
-Agent: https://deviation-flowers-feelings-herb.trycloudflare.com/api/agent
+UI:    https://bottles-specs-love-nine.trycloudflare.com
+API:   https://soundtrack-night-receiving-stylish.trycloudflare.com
+Agent: https://soundtrack-night-receiving-stylish.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 13:32 UTC
+Updated: 2026-09-06 13:33 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
