@@ -2,7 +2,7 @@
 
 **For:** Dipak Yadav  
 **Server:** Mac Studio (always-on UML-Pipeline)  
-**Updated:** 2026-09-06 13:30 UTC
+**Updated:** 2026-09-06 13:31 UTC
 **Repo:** https://github.com/dipak5501/uml-generation-pipeline
 
 ---
@@ -12,9 +12,9 @@
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-06):**
 
-- **UI:** [https://most-languages-chris-ins.trycloudflare.com](https://most-languages-chris-ins.trycloudflare.com)
-- **API:** [https://fastest-browsers-snow-democrat.trycloudflare.com](https://fastest-browsers-snow-democrat.trycloudflare.com)
-- **Agent:** [https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent](https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent)
+- **UI:** [https://southeast-encouraged-announced-microwave.trycloudflare.com](https://southeast-encouraged-announced-microwave.trycloudflare.com)
+- **API:** [https://begins-impaired-personalized-quilt.trycloudflare.com](https://begins-impaired-personalized-quilt.trycloudflare.com)
+- **Agent:** [https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent](https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
@@ -67,8 +67,8 @@ On Device B (laptop, phone, another Cursor):
 
 ```bash
 export TOKEN="paste-value-locally-not-in-chat"
-export AGENT_URL="https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent"
-export API_URL="https://fastest-browsers-snow-democrat.trycloudflare.com"
+export AGENT_URL="https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent"
+export API_URL="https://begins-impaired-personalized-quilt.trycloudflare.com"
 ```
 
 **Auth headers:** `Authorization: Bearer $TOKEN` or `X-API-Key: $TOKEN`  
@@ -282,9 +282,9 @@ You are a remote operator for the UML-Pipeline Mac Studio server owned by Dipak 
 ## Connection (set in terminal — NEVER paste TOKEN into this chat)
 
 export TOKEN="<API_ACCESS_TOKEN from Mac Studio .env>"
-export AGENT_URL="https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent"
-export API_URL="https://fastest-browsers-snow-democrat.trycloudflare.com"
-export UI_URL="https://most-languages-chris-ins.trycloudflare.com"
+export AGENT_URL="https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent"
+export API_URL="https://begins-impaired-personalized-quilt.trycloudflare.com"
+export UI_URL="https://southeast-encouraged-announced-microwave.trycloudflare.com"
 
 On the Mac Studio the token is obtained with:
   grep '^API_ACCESS_TOKEN=' /path/to/uml-generation-pipeline/.env
@@ -409,9 +409,9 @@ Poll the returned `task_id` until complete. The `result` field contains `status`
 ## Quick reference card
 
 ```
-UI:     https://most-languages-chris-ins.trycloudflare.com
-API:    https://most-languages-chris-ins.trycloudflare.com
-Agent:  https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent
+UI:     https://southeast-encouraged-announced-microwave.trycloudflare.com
+API:    https://southeast-encouraged-announced-microwave.trycloudflare.com
+Agent:  https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent
 
 Mac token:  grep '^API_ACCESS_TOKEN=' .env
 Export:     export TOKEN="$(grep '^API_ACCESS_TOKEN=' .env | cut -d= -f2-)"

@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://most-languages-chris-ins.trycloudflare.com
+https://southeast-encouraged-announced-microwave.trycloudflare.com
 
-UI:    https://most-languages-chris-ins.trycloudflare.com
-API:   https://fastest-browsers-snow-democrat.trycloudflare.com
-Agent: https://fastest-browsers-snow-democrat.trycloudflare.com/api/agent
+UI:    https://southeast-encouraged-announced-microwave.trycloudflare.com
+API:   https://begins-impaired-personalized-quilt.trycloudflare.com
+Agent: https://begins-impaired-personalized-quilt.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 13:30 UTC
+Updated: 2026-09-06 13:31 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
