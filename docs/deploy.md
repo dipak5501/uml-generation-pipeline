@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-06):**
 
-- **UI:** [https://cooperation-patricia-bands-lance.trycloudflare.com](https://cooperation-patricia-bands-lance.trycloudflare.com)
-- **API:** [https://aim-bringing-early-accounting.trycloudflare.com](https://aim-bringing-early-accounting.trycloudflare.com)
-- **Agent:** [https://aim-bringing-early-accounting.trycloudflare.com/api/agent](https://aim-bringing-early-accounting.trycloudflare.com/api/agent)
+- **UI:** [https://march-specifics-virtue-ink.trycloudflare.com](https://march-specifics-virtue-ink.trycloudflare.com)
+- **API:** [https://pit-handy-toolkit-hist.trycloudflare.com](https://pit-handy-toolkit-hist.trycloudflare.com)
+- **Agent:** [https://pit-handy-toolkit-hist.trycloudflare.com/api/agent](https://pit-handy-toolkit-hist.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
