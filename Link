@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://restoration-perspectives-receive-comm.trycloudflare.com
+https://comedy-trackback-pst-wells.trycloudflare.com
 
-UI:    https://restoration-perspectives-receive-comm.trycloudflare.com
-API:   https://vienna-uploaded-cook-cause.trycloudflare.com
-Agent: https://vienna-uploaded-cook-cause.trycloudflare.com/api/agent
+UI:    https://comedy-trackback-pst-wells.trycloudflare.com
+API:   https://albums-soc-batman-tile.trycloudflare.com
+Agent: https://albums-soc-batman-tile.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 08:43 UTC
+Updated: 2026-09-06 09:51 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
