@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://pavilion-abu-tribe-sealed.trycloudflare.com
+https://volt-linking-funny-teaches.trycloudflare.com
 
-UI:    https://pavilion-abu-tribe-sealed.trycloudflare.com
-API:   https://weighted-types-secretary-display.trycloudflare.com
-Agent: https://weighted-types-secretary-display.trycloudflare.com/api/agent
+UI:    https://volt-linking-funny-teaches.trycloudflare.com
+API:   https://deviation-flowers-feelings-herb.trycloudflare.com
+Agent: https://deviation-flowers-feelings-herb.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-06 13:31 UTC
+Updated: 2026-09-06 13:32 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
