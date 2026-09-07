@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://feeds-phenomenon-console-diego.trycloudflare.com
+https://got-guarantee-interface-shift.trycloudflare.com
 
-UI:    https://feeds-phenomenon-console-diego.trycloudflare.com
-API:   https://privileges-andrew-applicants-smell.trycloudflare.com
-Agent: https://privileges-andrew-applicants-smell.trycloudflare.com/api/agent
+UI:    https://got-guarantee-interface-shift.trycloudflare.com
+API:   https://cdt-defining-bedford-machinery.trycloudflare.com
+Agent: https://cdt-defining-bedford-machinery.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-07 19:41 UTC
+Updated: 2026-09-07 19:42 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
