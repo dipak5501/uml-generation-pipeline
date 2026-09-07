@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-07):**
 
-- **UI:** [https://roles-ratio-officer-quit.trycloudflare.com](https://roles-ratio-officer-quit.trycloudflare.com)
-- **API:** [https://studio-tips-golf-else.trycloudflare.com](https://studio-tips-golf-else.trycloudflare.com)
-- **Agent:** [https://studio-tips-golf-else.trycloudflare.com/api/agent](https://studio-tips-golf-else.trycloudflare.com/api/agent)
+- **UI:** [https://reserves-street-messenger-dependence.trycloudflare.com](https://reserves-street-messenger-dependence.trycloudflare.com)
+- **API:** [https://magic-watched-paperback-prince.trycloudflare.com](https://magic-watched-paperback-prince.trycloudflare.com)
+- **Agent:** [https://magic-watched-paperback-prince.trycloudflare.com/api/agent](https://magic-watched-paperback-prince.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
