@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://application-perspectives-extreme-sender.trycloudflare.com
+https://airfare-webmaster-ladder-poison.trycloudflare.com
 
-UI:    https://application-perspectives-extreme-sender.trycloudflare.com
-API:   https://children-samples-selling-wisdom.trycloudflare.com
-Agent: https://children-samples-selling-wisdom.trycloudflare.com/api/agent
+UI:    https://airfare-webmaster-ladder-poison.trycloudflare.com
+API:   https://budapest-lease-vision-tigers.trycloudflare.com
+Agent: https://budapest-lease-vision-tigers.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-07 23:07 UTC
+Updated: 2026-09-08 08:41 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
