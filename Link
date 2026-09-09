@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://airfare-webmaster-ladder-poison.trycloudflare.com
+https://hostel-arising-unit-critics.trycloudflare.com
 
-UI:    https://airfare-webmaster-ladder-poison.trycloudflare.com
-API:   https://budapest-lease-vision-tigers.trycloudflare.com
-Agent: https://budapest-lease-vision-tigers.trycloudflare.com/api/agent
+UI:    https://hostel-arising-unit-critics.trycloudflare.com
+API:   https://ecological-scale-attachments-meter.trycloudflare.com
+Agent: https://ecological-scale-attachments-meter.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-08 08:41 UTC
+Updated: 2026-09-09 14:55 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

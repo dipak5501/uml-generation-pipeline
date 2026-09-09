@@ -11,11 +11,11 @@ This document covers **production deployment on macOS** (primary) and optional *
 | Render (optional) | `https://uml-pipeline-ui.onrender.com` | Cloud demo without MLX LoRA |
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-09-08):**
+**Live demo (as of 2026-09-09):**
 
-- **UI:** [https://airfare-webmaster-ladder-poison.trycloudflare.com](https://airfare-webmaster-ladder-poison.trycloudflare.com)
-- **API:** [https://budapest-lease-vision-tigers.trycloudflare.com](https://budapest-lease-vision-tigers.trycloudflare.com)
-- **Agent:** [https://budapest-lease-vision-tigers.trycloudflare.com/api/agent](https://budapest-lease-vision-tigers.trycloudflare.com/api/agent)
+- **UI:** [https://hostel-arising-unit-critics.trycloudflare.com](https://hostel-arising-unit-critics.trycloudflare.com)
+- **API:** [https://ecological-scale-attachments-meter.trycloudflare.com](https://ecological-scale-attachments-meter.trycloudflare.com)
+- **Agent:** [https://ecological-scale-attachments-meter.trycloudflare.com/api/agent](https://ecological-scale-attachments-meter.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
