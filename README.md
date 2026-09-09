@@ -12,11 +12,11 @@ This repository implements the system described in **Automated UML Dataset Gener
 **Full architecture:** [docs/SYSTEM_DESIGN.md](docs/SYSTEM_DESIGN.md)
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-09-08):**
+**Live demo (as of 2026-09-09):**
 
-- **UI:** [https://airfare-webmaster-ladder-poison.trycloudflare.com](https://airfare-webmaster-ladder-poison.trycloudflare.com)
-- **API:** [https://budapest-lease-vision-tigers.trycloudflare.com](https://budapest-lease-vision-tigers.trycloudflare.com)
-- **Agent:** [https://budapest-lease-vision-tigers.trycloudflare.com/api/agent](https://budapest-lease-vision-tigers.trycloudflare.com/api/agent)
+- **UI:** [https://hostel-arising-unit-critics.trycloudflare.com](https://hostel-arising-unit-critics.trycloudflare.com)
+- **API:** [https://ecological-scale-attachments-meter.trycloudflare.com](https://ecological-scale-attachments-meter.trycloudflare.com)
+- **Agent:** [https://ecological-scale-attachments-meter.trycloudflare.com/api/agent](https://ecological-scale-attachments-meter.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [Link.md](Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
@@ -190,7 +190,7 @@ Auth (when `API_ACCESS_TOKEN` set): `Authorization: Bearer <token>` or `X-API-Ke
 Control the Mac Studio server from any device when away from the machine. The public URL is kept in repo root [`Link`](Link) / [`Link.md`](Link.md) (auto-updated when Cloudflare tunnels restart).
 
 ```bash
-export AGENT="https://budapest-lease-vision-tigers.trycloudflare.com/api/agent"
+export AGENT="https://ecological-scale-attachments-meter.trycloudflare.com/api/agent"
 export TOKEN="your-api-access-token"   # from .env on the server — never commit
 
 curl -s "$AGENT/health" | python3 -m json.tool
