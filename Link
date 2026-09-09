@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://representatives-implemented-lying-muze.trycloudflare.com
+https://telephony-prayer-preview-sega.trycloudflare.com
 
-UI:    https://representatives-implemented-lying-muze.trycloudflare.com
-API:   https://mate-explain-profit-landscape.trycloudflare.com
-Agent: https://mate-explain-profit-landscape.trycloudflare.com/api/agent
+UI:    https://telephony-prayer-preview-sega.trycloudflare.com
+API:   https://aluminum-burke-transactions-speaker.trycloudflare.com
+Agent: https://aluminum-burke-transactions-speaker.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 14:56 UTC
+Updated: 2026-09-09 14:57 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
