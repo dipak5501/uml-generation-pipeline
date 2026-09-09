@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-09):**
 
-- **UI:** [https://dallas-gba-continuing-load.trycloudflare.com](https://dallas-gba-continuing-load.trycloudflare.com)
-- **API:** [https://determine-options-nutrition-rapid.trycloudflare.com](https://determine-options-nutrition-rapid.trycloudflare.com)
-- **Agent:** [https://determine-options-nutrition-rapid.trycloudflare.com/api/agent](https://determine-options-nutrition-rapid.trycloudflare.com/api/agent)
+- **UI:** [https://knights-denied-gig-eau.trycloudflare.com](https://knights-denied-gig-eau.trycloudflare.com)
+- **API:** [https://demo-sapphire-ranger-alberta.trycloudflare.com](https://demo-sapphire-ranger-alberta.trycloudflare.com)
+- **Agent:** [https://demo-sapphire-ranger-alberta.trycloudflare.com/api/agent](https://demo-sapphire-ranger-alberta.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
