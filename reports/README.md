@@ -6,10 +6,12 @@ Tracked PDF deliverables for the M.S. thesis project (regenerate after content c
 |------|------------|-----------|
 | [UML_Pipeline_Application_Report.pdf](UML_Pipeline_Application_Report.pdf) | System design, UML types, datasets, UI/API, Mac Studio production | `python scripts/generate_progress_pdf.py` |
 | [Dipak_Yadav_MS_Thesis_Draft.pdf](Dipak_Yadav_MS_Thesis_Draft.pdf) | CSULB-style M.S. thesis **draft** (CECS 698) from `paper/main.tex` plus implementation chapters | `python scripts/generate_thesis_draft.py` |
+| [Dipak_Yadav_Thesis_Research_Brief.pdf](Dipak_Yadav_Thesis_Research_Brief.pdf) | Two-page committee invitation brief (paper method, RQs, tables) | `python scripts/generate_committee_brief.py` |
 
 ```bash
 make app-report-pdf
 make thesis-pdf
+make committee-brief-pdf
 ```
 
 The thesis PDF is an **advisor-review draft**, not the official CSULB Thesis Office template. Expand bibliography from `paper/references.bib` before final submission.

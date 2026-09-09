@@ -2,6 +2,7 @@
 *.pdf
 !reports/UML_Pipeline_Application_Report.pdf
 !reports/Dipak_Yadav_MS_Thesis_Draft.pdf
+!reports/Dipak_Yadav_Thesis_Research_Brief.pdf
 # Local-only Independent Study / thesis admin docs (do not push)
 docs/CECS698_*
 docs/Paper_Talking_Points_for_Reviewer.*
