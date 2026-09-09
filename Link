@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://suite-vacation-nasa-blvd.trycloudflare.com
+https://dallas-gba-continuing-load.trycloudflare.com
 
-UI:    https://suite-vacation-nasa-blvd.trycloudflare.com
-API:   https://thunder-mapping-closing-goat.trycloudflare.com
-Agent: https://thunder-mapping-closing-goat.trycloudflare.com/api/agent
+UI:    https://dallas-gba-continuing-load.trycloudflare.com
+API:   https://determine-options-nutrition-rapid.trycloudflare.com
+Agent: https://determine-options-nutrition-rapid.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 20:32 UTC
+Updated: 2026-09-09 20:33 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
