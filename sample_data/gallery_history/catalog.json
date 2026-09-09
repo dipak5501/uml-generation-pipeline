@@ -1,0 +1,584 @@
+{
+  "version": 1,
+  "source": "Mac Studio live runs captured before the public API origin changed",
+  "jobs": [
+    {
+      "id": 153,
+      "mode": "multi",
+      "status": "completed",
+      "total": 4,
+      "completed": 4
+    },
+    {
+      "id": 155,
+      "mode": "multi",
+      "status": "completed",
+      "total": 4,
+      "completed": 4
+    },
+    {
+      "id": 156,
+      "mode": "batch",
+      "status": "completed",
+      "total": 5,
+      "completed": 5
+    },
+    {
+      "id": 150,
+      "mode": "single",
+      "status": "completed",
+      "total": 1,
+      "completed": 1
+    },
+    {
+      "id": 151,
+      "mode": "single",
+      "status": "completed",
+      "total": 1,
+      "completed": 1
+    },
+    {
+      "id": 152,
+      "mode": "single",
+      "status": "completed",
+      "total": 1,
+      "completed": 1
+    }
+  ],
+  "artifacts": [
+    {
+      "png": "512.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 5,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 512,
+      "job_id": 156,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Build a food delivery app with restaurants, menus, couriers, and customer orders.",
+      "composite_score": 5.647,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:23:52"
+    },
+    {
+      "png": "511.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 5,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 4,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 511,
+      "job_id": 155,
+      "diagram_type": "package",
+      "input_mode": "requirement",
+      "source_requirement": "Campus parking office: students and staff request permits, officers issue citations, and the office tracks lots, rates, and appeals.",
+      "composite_score": 4.925,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:23:27"
+    },
+    {
+      "png": "510.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 4,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 510,
+      "job_id": 156,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Implement a learning management system with courses, students, instructors, and quizzes.",
+      "composite_score": 5.294,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:23:00"
+    },
+    {
+      "png": "509.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 4,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 509,
+      "job_id": 155,
+      "diagram_type": "component",
+      "input_mode": "requirement",
+      "source_requirement": "Campus parking office: students and staff request permits, officers issue citations, and the office tracks lots, rates, and appeals.",
+      "composite_score": 5.294,
+      "dataset_accepted": false,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:22:40"
+    },
+    {
+      "png": "508.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 5,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 508,
+      "job_id": 156,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Create a fleet logistics platform tracking vehicles, routes, shipments, and warehouses.",
+      "composite_score": 5.647,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:22:20"
+    },
+    {
+      "png": "507.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 5,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 5,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 507,
+      "job_id": 156,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Design a hospital appointment system for patients, doctors, and clinic schedules.",
+      "composite_score": 5.37,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:21:50"
+    },
+    {
+      "png": "506.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 5,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 506,
+      "job_id": 155,
+      "diagram_type": "object",
+      "input_mode": "requirement",
+      "source_requirement": "Campus parking office: students and staff request permits, officers issue citations, and the office tracks lots, rates, and appeals.",
+      "composite_score": 5.647,
+      "dataset_accepted": false,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:21:13"
+    },
+    {
+      "png": "505.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 4,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 505,
+      "job_id": 156,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Build an online bookstore with inventory management, shopping carts, and order checkout.",
+      "composite_score": 5.294,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:20:40"
+    },
+    {
+      "png": "504.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": null,
+      "scores": [
+        {
+          "model_key": "qwen25vl3b",
+          "model_name": "qwen2.5vl:3b",
+          "score": 6,
+          "weight": 53.1,
+          "available": true
+        },
+        {
+          "model_key": "llama32vl11b",
+          "model_name": "llama3.2-vision:11b",
+          "score": 4,
+          "weight": 50.7,
+          "available": true
+        },
+        {
+          "model_key": "aya_vision_8b",
+          "model_name": "aya-vision:8b",
+          "score": 6,
+          "weight": 39.9,
+          "available": true
+        }
+      ],
+      "source_language": null,
+      "id": 504,
+      "job_id": 155,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Campus parking office: students and staff request permits, officers issue citations, and the office tracks lots, rates, and appeals.",
+      "composite_score": 5.294,
+      "dataset_accepted": true,
+      "majority_accepted": true,
+      "affirmative_votes": 3,
+      "created_at": "2026-09-02T21:19:52"
+    },
+    {
+      "png": "483.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio job 153; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 483,
+      "job_id": 153,
+      "diagram_type": "package",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:34:00"
+    },
+    {
+      "png": "482.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio job 153; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 482,
+      "job_id": 153,
+      "diagram_type": "component",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:34:00"
+    },
+    {
+      "png": "481.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio job 153; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 481,
+      "job_id": 153,
+      "diagram_type": "object",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:34:00"
+    },
+    {
+      "png": "480.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio job 153; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 480,
+      "job_id": 153,
+      "diagram_type": "class",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:34:00"
+    },
+    {
+      "png": "479.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio artifact 479; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": null,
+      "id": 479,
+      "job_id": 152,
+      "diagram_type": "class",
+      "input_mode": "requirement",
+      "source_requirement": "Campus parking office: students and staff request permits, officers issue citations, and the office tracks lots, rates, and appeals.",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:28:00"
+    },
+    {
+      "png": "478.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio artifact 478; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 478,
+      "job_id": 151,
+      "diagram_type": "class",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:28:00"
+    },
+    {
+      "png": "477.png",
+      "image_format": "png",
+      "render_status": "success",
+      "acceptance_tau": 4.0,
+      "technical_spec": "Restored live Mac Studio diagram.",
+      "plantuml_code": "@startuml\ntitle Restored live diagram\n@enduml\n",
+      "validation_messages": "Restored PNG from Mac Studio artifact 477; original VLM rows were not in this snapshot.",
+      "scores": [],
+      "source_language": "java",
+      "id": 477,
+      "job_id": 150,
+      "diagram_type": "component",
+      "input_mode": "source_code",
+      "source_requirement": "public class Book {\n    private String isbn;\n    private String title;\n    public String getTitle() { return title; }\n}\npublic class Member {\n    private String memberId;\n    private String email;\n    public void borrow(Loan loan) { }\n}\npublic class Loan {\n    private Book book;\n    private Member member;\n    public Book getBook() { return book; }\n}\npublic class LibraryService {\n    public Loan checkout(Member member, Book book) { return new Loan(); }\n}\n",
+      "composite_score": 0.0,
+      "dataset_accepted": false,
+      "majority_accepted": false,
+      "affirmative_votes": 0,
+      "created_at": "2026-08-31T20:28:00"
+    }
+  ]
+}
