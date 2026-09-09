@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://viewing-drives-psychological-mainly.trycloudflare.com
+https://protecting-charms-devoted-contamination.trycloudflare.com
 
-UI:    https://viewing-drives-psychological-mainly.trycloudflare.com
-API:   https://quarterly-crest-johnny-java.trycloudflare.com
-Agent: https://quarterly-crest-johnny-java.trycloudflare.com/api/agent
+UI:    https://protecting-charms-devoted-contamination.trycloudflare.com
+API:   https://xbox-projected-front-informed.trycloudflare.com
+Agent: https://xbox-projected-front-informed.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 14:59 UTC
+Updated: 2026-09-09 20:31 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
