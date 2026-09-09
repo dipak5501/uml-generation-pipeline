@@ -56,9 +56,9 @@ The paper describes **DeepSeek-R1-Distill-Qwen-32B** for Stage 2 PlantUML genera
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-09):**
 
-- **UI:** [https://knights-denied-gig-eau.trycloudflare.com](https://knights-denied-gig-eau.trycloudflare.com)
-- **API:** [https://demo-sapphire-ranger-alberta.trycloudflare.com](https://demo-sapphire-ranger-alberta.trycloudflare.com)
-- **Agent:** [https://demo-sapphire-ranger-alberta.trycloudflare.com/api/agent](https://demo-sapphire-ranger-alberta.trycloudflare.com/api/agent)
+- **UI:** [https://analytical-port-seasons-fans.trycloudflare.com](https://analytical-port-seasons-fans.trycloudflare.com)
+- **API:** [https://organic-thereof-duck-mon.trycloudflare.com](https://organic-thereof-duck-mon.trycloudflare.com)
+- **Agent:** [https://organic-thereof-duck-mon.trycloudflare.com/api/agent](https://organic-thereof-duck-mon.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->

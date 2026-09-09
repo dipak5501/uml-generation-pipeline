@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://knights-denied-gig-eau.trycloudflare.com
+https://analytical-port-seasons-fans.trycloudflare.com
 
-UI:    https://knights-denied-gig-eau.trycloudflare.com
-API:   https://demo-sapphire-ranger-alberta.trycloudflare.com
-Agent: https://demo-sapphire-ranger-alberta.trycloudflare.com/api/agent
+UI:    https://analytical-port-seasons-fans.trycloudflare.com
+API:   https://organic-thereof-duck-mon.trycloudflare.com
+Agent: https://organic-thereof-duck-mon.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 20:33 UTC
+Updated: 2026-09-09 20:34 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
