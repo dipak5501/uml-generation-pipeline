@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://regional-success-nuclear-sep.trycloudflare.com
+https://horses-sacramento-muslim-deutschland.trycloudflare.com
 
-UI:    https://regional-success-nuclear-sep.trycloudflare.com
-API:   https://toys-venture-answer-watson.trycloudflare.com
-Agent: https://toys-venture-answer-watson.trycloudflare.com/api/agent
+UI:    https://horses-sacramento-muslim-deutschland.trycloudflare.com
+API:   https://restricted-relations-llp-bronze.trycloudflare.com
+Agent: https://restricted-relations-llp-bronze.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 14:58 UTC
+Updated: 2026-09-09 14:59 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
