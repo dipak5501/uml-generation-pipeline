@@ -13,9 +13,9 @@ This document covers **production deployment on macOS** (primary) and optional *
 <!-- LIVE_DEMO_BEGIN -->
 **Live demo (as of 2026-09-09):**
 
-- **UI:** [https://hostel-arising-unit-critics.trycloudflare.com](https://hostel-arising-unit-critics.trycloudflare.com)
-- **API:** [https://ecological-scale-attachments-meter.trycloudflare.com](https://ecological-scale-attachments-meter.trycloudflare.com)
-- **Agent:** [https://ecological-scale-attachments-meter.trycloudflare.com/api/agent](https://ecological-scale-attachments-meter.trycloudflare.com/api/agent)
+- **UI:** [https://representatives-implemented-lying-muze.trycloudflare.com](https://representatives-implemented-lying-muze.trycloudflare.com)
+- **API:** [https://mate-explain-profit-landscape.trycloudflare.com](https://mate-explain-profit-landscape.trycloudflare.com)
+- **Agent:** [https://mate-explain-profit-landscape.trycloudflare.com/api/agent](https://mate-explain-profit-landscape.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
