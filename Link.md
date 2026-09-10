@@ -4,19 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://translated-monitoring-ago-notify.trycloudflare.com](https://translated-monitoring-ago-notify.trycloudflare.com)
+**Live UI:** [https://organised-looksmart-boutique-recruiting.trycloudflare.com](https://organised-looksmart-boutique-recruiting.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://translated-monitoring-ago-notify.trycloudflare.com |
-| Public API (docs / exports) | https://baseball-our-convenient-survey.trycloudflare.com |
-| Remote command agent | https://baseball-our-convenient-survey.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://organised-looksmart-boutique-recruiting.trycloudflare.com |
+| Public API (docs / exports) | https://styles-milwaukee-kirk-finance.trycloudflare.com |
+| Remote command agent | https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-09-10 06:41 UTC
+Updated: 2026-09-10 14:15 UTC
 
 ## Authentication
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://baseball-our-convenient-survey.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://baseball-our-convenient-survey.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://baseball-our-convenient-survey.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://baseball-our-convenient-survey.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://baseball-our-convenient-survey.trycloudflare.com/api/agent/command" \
+curl -s "https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://styles-milwaukee-kirk-finance.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'
