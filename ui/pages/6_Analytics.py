@@ -64,13 +64,41 @@ if adapt and (adapt.get("generators") or adapt.get("recent")):
         ]
         st.dataframe(rows, use_container_width=True, hide_index=True)
 
-st.subheader("Package failures")
+st.subheader("Package failures (RQ3 live)")
 try:
     pkg = api_get("/api/analytics/package-failures")
 except Exception:
     pkg = None
 if pkg:
-    st.caption(f"{pkg.get('package_failures', 0)} failed / {pkg.get('package_total', 0)} package artifacts")
+    st.caption(pkg.get("note") or "")
+    fr = pkg.get("failure_rate")
+    repair = pkg.get("repair") or {}
+    st.caption(
+        f"{pkg.get('package_failures', 0)} failed / {pkg.get('package_total', 0)} package · "
+        f"rate {None if fr is None else f'{100 * fr:.1f}%'} · "
+        f"repair win-rate "
+        f"{None if repair.get('attempt_win_rate') is None else f'{100 * repair['attempt_win_rate']:.1f}%'} · "
+        f"rescue "
+        f"{None if repair.get('rescue_rate') is None else f'{100 * repair['rescue_rate']:.1f}%'}"
+    )
+    rates = pkg.get("by_category_rates") or {}
+    if rates:
+        st.dataframe(
+            pd.DataFrame(
+                [
+                    {
+                        "category": cat,
+                        "count": row.get("count"),
+                        "share_of_failures_%": None
+                        if row.get("share_of_failures") is None
+                        else round(100 * row["share_of_failures"], 1),
+                    }
+                    for cat, row in sorted(rates.items(), key=lambda kv: -(kv[1].get("count") or 0))
+                ]
+            ),
+            use_container_width=True,
+            hide_index=True,
+        )
     if pkg.get("by_category"):
         st.bar_chart(pd.DataFrame({"count": pkg["by_category"]}).rename_axis("category"))
     for cat, rows_ex in (pkg.get("examples") or {}).items():

@@ -192,6 +192,9 @@ app-report-pdf:
 committee-brief-pdf:
 	PYTHONPATH=. python scripts/generate_committee_brief.py
 
+rq3-package-chapter:
+	. .venv/bin/activate && PYTHONPATH=. python scripts/generate_rq3_package_chapter.py
+
 docker-up:
 	docker compose up --build
 

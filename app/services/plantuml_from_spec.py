@@ -41,6 +41,10 @@ def _safe_label(text: str, *, max_len: int = 80) -> str:
     s = s.replace("@startuml", "").replace("@enduml", "")
     s = s.replace("[", "(").replace("]", ")")
     s = s.replace('"', "'")
+    # LoRA/template leftovers that break PlantUML title/note parsing
+    if s in {"{}", "{", "}", "{{}}"} or re.fullmatch(r"\{+\s*\}*", s):
+        s = ""
+    s = s.replace("{}", "").strip()
     return s[:max_len].strip() or "Item"
 
 
@@ -419,10 +423,14 @@ def build_package_plantuml(spec: dict[str, Any]) -> str:
         for item in contains[:8]:
             if _GENERIC_NAME.match(item):
                 continue
-            lines.append(f"{indent}  class {_safe_id(item)}")
+            cid = _safe_id(item)
+            # Avoid package/class name collision inside the same block when possible
+            if cid.lower() == pname.lower():
+                cid = f"{pname}Type"
+            lines.append(f"{indent}  class {cid}")
             wrote = True
         if not wrote:
-            lines.append(f"{indent}  class {pname}")
+            lines.append(f"{indent}  class {pname}Type")
         lines.append(f"{indent}}}")
     if nest_under_system:
         lines.append("}")

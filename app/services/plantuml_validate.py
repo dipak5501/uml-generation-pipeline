@@ -325,6 +325,55 @@ def repair_component_interfaces(code: str) -> str:
     return "\n".join(cleaned)
 
 
+def scrub_empty_plantuml_chrome(code: str) -> str:
+    """Remove LoRA/template leftovers like ``title {}`` that PlantUML rejects.
+
+    Empty curly placeholders in ``title`` / guide notes cause
+    ``Some diagram description contains errors`` (HTTP 400 on remote).
+    Do not strip braces from ``package`` / ``class`` declarations.
+    """
+    out: list[str] = []
+    for line in (code or "").splitlines():
+        stripped = line.strip()
+        # Bare / empty title braces — drop the line
+        if re.match(r"(?i)^title\s*\{\s*\}?\s*$", stripped):
+            continue
+        if re.match(r"(?i)^title\s*\}\s*$", stripped):
+            continue
+        # title {something  → title something
+        m = re.match(r"(?i)^(title)\s*\{+\s*(.*)$", stripped)
+        if m:
+            rest = m.group(2).rstrip("}").strip()
+            if not rest or rest == "{}":
+                continue
+            out.append(f"title {rest}")
+            continue
+        # Only rewrite note/legend/guide content lines — never package/class blocks
+        is_structure = bool(
+            re.match(
+                r"(?i)^(package|class|interface|enum|object|component|abstract\s+class)\b",
+                stripped,
+            )
+        )
+        if not is_structure:
+            if "{}" in line:
+                line = line.replace("{}", "design overview")
+            # Trailing orphan opener on guide lines: "What this shows: {"
+            if re.search(r"(?i)(what this shows|title|note)\b", stripped) or stripped.startswith(
+                ("What ", "Where ", "Use ")
+            ):
+                line = re.sub(r"\{\s*$", "", line)
+            # Empty guide value after colon
+            if re.match(r"(?i)^\s*What this shows:\s*$", line.strip()):
+                line = re.sub(
+                    r"(?i)What this shows:\s*$",
+                    "What this shows: design overview",
+                    line,
+                )
+        out.append(line)
+    return "\n".join(out)
+
+
 def sanitize_plantuml_output(
     code: str,
     *,
@@ -336,6 +385,7 @@ def sanitize_plantuml_output(
     # Drop accidental @startchen / ER leftovers that break UML renders
     text = re.sub(r"(?im)^@startchen\b.*$", "", text)
     text = re.sub(r"(?im)^@endchen\b.*$", "", text)
+    text = scrub_empty_plantuml_chrome(text)
     text = normalize_plantuml_relations(text)
     text = strip_unsafe_plantuml_directives(text)
 
@@ -381,6 +431,31 @@ def sanitize_plantuml_output(
     closes = body.count("}")
     if opens > closes:
         body = body.replace("@enduml", "}" * (opens - closes) + "\n@enduml", 1)
+    elif closes > opens:
+        # Drop orphan closers left after scrubbing bad ``title {`` / note placeholders
+        excess = closes - opens
+        lines_b = body.splitlines()
+        for i in range(len(lines_b) - 1, -1, -1):
+            if excess <= 0:
+                break
+            raw = lines_b[i]
+            if raw.strip() == "}":
+                lines_b.pop(i)
+                excess -= 1
+            elif raw.strip() == "}}" and excess >= 2:
+                lines_b.pop(i)
+                excess -= 2
+            elif raw.rstrip().endswith("}") and not raw.strip().startswith("@"):
+                # trim one trailing } from a line like "}}"
+                while excess > 0 and lines_b[i].rstrip().endswith("}"):
+                    lines_b[i] = lines_b[i].rstrip()[:-1].rstrip()
+                    excess -= 1
+                    if not lines_b[i].strip():
+                        lines_b.pop(i)
+                        break
+        body = "\n".join(lines_b)
+        if "@enduml" not in body.lower():
+            body = body.rstrip() + "\n@enduml"
     return apply_publication_plantuml_style(body.strip() + "\n")
 
 

@@ -161,10 +161,53 @@ if arts:
         render_artifact_grid(arts, key_prefix="def-grid")
 
 st.subheader("RQ3 · Package failures on this server")
+st.caption(pkg.get("note") or "Live Mac Studio package taxonomy — not the paper n=8k run.")
+fr = pkg.get("failure_rate")
+ci = pkg.get("failure_rate_ci95") or {}
+ci_txt = ""
+if ci.get("low") is not None and ci.get("high") is not None:
+    ci_txt = f" · 95% CI [{100 * ci['low']:.1f}%, {100 * ci['high']:.1f}%]"
 st.caption(
-    f"Package artifacts: {pkg.get('package_total', 0)} · failures: {pkg.get('package_failures', 0)} · "
-    f"rate: {pkg.get('failure_rate')}"
+    f"Package artifacts: {pkg.get('package_total', 0)} · "
+    f"failures: {pkg.get('package_failures', 0)} · "
+    f"rate: {None if fr is None else f'{100 * fr:.1f}%'}{ci_txt}"
 )
+repair = pkg.get("repair") or {}
+r1, r2, r3, r4 = st.columns(4)
+r1.metric("Mean S (ok)", f"{pkg['mean_s_success']:.2f}" if pkg.get("mean_s_success") is not None else "n/a")
+r2.metric("Mean S (fail)", f"{pkg['mean_s_failure']:.2f}" if pkg.get("mean_s_failure") is not None else "n/a")
+r3.metric(
+    "Repair win-rate",
+    f"{100 * repair['attempt_win_rate']:.1f}%" if repair.get("attempt_win_rate") is not None else "n/a",
+)
+r4.metric(
+    "Rescue rate",
+    f"{100 * repair['rescue_rate']:.1f}%" if repair.get("rescue_rate") is not None else "n/a",
+)
+st.caption(
+    f"Repair attempts {repair.get('repair_attempts', 0)} · "
+    f"successes {repair.get('repair_successes', 0)} · "
+    f"rescued artifacts {repair.get('rescued_artifacts', 0)} / "
+    f"{repair.get('artifacts_with_repair', 0)} repaired"
+)
+rates = pkg.get("by_category_rates") or {}
+if rates:
+    rate_rows = [
+        {
+            "category": cat,
+            "count": row.get("count"),
+            "share_of_failures_%": None
+            if row.get("share_of_failures") is None
+            else round(100 * row["share_of_failures"], 1),
+            "share_of_packages_%": None
+            if row.get("share_of_packages") is None
+            else round(100 * row["share_of_packages"], 1),
+        }
+        for cat, row in sorted(rates.items(), key=lambda kv: -(kv[1].get("count") or 0))
+    ]
+    st.dataframe(pd.DataFrame(rate_rows), use_container_width=True, hide_index=True)
+elif pkg.get("by_category"):
+    st.bar_chart(pd.DataFrame({"count": pkg["by_category"]}).rename_axis("category"))
 if pkg.get("by_category"):
     st.bar_chart(pd.DataFrame({"count": pkg["by_category"]}).rename_axis("category"))
 examples = pkg.get("examples") or {}

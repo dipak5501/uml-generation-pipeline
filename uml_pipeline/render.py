@@ -329,8 +329,13 @@ def render_plantuml(
     Prefer local Java when available (more reliable than the public PlantUML
     HTTP server). Fall back to remote when enabled and local fails/missing.
     """
+    from app.services.plantuml_validate import scrub_empty_plantuml_chrome
+
     dot = find_dot_executable()
-    code = _ensure_renderable_layout(extract_plantuml_block(uml_code), has_dot=bool(dot))
+    code = _ensure_renderable_layout(
+        scrub_empty_plantuml_chrome(extract_plantuml_block(uml_code)),
+        has_dot=bool(dot),
+    )
     digest = hashlib.sha256(code.encode()).hexdigest()[:16]
     out_dir.mkdir(parents=True, exist_ok=True)
     puml_file = out_dir / f"{digest}.puml"
