@@ -46,7 +46,8 @@ pkg = briefing.get("package_failures") or {}
 st.info(stack.get("note") or "")
 st.caption(
     f"Host: {stack.get('host')} · Stage 2 on this machine: {stack.get('stage2')}. "
-    f"Paper Stage 2: {paper.get('stage2_model')}."
+    f"Paper Stage 2: {paper.get('stage2_model')}. "
+    "Training corpus map: `reports/TRAINING_CORPUS_FOR_REVIEWERS.md`."
 )
 
 stats_row(

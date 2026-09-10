@@ -47,6 +47,13 @@ with flags[2]:
     else:
         st.caption("LoRA off")
 
+adapter = health.get("finetuned_adapter_path") or ""
+if adapter:
+    st.caption(
+        f"Live PlantUML adapter: `{adapter}` · corpus map for reviewers: "
+        "`reports/TRAINING_CORPUS_FOR_REVIEWERS.md` (paper DeepSeek n=8k ≠ this Mac LoRA)."
+    )
+
 msgs = health.get("messages") or []
 if msgs:
     with st.expander("Health details"):

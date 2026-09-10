@@ -21,3 +21,5 @@ The thesis PDF is an **advisor-review draft**, not the official CSULB Thesis Off
 If GitHub shows “Error loading PDF page number 1”, use **Download** (raw file). The tracked PDFs are rewritten with Flate-only streams so the GitHub viewer works; an older ReportLab ASCII85 encoding caused that error.
 
 Markdown companions in this folder (`PUBLICATION_TECHNICAL_REPORT.md`, `REVIEWER_PROGRESS_REPORT.md`, `REMOTE_CURSOR_ACCESS.md`) are source notes, not the submission PDFs.
+
+**Reviewer corpus map:** [TRAINING_CORPUS_FOR_REVIEWERS.md](TRAINING_CORPUS_FOR_REVIEWERS.md) — live adapter vs paper DeepSeek, corpora under `data/training/`, and Makefile train → adapter inventory.
