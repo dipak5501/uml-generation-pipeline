@@ -1,62 +1,27 @@
 {
   "claim_scope": "live_mac_studio",
   "note": "Live package taxonomy on this Mac Studio database \u2014 not the paper DeepSeek-32B n=8,000 run. Do not cite these rates as paper RQ3 numbers.",
-  "package_total": 195,
-  "package_successes": 186,
-  "package_failures": 9,
-  "failure_rate": 0.046153846153846156,
+  "package_total": 203,
+  "package_successes": 203,
+  "package_failures": 0,
+  "failure_rate": 0.0,
   "failure_rate_ci95": {
-    "low": 0.024468614069101245,
-    "high": 0.08537560363986912
+    "low": 0.0,
+    "high": 0.018572666233484945
   },
-  "success_rate": 0.9538461538461539,
-  "mean_s_success": 4.988270336034581,
-  "mean_s_failure": 0.0,
-  "majority_accept_success_pct": 98.38709677419355,
-  "by_category": {
-    "render_engine_error": 9
-  },
-  "by_category_rates": {
-    "render_engine_error": {
-      "count": 9,
-      "share_of_failures": 1.0,
-      "share_of_packages": 0.046153846153846156
-    }
-  },
+  "success_rate": 1.0,
+  "mean_s_success": 4.999547058410532,
+  "mean_s_failure": null,
+  "majority_accept_success_pct": 98.52216748768473,
+  "by_category": {},
+  "by_category_rates": {},
   "repair": {
-    "artifacts_with_repair": 40,
-    "repair_attempts": 108,
-    "repair_successes": 101,
-    "attempt_win_rate": 0.9351851851851852,
-    "rescued_artifacts": 38,
-    "rescue_rate": 0.95
+    "artifacts_with_repair": 41,
+    "repair_attempts": 112,
+    "repair_successes": 105,
+    "attempt_win_rate": 0.9375,
+    "rescued_artifacts": 41,
+    "rescue_rate": 1.0
   },
-  "examples": {
-    "render_engine_error": [
-      {
-        "id": 68,
-        "composite_score": 0.0,
-        "categories": [
-          "render_engine_error"
-        ],
-        "plantuml_preview": "@startuml\nskinparam monochrome true\nskinparam shadowing false\nskinparam backgroundColor white\nskinparam defaultFontColor black\nskinparam ArrowColor black\nskinparam ClassBorderColor black\nskinparam PackageBorderColor black\nskinparam Componen"
-      },
-      {
-        "id": 72,
-        "composite_score": 0.0,
-        "categories": [
-          "render_engine_error"
-        ],
-        "plantuml_preview": "@startuml\nskinparam monochrome true\nskinparam shadowing false\nskinparam backgroundColor white\nskinparam defaultFontColor black\nskinparam ArrowColor black\nskinparam ClassBorderColor black\nskinparam PackageBorderColor black\nskinparam Componen"
-      },
-      {
-        "id": 76,
-        "composite_score": 0.0,
-        "categories": [
-          "render_engine_error"
-        ],
-        "plantuml_preview": "@startuml\nskinparam monochrome true\nskinparam shadowing false\nskinparam backgroundColor white\nskinparam defaultFontColor black\nskinparam ArrowColor black\nskinparam ClassBorderColor black\nskinparam PackageBorderColor black\nskinparam Componen"
-      }
-    ]
-  }
+  "examples": {}
 }

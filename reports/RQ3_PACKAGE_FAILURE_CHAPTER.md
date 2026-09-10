@@ -8,30 +8,28 @@ Live package taxonomy on this Mac Studio database — not the paper DeepSeek-32B
 
 | Metric | Value |
 |--------|-------|
-| Package artifacts | 195 |
-| Render successes | 186 |
-| Render failures | 9 |
-| Failure rate | 4.6% (95% Wilson CI [2.4%, 8.5%]) |
-| Mean S (success) | 4.99 |
-| Mean S (failure) | 0.00 |
-| Majority A among successes | 98.4% |
+| Package artifacts | 203 |
+| Render successes | 203 |
+| Render failures | 0 |
+| Failure rate | 0.0% (95% Wilson CI [0.0%, 1.9%]) |
+| Mean S (success) | 5.00 |
+| Majority A among successes | 98.5% |
 
 ## Repair win-rate (package only)
 
 | Metric | Value |
 |--------|-------|
-| Artifacts that attempted repair | 40 |
-| Repair attempts | 108 |
-| Successful repair attempts | 101 |
-| Attempt win-rate | 93.5% |
-| Rescued to final render success | 38 |
-| Rescue rate (among repaired) | 95.0% |
+| Artifacts that attempted repair | 41 |
+| Repair attempts | 112 |
+| Successful repair attempts | 105 |
+| Attempt win-rate | 93.8% |
+| Rescued to final render success | 41 |
+| Rescue rate (among repaired) | 100.0% |
 
 ## Failure taxonomy
 
 | Category | Count | Share of failures | Share of packages |
 |----------|------:|------------------:|------------------:|
-| `render_engine_error` | 9 | 100.0% | 4.6% |
 
 ## Interpretation (for defense)
 
@@ -41,49 +39,6 @@ Live package taxonomy on this Mac Studio database — not the paper DeepSeek-32B
 
 ## Examples
 
-### `render_engine_error`
-
-- Artifact #68 · S=0.0 · categories=['render_engine_error']
-
-```
-@startuml
-skinparam monochrome true
-skinparam shadowing false
-skinparam backgroundColor white
-skinparam defaultFontColor black
-skinparam ArrowColor black
-skinparam ClassBorderColor black
-skinparam PackageBorderColor black
-skinparam Componen
-```
-
-- Artifact #72 · S=0.0 · categories=['render_engine_error']
-
-```
-@startuml
-skinparam monochrome true
-skinparam shadowing false
-skinparam backgroundColor white
-skinparam defaultFontColor black
-skinparam ArrowColor black
-skinparam ClassBorderColor black
-skinparam PackageBorderColor black
-skinparam Componen
-```
-
-- Artifact #76 · S=0.0 · categories=['render_engine_error']
-
-```
-@startuml
-skinparam monochrome true
-skinparam shadowing false
-skinparam backgroundColor white
-skinparam defaultFontColor black
-skinparam ArrowColor black
-skinparam ClassBorderColor black
-skinparam PackageBorderColor black
-skinparam Componen
-```
-
+_No failed package diagrams stored yet._
 
 Regenerate: `python scripts/generate_rq3_package_chapter.py`
