@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://analytical-port-seasons-fans.trycloudflare.com
+https://earrings-emission-lone-enquiries.trycloudflare.com
 
-UI:    https://analytical-port-seasons-fans.trycloudflare.com
-API:   https://organic-thereof-duck-mon.trycloudflare.com
-Agent: https://organic-thereof-duck-mon.trycloudflare.com/api/agent
+UI:    https://earrings-emission-lone-enquiries.trycloudflare.com
+API:   https://tide-extremely-corpus-enemies.trycloudflare.com
+Agent: https://tide-extremely-corpus-enemies.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-09 20:34 UTC
+Updated: 2026-09-10 03:24 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
