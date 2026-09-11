@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://ash-territories-companion-devices.trycloudflare.com
+https://motivation-cheaper-years-usc.trycloudflare.com
 
-UI:    https://ash-territories-companion-devices.trycloudflare.com
-API:   https://behalf-pair-kinda-sao.trycloudflare.com
-Agent: https://behalf-pair-kinda-sao.trycloudflare.com/api/agent
+UI:    https://motivation-cheaper-years-usc.trycloudflare.com
+API:   https://release-lows-drums-footage.trycloudflare.com
+Agent: https://release-lows-drums-footage.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-10 19:00 UTC
+Updated: 2026-09-11 06:52 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt
