@@ -2,7 +2,7 @@
 
 **For:** Dipak Yadav  
 **Server:** Mac Studio (always-on UML-Pipeline)  
-**Updated:** 2026-09-12 10:28 UTC
+**Updated:** 2026-09-16 00:57 UTC
 **Repo:** https://github.com/dipak5501/uml-generation-pipeline
 
 ---
@@ -10,11 +10,11 @@
 ## Current public URLs
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-09-12):**
+**Live demo (as of 2026-09-16):**
 
-- **UI:** [https://carried-yamaha-butter-packages.trycloudflare.com](https://carried-yamaha-butter-packages.trycloudflare.com)
-- **API:** [https://brad-nature-retrieve-paradise.trycloudflare.com](https://brad-nature-retrieve-paradise.trycloudflare.com)
-- **Agent:** [https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent](https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent)
+- **UI:** [https://dryer-roses-handbags-question.trycloudflare.com](https://dryer-roses-handbags-question.trycloudflare.com)
+- **API:** [https://acdbentity-males-trains-cam.trycloudflare.com](https://acdbentity-males-trains-cam.trycloudflare.com)
+- **Agent:** [https://acdbentity-males-trains-cam.trycloudflare.com/api/agent](https://acdbentity-males-trains-cam.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
@@ -67,8 +67,8 @@ On Device B (laptop, phone, another Cursor):
 
 ```bash
 export TOKEN="paste-value-locally-not-in-chat"
-export AGENT_URL="https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent"
-export API_URL="https://brad-nature-retrieve-paradise.trycloudflare.com"
+export AGENT_URL="https://acdbentity-males-trains-cam.trycloudflare.com/api/agent"
+export API_URL="https://acdbentity-males-trains-cam.trycloudflare.com"
 ```
 
 **Auth headers:** `Authorization: Bearer $TOKEN` or `X-API-Key: $TOKEN`  
@@ -282,9 +282,9 @@ You are a remote operator for the UML-Pipeline Mac Studio server owned by Dipak 
 ## Connection (set in terminal — NEVER paste TOKEN into this chat)
 
 export TOKEN="<API_ACCESS_TOKEN from Mac Studio .env>"
-export AGENT_URL="https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent"
-export API_URL="https://brad-nature-retrieve-paradise.trycloudflare.com"
-export UI_URL="https://carried-yamaha-butter-packages.trycloudflare.com"
+export AGENT_URL="https://acdbentity-males-trains-cam.trycloudflare.com/api/agent"
+export API_URL="https://acdbentity-males-trains-cam.trycloudflare.com"
+export UI_URL="https://dryer-roses-handbags-question.trycloudflare.com"
 
 On the Mac Studio the token is obtained with:
   grep '^API_ACCESS_TOKEN=' /path/to/uml-generation-pipeline/.env
@@ -409,9 +409,9 @@ Poll the returned `task_id` until complete. The `result` field contains `status`
 ## Quick reference card
 
 ```
-UI:     https://carried-yamaha-butter-packages.trycloudflare.com
-API:    https://carried-yamaha-butter-packages.trycloudflare.com
-Agent:  https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent
+UI:     https://dryer-roses-handbags-question.trycloudflare.com
+API:    https://dryer-roses-handbags-question.trycloudflare.com
+Agent:  https://acdbentity-males-trains-cam.trycloudflare.com/api/agent
 
 Mac token:  grep '^API_ACCESS_TOKEN=' .env
 Export:     export TOKEN="$(grep '^API_ACCESS_TOKEN=' .env | cut -d= -f2-)"

@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://carried-yamaha-butter-packages.trycloudflare.com
+https://dryer-roses-handbags-question.trycloudflare.com
 
-UI:    https://carried-yamaha-butter-packages.trycloudflare.com
-API:   https://brad-nature-retrieve-paradise.trycloudflare.com
-Agent: https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent
+UI:    https://dryer-roses-handbags-question.trycloudflare.com
+API:   https://acdbentity-males-trains-cam.trycloudflare.com
+Agent: https://acdbentity-males-trains-cam.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-sourcecode-30k
 
-Updated: 2026-09-12 10:28 UTC
+Updated: 2026-09-16 00:57 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

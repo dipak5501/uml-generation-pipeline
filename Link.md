@@ -4,19 +4,19 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 
 ## Open from any device
 
-**Live UI:** [https://carried-yamaha-butter-packages.trycloudflare.com](https://carried-yamaha-butter-packages.trycloudflare.com)
+**Live UI:** [https://dryer-roses-handbags-question.trycloudflare.com](https://dryer-roses-handbags-question.trycloudflare.com)
 
 | Endpoint | URL |
 |----------|-----|
-| Public UI (browser, any network) | https://carried-yamaha-butter-packages.trycloudflare.com |
-| Public API (docs / exports) | https://brad-nature-retrieve-paradise.trycloudflare.com |
-| Remote command agent | https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent |
+| Public UI (browser, any network) | https://dryer-roses-handbags-question.trycloudflare.com |
+| Public API (docs / exports) | https://acdbentity-males-trains-cam.trycloudflare.com |
+| Remote command agent | https://acdbentity-males-trains-cam.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-09-12 10:28 UTC
+Updated: 2026-09-16 00:57 UTC
 
 ## Authentication
 
@@ -28,9 +28,9 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 | Endpoint | URL |
 |----------|-----|
-| Agent health (open) | `https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent/health` |
-| Submit command (auth) | `POST https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent/command` |
-| Task status (auth) | `GET https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent/tasks/{task_id}` |
+| Agent health (open) | `https://acdbentity-males-trains-cam.trycloudflare.com/api/agent/health` |
+| Submit command (auth) | `POST https://acdbentity-males-trains-cam.trycloudflare.com/api/agent/command` |
+| Task status (auth) | `GET https://acdbentity-males-trains-cam.trycloudflare.com/api/agent/tasks/{task_id}` |
 
 **Auth:** `Authorization: Bearer <API_ACCESS_TOKEN>` or `X-API-Key` (or dedicated `REMOTE_AGENT_TOKEN` from `.env` on this Mac — never commit).
 
@@ -38,8 +38,8 @@ Control this Mac Studio from any device (phone, laptop, another network).
 
 ```bash
 export TOKEN="your-token-from-env"
-curl -s "https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent/health" | python3 -m json.tool
-curl -s -X POST "https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent/command" \
+curl -s "https://acdbentity-males-trains-cam.trycloudflare.com/api/agent/health" | python3 -m json.tool
+curl -s -X POST "https://acdbentity-males-trains-cam.trycloudflare.com/api/agent/command" \
   -H "Authorization: Bearer $TOKEN" \
   -H "Content-Type: application/json" \
   -d '{"command":"health"}'

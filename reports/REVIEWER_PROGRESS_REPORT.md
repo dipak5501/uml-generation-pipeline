@@ -54,11 +54,11 @@ The paper describes **DeepSeek-R1-Distill-Qwen-32B** for Stage 2 PlantUML genera
 | Remote agent | `POST /api/agent/command` (Cursor SDK) |
 
 <!-- LIVE_DEMO_BEGIN -->
-**Live demo (as of 2026-09-12):**
+**Live demo (as of 2026-09-16):**
 
-- **UI:** [https://carried-yamaha-butter-packages.trycloudflare.com](https://carried-yamaha-butter-packages.trycloudflare.com)
-- **API:** [https://brad-nature-retrieve-paradise.trycloudflare.com](https://brad-nature-retrieve-paradise.trycloudflare.com)
-- **Agent:** [https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent](https://brad-nature-retrieve-paradise.trycloudflare.com/api/agent)
+- **UI:** [https://dryer-roses-handbags-question.trycloudflare.com](https://dryer-roses-handbags-question.trycloudflare.com)
+- **API:** [https://acdbentity-males-trains-cam.trycloudflare.com](https://acdbentity-males-trains-cam.trycloudflare.com)
+- **Agent:** [https://acdbentity-males-trains-cam.trycloudflare.com/api/agent](https://acdbentity-males-trains-cam.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.
 <!-- LIVE_DEMO_END -->
