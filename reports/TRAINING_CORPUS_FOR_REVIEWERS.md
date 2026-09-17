@@ -139,9 +139,25 @@ Runner: `scripts/run_finetune_resilient.sh` → `scripts/finetune_plantuml.py` �
 
 ---
 
+## 6. All-corpora merge train (in progress — not live)
+
+A single LoRA trained on **all usable on-disk corpora** (deduped) is underway so one adapter sees the combined data. Architecture still loads **one** Stage-2 path at a time (no ensemble).
+
+| Item | Value |
+|------|--------|
+| Merged parquet | `data/training/uml_training_all_merged.parquet` (**328,064** unique after `uml_code` hash dedupe) |
+| Finetune dir | `data/finetune_all/` |
+| New adapter | `models/uml-plantuml-lora-all` (warm-start from wild; **25k** iters) |
+| Live during train | still **`sourcecode-30k`** |
+| Full write-up | [`reports/TRAIN_ALL_CORPORA.md`](TRAIN_ALL_CORPORA.md) |
+| Promote after eval | `bash scripts/switch_live_adapter.sh models/uml-plantuml-lora-all` |
+
+---
+
 ## Pointers
 
 - Adapter docs: [`models/README.md`](../models/README.md)  
 - System design / data lake: [`docs/SYSTEM_DESIGN.md`](../docs/SYSTEM_DESIGN.md)  
 - Broader progress notes: [`reports/REVIEWER_PROGRESS_REPORT.md`](REVIEWER_PROGRESS_REPORT.md)  
+- All-corpora train: [`reports/TRAIN_ALL_CORPORA.md`](TRAIN_ALL_CORPORA.md)  
 - Live check: `curl -s http://127.0.0.1:8000/api/settings/health | python3 -m json.tool`

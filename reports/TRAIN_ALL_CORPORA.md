@@ -1,6 +1,6 @@
 # Train on all merged corpora (`uml-plantuml-lora-all`)
 
-**Status:** training in progress (or complete — check `data/training/all_corpora_train_chain.log`).  
+**Status:** training in progress — PID in `data/training/all_corpora_train_chain.pid`; logs `data/training/finetune_all.log` + `data/training/all_corpora_train_chain.log`.  
 **Live adapter unchanged:** `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k` until explicit promote after eval.
 
 ## Why not “all adapters live at once”
@@ -15,10 +15,12 @@ Stage-2 loads a **single** LoRA path. Architecture does not support multi-adapte
 | Manifest | `data/training/uml_training_all_merged_manifest.json` |
 | Rows before dedupe | 423,384 |
 | Rows after SHA1(`uml_code`) dedupe | **328,064** |
-| Finetune JSONL | `data/finetune_all/` |
+| Finetune JSONL | `data/finetune_all/` (493,184 usable after `--prefer-accepted` upsample; train 473,458 / valid 9,863 / test 9,863) |
 | Adapter (new) | `models/uml-plantuml-lora-all` |
 | Target iters | 25,000 |
 | Warm-start | `models/uml-plantuml-lora-wild` (18k completed; fallback sourcecode-30k) |
+| Train PID / log | see `data/training/all_corpora_train_chain.pid` · `data/training/finetune_all.log` |
+| ETA | ~2–4 h wall (≈2–6 it/sec historically; Metal hiccups extend) |
 
 ### Sources included (kept after dedupe)
 

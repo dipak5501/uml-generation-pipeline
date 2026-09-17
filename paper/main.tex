@@ -89,20 +89,20 @@ architecture, and implementation. Unified Modeling Language (UML) is
 one of the most widely adopted notations for expressing that
 communication, providing a standardized visual vocabulary for
 stakeholders to visualize system structure, modular decomposition, and
-inter-component relationships~\cite{booch2005,ambler2004}. In practice,
+inter-component relationships~\cite{booch2005},\cite{ambler2004}. In practice,
 however, UML modeling still requires substantial manual effort: analysts
 and developers must read textual requirements, infer relevant
 abstractions, determine suitable diagram types, and encode those
 decisions in a consistent notation. This process becomes especially
 difficult when requirements are informal, ambiguous, or frequently
-revised~\cite{shinde2012,maatuk2021,abdelnabi2020}.
+revised~\cite{shinde2012},\cite{maatuk2021},\cite{abdelnabi2020}.
 
 Recent advances in large language models (LLMs) have created new
 opportunities for automating requirement-driven software
-modeling~\cite{vaswani2017,brown2020}. Compared with earlier rule-based
+modeling~\cite{vaswani2017},\cite{brown2020}. Compared with earlier rule-based
 and NLP approaches, modern instruction-following models can extract
 higher-level semantics from free-form requirement text and produce
-structured artifacts with greater flexibility~\cite{meng2024,yuan2025}.
+structured artifacts with greater flexibility~\cite{meng2024},\cite{yuan2025}.
 Despite this progress, automated generation alone is not sufficient.
 A UML diagram may compile successfully yet still omit required entities,
 misuse semantic relationships, or present a structure that is visually
@@ -282,7 +282,7 @@ cross-modal consistency checking.}
 The design principle is \textit{task decomposition}: dividing the
 problem into smaller, analyzable stages reduces prompt complexity,
 simplifies debugging, and allows model-specific failures to be
-isolated at stage boundaries~\cite{wei2022, brown2020}.
+isolated at stage boundaries~\cite{wei2022},\cite{brown2020}.
 
 %% ── Stage 1 ───────────────────────────────────────────────────
 \subsection{Stage 1: Technical Specification Generation}
@@ -327,7 +327,7 @@ First, its instruction-tuned variant reliably follows
 structured-output prompts — a property confirmed in recent
 LLM-for-SE studies that applied LLaMA-family models to
 requirements-analysis and specification-generation
-tasks~\cite{jahan2024, bates2025}. Second, its compact parameter
+tasks~\cite{jahan2024},\cite{bates2025}. Second, its compact parameter
 count (1B) keeps per-specification inference cost low, critical when
 processing thousands of requirements at dataset-construction scale.
 Third, it is fully open-licensed, ensuring complete pipeline
@@ -367,7 +367,7 @@ space and improves output consistency. This prompt-decomposition
 strategy is grounded in Chain-of-Thought and multi-step prompting
 research, which shows that breaking complex tasks into sequential
 sub-tasks reduces error accumulation and improves reproducibility
-across model invocations~\cite{wei2022, brown2020}.
+across model invocations~\cite{wei2022},\cite{brown2020}.
 
 %% ── Stage 2 ───────────────────────────────────────────────────
 \subsection{Stage 2: PlantUML Synthesis}
