@@ -270,9 +270,6 @@ illustrates the end-to-end flow.
 
 \end{tikzpicture}%
 }
-\caption{End-to-end pipeline: natural-language requirements flow through spec generation (Stage~1), PlantUML synthesis (Stage~2), and rendering + verification (Stage~3). A VLM ensemble scores the rendered diagrams; MMMU-weighted scores and majority vote produce the final validated UML dataset. Feedback paths from the requirements and spec stages feed directly into the VLM ensemble for cross-modal alignment checking.}
-\label{fig:pipeline}
-\end{figure}
 \caption{Three-stage UML generation and multimodal verification
 pipeline. Natural-language requirements feed Stage~1 (structured
 specification), Stage~2 (PlantUML synthesis), and Stage~3 (rendering
