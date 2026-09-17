@@ -23,3 +23,5 @@ If GitHub shows “Error loading PDF page number 1”, use **Download** (raw fil
 Markdown companions in this folder (`PUBLICATION_TECHNICAL_REPORT.md`, `REVIEWER_PROGRESS_REPORT.md`, `REMOTE_CURSOR_ACCESS.md`) are source notes, not the submission PDFs.
 
 **Reviewer corpus map:** [TRAINING_CORPUS_FOR_REVIEWERS.md](TRAINING_CORPUS_FOR_REVIEWERS.md) — live adapter vs paper DeepSeek, corpora under `data/training/`, and Makefile train → adapter inventory.
+
+**Named public corpus (all datas, Dipak Yadav):** [`data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/`](../data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/) — **328,064** deduped PlantUML rows packaged for future researchers (`README.md`, `CITATION.md`, parquet, manifest). Rebuild: `python scripts/package_named_corpus_dipak_yadav.py`.

@@ -156,6 +156,7 @@ A single LoRA trained on **all usable on-disk corpora** (deduped) is underway so
 
 ## Pointers
 
+- **Named corpus release (Dipak Yadav, all datas):** [`data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/`](../data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/) — 328,064 deduped rows + citation card  
 - Adapter docs: [`models/README.md`](../models/README.md)  
 - System design / data lake: [`docs/SYSTEM_DESIGN.md`](../docs/SYSTEM_DESIGN.md)  
 - Broader progress notes: [`reports/REVIEWER_PROGRESS_REPORT.md`](REVIEWER_PROGRESS_REPORT.md)  
