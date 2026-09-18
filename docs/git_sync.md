@@ -16,17 +16,27 @@ This repo pushes safe local changes to [dipak5501/uml-generation-pipeline](https
 ## Setup
 
 1. Set `GH_TOKEN` in `.env` (GitHub PAT with **Contents: Read and write**).
-2. Install the periodic LaunchAgent (default every 45 minutes):
+2. Install the periodic LaunchAgents:
 
 ```bash
-bash scripts/install_git_sync.sh
+bash scripts/install_auto_sync.sh
 ```
 
-Optional: change interval (seconds), e.g. 30 minutes:
+This installs:
+- `com.uml.pipeline.tunnel-monitor` — every **4 min**: health-check tunnels, refresh Link, push GitHub URLs
+- `com.uml.pipeline.git-sync` — every **60 min**: commit + push safe code/doc drift
+- `com.uml.pipeline.hourly-watchdog` — every **60 min**: full stack analyze (API/UI/adapter/tunnels), recover if needed, force GitHub Link sync; writes `data/run/hourly_watchdog_status.md`
+
+Optional: change intervals (seconds):
 
 ```bash
-GIT_SYNC_INTERVAL_SEC=1800 bash scripts/install_git_sync.sh
+TUNNEL_MONITOR_INTERVAL_SEC=240 \
+GIT_SYNC_INTERVAL_SEC=3600 \
+HOURLY_WATCHDOG_INTERVAL_SEC=3600 \
+  bash scripts/install_auto_sync.sh
 ```
+
+**While locking the Mac:** keep the Dipak Yadav account **logged in** (screen lock is fine). Do **not** Log Out — user LaunchAgents stop on full logout. `com.uml.pipeline.caffeinate` prevents idle sleep.
 
 When Cloudflare **quick tunnels** rotate, `scripts/tunnel_notify.py` rewrites `Link`, `Link.md`, and the marked Live demo blocks, then `scripts/git_push_live_urls.sh` **always pushes those URL files to `origin/main`**, even if the Mac checkout is on another branch. That is separate from `git_auto_push.sh` (which still skips when not on `main`, and runs pytest).
 
@@ -52,7 +62,11 @@ bash scripts/install_auto_sync.sh
 
 Installs:
 - `com.uml.pipeline.tunnel-monitor` — every 4 min: health-check tunnels, refresh Link, push GitHub
-- `com.uml.pipeline.git-sync` — every 45 min: commit + push any safe drift
+- `com.uml.pipeline.git-sync` — every 60 min: commit + push any safe drift
+- `com.uml.pipeline.hourly-watchdog` — every 60 min: analyze + recover + GitHub Link sync (lock-safe)
+
+Manual hourly check: `bash scripts/hourly_lock_watchdog.sh`  
+Status: `data/run/hourly_watchdog_status.md`
 
 ## Cursor / agent workflow
 

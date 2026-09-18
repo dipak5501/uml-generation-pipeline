@@ -326,11 +326,16 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
             "",
             "Safe changes push to "
             "[github.com/dipak5501/uml-generation-pipeline](https://github.com/dipak5501/uml-generation-pipeline) "
-            "automatically (~45 min LaunchAgent + after every tunnel/Link update).",
+            "automatically (~4 min tunnel monitor + hourly watchdog/git-sync + after every "
+            "tunnel/Link update).",
             "",
+            "- Manual full hourly check: `bash scripts/hourly_lock_watchdog.sh`",
             "- Manual full sync: `bash scripts/auto_sync_all.sh`",
             "- Git only: `bash scripts/git_auto_push.sh`",
             "- See [docs/git_sync.md](docs/git_sync.md)",
+            "",
+            "**Locking the Mac:** screen lock is fine. Keep this user logged in — "
+            "**do not Log Out**.",
             "",
         ]
     )

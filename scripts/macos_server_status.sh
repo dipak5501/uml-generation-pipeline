@@ -9,6 +9,7 @@ LABELS=(
   com.uml.pipeline.tunnels
   com.uml.pipeline.tunnel-monitor
   com.uml.pipeline.git-sync
+  com.uml.pipeline.hourly-watchdog
   com.uml.pipeline.gdrive-backup
   com.uml.pipeline.caffeinate
   com.uml.pipeline.ollama24
@@ -33,6 +34,12 @@ echo
 echo "--- public URLs ---"
 [ -f "$ROOT/data/run/public_ui_url.txt" ] && echo "UI:  $(cat "$ROOT/data/run/public_ui_url.txt")" || echo "UI:  (none yet)"
 [ -f "$ROOT/data/run/public_api_url.txt" ] && echo "API: $(cat "$ROOT/data/run/public_api_url.txt")" || echo "API: (none yet)"
+echo "--- hourly watchdog ---"
+if [ -f "$ROOT/data/run/hourly_watchdog_status.md" ]; then
+  head -n 16 "$ROOT/data/run/hourly_watchdog_status.md"
+else
+  echo "(no hourly status yet — install: bash scripts/install_hourly_watchdog.sh)"
+fi
 echo "--- processes ---"
 pgrep -lf 'uvicorn app.main|streamlit run|cloudflared tunnel|caffeinate|ollama serve' 2>/dev/null | head -20 || true
 echo "--- reminder ---"
