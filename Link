@@ -1,16 +1,16 @@
 Open this URL from any device / any network (Mac Studio server):
 
-https://activation-famous-restaurant-cds.trycloudflare.com
+https://recommendation-arizona-minimum-welding.trycloudflare.com
 
-UI:    https://activation-famous-restaurant-cds.trycloudflare.com
-API:   https://captain-mountain-counted-meters.trycloudflare.com
-Agent: https://captain-mountain-counted-meters.trycloudflare.com/api/agent
+UI:    https://recommendation-arizona-minimum-welding.trycloudflare.com
+API:   https://mariah-scored-top-stronger.trycloudflare.com
+Agent: https://mariah-scored-top-stronger.trycloudflare.com/api/agent
 
 Local (this Mac only):
   UI  http://127.0.0.1:8501
   API http://127.0.0.1:8000
-Adapter: models/uml-plantuml-lora-sourcecode-30k
+Adapter: models/uml-plantuml-lora-all
 
-Updated: 2026-09-16 09:06 UTC
+Updated: 2026-09-18 19:14 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

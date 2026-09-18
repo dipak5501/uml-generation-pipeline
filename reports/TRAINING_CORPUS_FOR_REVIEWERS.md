@@ -26,22 +26,23 @@ Verified from `.env` and live `GET /api/settings/health` on this Mac Studio:
 | Field | Value |
 |-------|--------|
 | `USE_FINETUNED_CODE` | `true` |
-| Live adapter path | **`models/uml-plantuml-lora-sourcecode-30k`** |
+| Live adapter path | **`models/uml-plantuml-lora-all`** |
 | Health `provider` | `finetuned-mlx` (`spec/VLM=ollama · code=finetuned-mlx`) |
 | Adapter present | yes |
 | Base model | `mlx-community/Qwen2.5-0.5B-Instruct-4bit` |
-| Train recipe | `make train-source30k` |
-| Iters completed | **6,000** (`finetune_meta.json`) |
-| Adapter file date | **2026-08-27** |
-| Warm-start | Copied from `models/uml-plantuml-lora-200k` before the 6k run |
+| Train recipe | all-corpora merge → `make`-style resilient LoRA (`reports/TRAIN_ALL_CORPORA.md`) |
+| Iters completed | **25,000** (`finetune_meta.json`) |
+| Adapter promote date | **2026-09-18** (prior live was sourcecode-30k) |
+| Warm-start | From `models/uml-plantuml-lora-wild` |
 
 **Corpus the production adapter maps to**
 
 | Layer | Artifact | Approx. *n* | Role |
 |-------|----------|-------------|------|
-| Focus (named “sourcecode-30k”) | `data/training/uml_source_code_30k_jpc.parquet` | **30,000** | 10k Java + 10k Python + 10k C |
-| Finetune input (actual JSONL source) | `data/training/uml_training_combined_sourcecode_30k.parquet` | **224,349** | 30k JPC **merged with** prior 200k combined corpus |
-| Manifest | `data/training/language_source_manifest.json` | — | Per-language sources |
+| Named release | `data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/` | **328,064** | Deduped all-corpora package |
+| Finetune input | `data/training/uml_training_all_merged.parquet` | **328,064** | SHA1(`uml_code`) merge of sourcecode-30k + Wild + industrial + adaptation |
+| JSONL | `data/finetune_all/` | ~493k usable (prefer-accepted upsample) | Train/valid/test for `uml-plantuml-lora-all` |
+| Prior live focus | `uml_source_code_30k_jpc` / combined sourcecode-30k | 30k / 224k | Still on disk; rollback adapter `uml-plantuml-lora-sourcecode-30k` |
 
 **30k focus sources** (`language_source_manifest.json`):
 
@@ -60,7 +61,8 @@ API generation types remain **class / object / component / package** (flowchart 
 
 | Adapter path | Train command | Corpus (approx *n*) | Iters | Status / date |
 |--------------|---------------|---------------------|-------|---------------|
-| **`uml-plantuml-lora-sourcecode-30k`** | **`make train-source30k`** | 30k JPC + merge → **224k** combined parquet | 6,000 | **PRODUCTION** · 2026-08-27 |
+| **`uml-plantuml-lora-all`** | all-corpora resilient train | Merged **328,064** (`uml_training_all_merged.parquet`) | 25,000 | **PRODUCTION** · promoted 2026-09-18 |
+| `uml-plantuml-lora-sourcecode-30k` | `make train-source30k` | 30k JPC + merge → **224k** combined parquet | 6,000 | Prior production · 2026-08-27 |
 | `uml-plantuml-lora-200k` | `make train-200k` | Combined **202,445** (`uml_training_combined_200k.parquet`) | 20,000 | Complete · 2026-08-26 · warm-start parent |
 | `uml-plantuml-lora-100k` | `make train-100k` | Combined **62,445** (`uml_training_combined_100k.parquet`; target was ≥100k with upsampling) | 18,000 | Complete · 2026-08-26 · superseded |
 | `uml-plantuml-lora-50k` | `make train-50k` | Supplement merged **54,207** (from 50k HF/web + scenario/code) | 15,000 | Complete · 2026-08-26 · superseded |

@@ -4,6 +4,8 @@ Apple Silicon training and inference for Stage 2 PlantUML generation. Spec and V
 
 Full data design: [docs/SYSTEM_DESIGN.md](../docs/SYSTEM_DESIGN.md#8-data-lake-and-training-design)
 
+**Named all-corpora release (Dipak Yadav):** [`data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/`](../data/corpora/Dipak_Yadav_UML_PlantUML_All_Corpus_v1/) — 328,064 deduped PlantUML rows for future researchers.
+
 ---
 
 ## Adapter inventory
@@ -15,16 +17,20 @@ Full data design: [docs/SYSTEM_DESIGN.md](../docs/SYSTEM_DESIGN.md#8-data-lake-a
 | `models/uml-plantuml-lora-100k` | 102k merged (50k HF + 50k source-code) | 18,000 | Complete |
 | `models/uml-plantuml-lora-200k` | 224k combined + v2 web top-up | 20,000 | Complete |
 | `models/uml-plantuml-lora-source10k` | 10k Java/Python/C (interim) | 4,000 | Superseded |
-| `models/uml-plantuml-lora-sourcecode-30k` | 30k Java/Python/C (10k each) + 200k base merge | 6,000 | **Production default** |
+| `models/uml-plantuml-lora-sourcecode-30k` | 30k Java/Python/C (10k each) + 200k base merge | 6,000 | Previous production |
+| `models/uml-plantuml-lora-wild` | UML-in-the-Wild app slice (+ lineage) | 18,000 | Complete · not live |
+| `models/uml-plantuml-lora-all` | All merged corpora **328,064** unique UML | 25,000 | **Production default** |
 
 Base model (all adapters): `mlx-community/Qwen2.5-0.5B-Instruct-4bit`
 
 Production `.env`:
 
 ```bash
-FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k
+FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-all
 bash scripts/restart_api.sh
 ```
+
+Rollback to sourcecode-30k: `bash scripts/switch_live_adapter.sh models/uml-plantuml-lora-sourcecode-30k`
 
 ---
 

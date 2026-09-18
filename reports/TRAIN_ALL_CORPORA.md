@@ -1,7 +1,7 @@
 # Train on all merged corpora (`uml-plantuml-lora-all`)
 
 **Status:** **complete** — `models/uml-plantuml-lora-all` reached **25,000** iters (`finetune_meta.json`: `iters_completed=25000`).  
-**Live adapter unchanged:** `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-sourcecode-30k` until explicit promote after eval.
+**Live adapter:** `FINETUNED_ADAPTER_PATH=models/uml-plantuml-lora-all` (promoted 2026-09-18). Rollback: `bash scripts/switch_live_adapter.sh models/uml-plantuml-lora-sourcecode-30k`.
 
 ## Why not “all adapters live at once”
 
