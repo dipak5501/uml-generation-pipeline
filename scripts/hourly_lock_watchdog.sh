@@ -65,7 +65,9 @@ bash "$ROOT/scripts/git_push_live_urls.sh" >>/tmp/uml-git-live-urls.log 2>&1 || 
 GIT_URL_STATUS="$(tr '\n' ' ' <"$RUN_DIR/github_url_push.status" 2>/dev/null || echo unknown)"
 
 GIT_AUTO_MSG="skipped"
-if [ "${UML_HOURLY_SKIP_GIT_AUTO:-0}" != "1" ]; then
+# Default skip: git-sync LaunchAgent already commits safe drift hourly.
+# Set UML_HOURLY_SKIP_GIT_AUTO=0 to also run pytest-gated auto-push here.
+if [ "${UML_HOURLY_SKIP_GIT_AUTO:-1}" = "0" ]; then
   if bash "$ROOT/scripts/git_auto_push.sh" >>"$LOG_FILE" 2>&1; then
     GIT_AUTO_MSG="ok"
   else

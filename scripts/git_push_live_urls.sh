@@ -26,8 +26,20 @@ write_status() {
 
 mkdir -p "$ROOT/data/run"
 # Portable lock (macOS has no flock). mkdir is atomic.
+# Drop stale locks older than 10 minutes (crashed prior push).
+if [ -d "$LOCK_DIR" ]; then
+  age=99999
+  if stat_mtime="$(stat -f %m "$LOCK_DIR" 2>/dev/null)"; then
+    now="$(date +%s)"
+    age=$((now - stat_mtime))
+  fi
+  if [ "$age" -gt 600 ]; then
+    log "Removing stale live-url push lock (age=${age}s)"
+    rm -rf "$LOCK_DIR"
+  fi
+fi
 acquired=0
-for _ in $(seq 1 180); do
+for _ in $(seq 1 60); do
   if mkdir "$LOCK_DIR" 2>/dev/null; then
     acquired=1
     break
