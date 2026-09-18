@@ -9,14 +9,15 @@ This **Mac Studio** runs the always-on UML-Pipeline server. Keep the **Dipak Yad
 | Endpoint | URL |
 |----------|-----|
 | Public UI (browser, any network) | https://recommendation-arizona-minimum-welding.trycloudflare.com |
-| Public API (docs / exports) | https://mariah-scored-top-stronger.trycloudflare.com |
+| Public API (Swagger docs) | https://mariah-scored-top-stronger.trycloudflare.com/docs |
+| Public API base (curl / clients) | https://mariah-scored-top-stronger.trycloudflare.com |
 | Remote command agent | https://mariah-scored-top-stronger.trycloudflare.com/api/agent |
 | Local Streamlit (this Mac) | http://127.0.0.1:8501 |
 | Local FastAPI (this Mac) | http://127.0.0.1:8000 |
 
 Quick-tunnel URLs **change every time tunnels restart**. Auto-updated by `scripts/tunnel_notify.py` whenever tunnels publish. Canonical copies: `data/run/public_ui_url.txt` and `data/run/public_api_url.txt`.
 
-Updated: 2026-09-18 19:14 UTC
+Updated: 2026-09-18 19:29 UTC
 
 ## Authentication
 

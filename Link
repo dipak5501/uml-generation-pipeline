@@ -3,7 +3,7 @@ Open this URL from any device / any network (Mac Studio server):
 https://recommendation-arizona-minimum-welding.trycloudflare.com
 
 UI:    https://recommendation-arizona-minimum-welding.trycloudflare.com
-API:   https://mariah-scored-top-stronger.trycloudflare.com
+API:   https://mariah-scored-top-stronger.trycloudflare.com/docs
 Agent: https://mariah-scored-top-stronger.trycloudflare.com/api/agent
 
 Local (this Mac only):
@@ -11,6 +11,6 @@ Local (this Mac only):
   API http://127.0.0.1:8000
 Adapter: models/uml-plantuml-lora-all
 
-Updated: 2026-09-18 19:14 UTC
+Updated: 2026-09-18 19:29 UTC
 URLs change when Cloudflare quick tunnels restart.
 Canonical files: data/run/public_ui_url.txt  data/run/public_api_url.txt

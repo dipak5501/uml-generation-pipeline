@@ -48,15 +48,21 @@ def _clean_url(url: str) -> str:
 
 def _links_current(ui: str, api: str) -> bool:
     """True when Link files and live-demo doc blocks already contain both public URLs."""
+    api_docs = f"{api.rstrip('/')}/docs"
     for path in (LINK_FILE, LINK_MD_FILE, *LIVE_DEMO_FILES):
         if not path.is_file():
             return False
         text = path.read_text(encoding="utf-8")
         if ui not in text or api not in text:
             return False
+        # Human-facing API entry should point at Swagger, not bare JSON root.
+        if path in (LINK_FILE, LINK_MD_FILE) and api_docs not in text:
+            return False
         if path in LIVE_DEMO_FILES and (
             LIVE_DEMO_BEGIN not in text or LIVE_DEMO_END not in text
         ):
+            return False
+        if path in LIVE_DEMO_FILES and api_docs not in text:
             return False
     return True
 
@@ -72,7 +78,7 @@ def live_demo_markdown(ui_url: str, api_url: str, *, link_md_rel: str, as_of: st
             f"**Live demo (as of {as_of}):**",
             "",
             f"- **UI:** [{ui}]({ui})",
-            f"- **API:** [{api}]({api})",
+            f"- **API docs:** [{api}/docs]({api}/docs)",
             f"- **Agent:** [{agent}]({agent})",
             "",
             "Quick-tunnel URLs rotate on restart. This block is rewritten by "
@@ -252,7 +258,7 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
                 ui,
                 "",
                 f"UI:    {ui}",
-                f"API:   {api}",
+                f"API:   {api}/docs",
                 f"Agent: {agent}",
                 "",
                 "Local (this Mac only):",
@@ -283,7 +289,8 @@ def write_link_files(ui_url: str, api_url: str) -> bool:
         "| Endpoint | URL |",
         "|----------|-----|",
         f"| Public UI (browser, any network) | {ui} |",
-        f"| Public API (docs / exports) | {api} |",
+        f"| Public API (Swagger docs) | {api}/docs |",
+        f"| Public API base (curl / clients) | {api} |",
         f"| Remote command agent | {agent} |",
         "| Local Streamlit (this Mac) | http://127.0.0.1:8501 |",
         "| Local FastAPI (this Mac) | http://127.0.0.1:8000 |",

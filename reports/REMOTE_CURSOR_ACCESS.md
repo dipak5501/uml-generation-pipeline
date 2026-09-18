@@ -2,7 +2,7 @@
 
 **For:** Dipak Yadav  
 **Server:** Mac Studio (always-on UML-Pipeline)  
-**Updated:** 2026-09-18 19:14 UTC
+**Updated:** 2026-09-18 19:29 UTC
 **Repo:** https://github.com/dipak5501/uml-generation-pipeline
 
 ---
@@ -13,7 +13,7 @@
 **Live demo (as of 2026-09-18):**
 
 - **UI:** [https://recommendation-arizona-minimum-welding.trycloudflare.com](https://recommendation-arizona-minimum-welding.trycloudflare.com)
-- **API:** [https://mariah-scored-top-stronger.trycloudflare.com](https://mariah-scored-top-stronger.trycloudflare.com)
+- **API docs:** [https://mariah-scored-top-stronger.trycloudflare.com/docs](https://mariah-scored-top-stronger.trycloudflare.com/docs)
 - **Agent:** [https://mariah-scored-top-stronger.trycloudflare.com/api/agent](https://mariah-scored-top-stronger.trycloudflare.com/api/agent)
 
 Quick-tunnel URLs rotate on restart. This block is rewritten by `scripts/tunnel_notify.py` whenever tunnels publish (GitHub is updated via `scripts/git_auto_push.sh`). Always-current copy: [../Link.md](../Link.md). On the Mac Studio: `data/run/public_ui_url.txt`, `data/run/public_api_url.txt`.

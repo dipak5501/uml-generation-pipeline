@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import RedirectResponse
 
 from app.db import init_db
 from app.routers import agent, analytics, artifacts, copilot, generate, human_review, thesis
@@ -67,10 +68,15 @@ app.include_router(copilot.router)
 
 
 @app.get("/")
-def root():
+def root(request: Request):
+    """Browsers land on Swagger UI; API clients still get the JSON index."""
+    accept = (request.headers.get("accept") or "").lower()
+    if "text/html" in accept:
+        return RedirectResponse(url="/docs", status_code=307)
     return {
         "name": get_settings().app_name,
         "docs": "/docs",
         "health": "/api/settings/health",
         "remote_agent": "/api/agent/health",
+        "hint": "Open /docs in a browser for the interactive API. Root JSON is for clients.",
     }

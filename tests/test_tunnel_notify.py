@@ -25,7 +25,9 @@ def test_live_demo_markdown_contains_current_urls():
     assert tn.LIVE_DEMO_BEGIN in block and tn.LIVE_DEMO_END in block
     assert f"**Live demo (as of 2026-08-31):**" in block
     assert ui in block and api in block
+    assert f"{api}/docs" in block
     assert f"{api}/api/agent" in block
+    assert "**API docs:**" in block
     assert "[Link.md](Link.md)" in block
 
 
